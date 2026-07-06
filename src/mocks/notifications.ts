@@ -1,0 +1,16 @@
+import { AppNotification } from '../types';
+export const mockNotifications: AppNotification[] = [
+  { id: 'n1', kind: 'contradiction', symbol: '000660', thesisId: 'th-1', time: '2026-07-06T09:12:00+09:00',
+    headline: '경영진은 "수요 견조"를 발표했지만, 재고자산이 전분기 대비 +34% 증가했습니다.',
+    detail: '발언과 재무 데이터가 서로 다른 방향을 가리킵니다. 다음 실적 발표에서 재고 소진 여부를 확인하세요.',
+    sources: 'DART 분기보고서 · 컨퍼런스콜 녹취', thesisImpact: -4 },
+  { id: 'n2', kind: 'contradiction', symbol: '042700', time: '2026-07-06T08:40:00+09:00',
+    headline: '주가는 +34% 상승했지만, 영업이익 추정치는 3주째 하향되고 있습니다.',
+    sources: '컨센서스 추적 · 가격-펀더멘털 괴리' },
+  { id: 'n3', kind: 'reinforcement', symbol: '000660', thesisId: 'th-1', time: '2026-07-06T08:02:00+09:00',
+    headline: 'HBM 출하량 QoQ +24%로 가설 3번(HBM 매출 비중 증가)의 근거가 강화되었습니다.' },
+  { id: 'n4', kind: 'event', symbol: '006400', time: '2026-07-05T16:44:00+09:00',
+    headline: '북미 신규 수주 공시. 다만 계약 규모는 연매출 대비 2.1%로 제한적입니다.', sources: 'DART 공시 원문 · 중요도 중' },
+  { id: 'n5', kind: 'regime', time: '2026-07-05T15:30:00+09:00',
+    headline: "변동성 지표가 3일 연속 상승. '저변동성 상승 국면' 유지 확률이 88% → 74%로 낮아졌습니다." },
+];

@@ -23,6 +23,29 @@ export interface MarketRegime {
   sentiment: string;
   volatility: string;
   asOf: string;              // ISO datetime — ALWAYS displayed
+  // P1 표시 필드 (디자인 프레임 01 히어로)
+  en?: string;               // 'Low-Volatility Uptrend · 신뢰도 안정'
+  summary?: string;          // AI 시장 요약 문단
+  confidence?: number;       // 국면 신뢰도 0..1
+  riskNote?: string;         // 'VIX 14.2 ▼'
+  sentimentTrend?: string;   // '▲ 전일 +4'
+  volatilityNote?: string;   // '20D 11.3%'
+  indexLabel?: string;       // 'KOSPI 2,894'
+}
+
+// 프레임 01 — 내 포트폴리오 영향 알림 (Market Brain)
+export interface PortfolioImpactNotice {
+  headline: string;          // '보유 종목 중 3개가 오늘 원/달러 환율 하락(−1.2%)에 노출...'
+  symbols: { symbol: string; name: string }[];
+}
+
+// 프레임 01 — AI 이상 신호
+export interface AnomalySignal {
+  id: string;
+  symbol?: string;
+  name: string;
+  sigma: number;             // 3.2
+  note: string;
 }
 
 export interface HealthArea {
@@ -40,11 +63,39 @@ export interface CompanyHealth {
   upsideDrivers: string[];
   downsideRisks: string[];
   asOf: string;
+  // P1 표시 필드 (디자인 프레임 02)
+  totalTrend?: Trend;        // 기업 상태 ▲ +3 (7D)
+  riskLevel?: Severity;      // 위험 수준 셀
+  riskNote?: string;         // '변동성 ↑'
+  summary?: string;          // AI 기업 요약 문장
+  changeNote?: string;       // '변화 원인 · 모멘텀 점수가 ... +9 상승'
+}
+
+// 프레임 02 — 기업 관계 네트워크 (P1: 고정 좌표 기반)
+export interface NetworkNode {
+  id: string;
+  label: string;
+  group: 'customer' | 'supplier' | 'competitor' | 'product' | 'macro' | 'market';
+  sub?: string;              // '핵심 고객' 등 보조 라벨
+}
+export interface NetworkEdge {
+  from: string;
+  to: string;
+  weight: number;            // 의존도 0..1 — 엣지 굵기
+  note?: string;             // '매출 의존도 추정 28% · 경로: ...'
+  emphasized?: boolean;
+}
+export interface CompanyNetwork {
+  center: { id: string; label: string };
+  nodes: NetworkNode[];
+  edges: NetworkEdge[];
 }
 
 export interface CompanyEvent {
   id: string;
   symbol: string;
+  /** 해외/거시 이벤트가 파급되는 국내 종목 — 탭 시 해당 Company Twin으로 이동 */
+  relatedSymbol?: string;
   kind: 'filing'|'news'|'earnings'|'contract'|'management'|'macro';
   date: string;
   direction: Direction;
@@ -100,17 +151,48 @@ export interface InvestmentThesis {
 export interface Scenario {
   id: string;
   rawQuery: string;          // '원/달러 환율이 10% 하락하면?'
-  parsed: { variable: string; from: string; to: string; horizon: string };
+  parsed: {
+    variable: string;
+    from: string;
+    to: string;
+    horizon: string;
+    impactItems?: string;    // '수출매출 · 외화부채'
+  };
   templateId?: string;
+  symbol?: string;           // 분석 대상 종목
+  title?: string;            // 결과 헤더 타이틀 '환율 −10%'
+  badge?: string;            // 대상 변수 배지 'USD/KRW 1,280'
+  parseConfidence?: number;  // 인식 신뢰도 0..1
 }
+
+// 프레임 03 — 빠른 시나리오 템플릿 (선택 시 입력+구조화 동시 변경)
+export interface ScenarioTemplate {
+  id: string;
+  label: string;             // '환율'
+  valueLabel: string;        // '−10%'
+  rawQuery: string;          // 입력창에 채울 자연어
+  parsed: Scenario['parsed'];
+  title: string;
+  badge: string;
+}
+
 export interface ScenarioDelta { label: string; before: string | number; after: string | number; direction: Direction; }
+export interface ScenarioImpactItem {
+  label: string;             // '영업이익'
+  pct: number;               // 바 크기 0..1
+  valueText: string;         // '−8.4%' | '혼합'
+  direction: Direction;
+}
 export interface ScenarioResult {
   scenarioId: string;
   symbol?: string;           // or portfolio-wide
   conclusion: string;        // 1-2문장 AI 핵심 결론 — 화면 최상단
   transmissionPath: { step: string; effect: string; direction: Direction }[];
+  transmissionNote?: string; // 경로 아래 보조 설명
   deltas: ScenarioDelta[];   // 상태 74→63, 초과수익 61%→49% ...
+  impacts?: ScenarioImpactItem[]; // 영향받는 재무 항목
   affectedCompanies: { symbol: string; name: string; impact: string; direction: Direction }[];
+  portfolioImpact?: { summary: string; exposureLabel: string; exposurePct: number };
   confidence: Confidence;
   asOf: string;
 }

@@ -27,5 +27,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.panel,
     borderWidth: 1,
     padding: spacing.panelPad,
+    // 디자인 .panel { margin-bottom: var(--gap) } — 패널 간 기본 간격
+    marginBottom: spacing.gap,
   },
 });

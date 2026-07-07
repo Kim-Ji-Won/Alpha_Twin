@@ -24,6 +24,8 @@ export interface AppScreenProps {
   padded?: boolean;
   /** safe area edges — tab screens exclude 'bottom' (tab bar owns it) */
   edges?: Edges;
+  /** 하단 상주 탭 바 (상세 화면용 StaticTabBar) — 전달 시 edges에서 'bottom' 제외할 것 */
+  tabBar?: React.ReactNode;
   style?: ViewStyle;
   contentStyle?: ViewStyle;
 }
@@ -49,6 +51,7 @@ export function AppScreen({
   keyboardAvoid = false,
   padded = true,
   edges = ['top', 'left', 'right', 'bottom'],
+  tabBar,
   style,
   contentStyle,
 }: AppScreenProps) {
@@ -82,6 +85,7 @@ export function AppScreen({
       <SafeAreaView style={styles.fill} edges={edges}>
         {body}
       </SafeAreaView>
+      {tabBar}
     </View>
   );
 }

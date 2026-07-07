@@ -11,7 +11,7 @@ import { colors, spacing } from '@/src/theme';
 import { TABS } from '@/src/constants/navigation';
 import { font } from '@/lib/fonts';
 
-type TabName = (typeof TABS)[number]['name'];
+export type TabName = (typeof TABS)[number]['name'];
 
 function TabIcon({ name, color }: { name: TabName; color: string }) {
   const common = {
@@ -60,20 +60,25 @@ function TabIcon({ name, color }: { name: TabName; color: string }) {
   }
 }
 
-export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
+// 순수 렌더 — Tabs 내비게이터(BottomTabBar)와 상세 화면 상주 바(StaticTabBar) 공용
+export function TabBarView({
+  activeName,
+  onNavigate,
+}: {
+  activeName: TabName | null;
+  onNavigate: (name: TabName) => void;
+}) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       {TABS.map(tab => {
-        const routeIndex = state.routes.findIndex(r => r.name === tab.name);
-        if (routeIndex === -1) return null;
-        const active = state.index === routeIndex;
+        const active = tab.name === activeName;
         const color = active ? colors.accent : colors.dim;
         return (
           <Pressable
             key={tab.name}
             onPress={() => {
-              if (!active) navigation.navigate(tab.name);
+              if (!active) onNavigate(tab.name);
             }}
             accessibilityRole="tab"
             accessibilityLabel={`${tab.label} 탭`}
@@ -89,6 +94,11 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
       })}
     </View>
   );
+}
+
+export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
+  const activeName = (state.routes[state.index]?.name ?? null) as TabName | null;
+  return <TabBarView activeName={activeName} onNavigate={name => navigation.navigate(name)} />;
 }
 
 const styles = StyleSheet.create({

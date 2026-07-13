@@ -16,6 +16,8 @@ interface AppState extends AppFlags {
   completeOnboarding: () => void;
   signIn: () => void;
   signOut: () => void;
+  /** P2: 설정 → 온보딩 다시 보기 */
+  resetOnboarding: () => void;
 }
 
 const DEFAULT_FLAGS: AppFlags = { onboardingDone: false, loggedIn: false };
@@ -54,6 +56,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       completeOnboarding: () => update({ onboardingDone: true }),
       signIn: () => update({ loggedIn: true }),
       signOut: () => update({ loggedIn: false }),
+      resetOnboarding: () => update({ onboardingDone: false }),
     }),
     [flags, ready, update],
   );

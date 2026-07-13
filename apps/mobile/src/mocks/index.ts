@@ -7,3 +7,5 @@ export * from './portfolio';
 export * from './ai';
 export * from './notifications';
 export * from './management';
+export * from './discover';
+export * from './profile';

@@ -198,7 +198,14 @@ export interface ScenarioResult {
 }
 
 export interface RiskFactor { label: string; exposure: number; severity: Severity; linkedSymbols: string[]; }
-export interface PortfolioHolding { symbol: string; name: string; qty: number; avgPrice: number; note?: string; }
+export interface PortfolioHolding {
+  symbol: string;
+  name: string;
+  qty: number;
+  avgPrice: number;
+  note?: string;         // 매수 이유 — 논제 작성 유도 (프레임 20)
+  purchasedAt?: string;  // 매입일 (YYYY-MM-DD, 선택)
+}
 export interface Portfolio {
   totalValue: number;
   holdings: PortfolioHolding[];
@@ -234,6 +241,7 @@ export interface Evidence {
 export interface AIAnalysis {
   id: string;
   question: string;
+  symbol?: string;           // 관련 종목 — Company Twin/Thesis 이동용
   conclusion: string;        // bold 핵심 결론
   keyReasons: string;
   counterCase: string;       // 반대 가능성 — 필수 섹션
@@ -244,7 +252,8 @@ export interface AIAnalysis {
 
 export interface AppNotification {
   id: string;
-  kind: 'contradiction'|'reinforcement'|'event'|'regime';
+  // P2 확장: risk(위험 경고) · data(데이터 업데이트) 추가 — 알림 설정 6종과 1:1
+  kind: 'contradiction'|'reinforcement'|'event'|'regime'|'risk'|'data';
   symbol?: string;
   thesisId?: string;
   time: string;
@@ -252,20 +261,77 @@ export interface AppNotification {
   detail?: string;
   sources?: string;
   thesisImpact?: number;     // -4 등
+  importance?: Severity;     // 알림 중요도
+  evidenceCount?: number;    // 관련 근거 수
+  read?: boolean;            // 읽음 상태 — 서비스가 로컬 저장과 병합해 반환
 }
 
 export interface ManagementCommitment {
   text: string;
   status: 'achieved'|'delayed'|'withdrawn';
   note: string;              // '4Q25' | '2분기 지연'
+  announcedQ?: string;       // 발표 분기
+  resultQ?: string;          // 결과 확인 분기
+  source?: string;           // 관련 출처 (컨퍼런스콜/공시)
 }
 export interface ManagementRecord {
   symbol: string;
   fulfillmentRate: number;   // 0.64
   quarters: number;
   peerAverage: number;
+  goalsTracked?: number;     // 추적한 목표 수 (표시는 대표 기록만)
+  statusCounts?: { achieved: number; delayed: number; withdrawn: number };
   commitments: ManagementCommitment[];
   languageShift: { assertive: number; conditional: number; note: string }; // QoQ %p
   guidanceConsistency: { label: string; rate: number }[];
+  asOf?: string;             // 데이터 기준일
   // 톤 주의: 평가/비난이 아닌 발언-실적 일치 '기록'
+}
+
+// ── P2 — Discover (프레임 08) ─────────────────────────────────────────────
+export interface DiscoverSignal {
+  id: string;
+  symbol?: string;           // 실제 종목이면 Company Twin 이동 가능
+  name: string;
+  sector: string;
+  badge: string;             // '수급 이상 · 3.2σ' | '괴리 확대'
+  tone: 'accent' | 'warn' | 'neg' | 'pos';
+  title: string;             // 'LS일렉트릭 — 뉴스 없는 대량 매집'
+  detail: string;            // 감지 이유
+  recommendReason: string;   // 개인화: 내 포트폴리오/논제와의 관련성
+}
+export interface IndustryTwin {
+  name: string;              // '반도체 · 업황 회복 중반'
+  score: number;             // 상태 76
+  direction: Direction;
+}
+export interface NarrativeGapItem {
+  label: string;             // 'A사 (AI 테마)' — 원본 익명 표기 유지
+  symbol?: string;           // 실종목만 이동 가능
+  narrativeScore: number;    // 91
+  revenueEvidence: number;   // 34
+}
+
+// ── P2 — 프로필·설정 (프레임 25) ─────────────────────────────────────────
+export interface UserProfile {
+  name: string;
+  email: string;
+  joinedAt: string;          // '2026.03'
+  plan: string;              // 'PRO'
+  interests: string[];       // 투자 관심 산업
+}
+export interface AppSettings {
+  changeColorMode: 'international' | 'korean'; // 등락 색상 (국제형/국내형)
+  numberUnit: 'won' | 'manwon';                // 숫자 단위 표시
+  returnDisplay: 'pct' | 'amount';             // 수익률 표시
+  language: 'ko';                              // 언어 (표시 준비)
+  animationsEnabled: boolean;                  // 앱 내 애니메이션 (Reduce Motion과 별개)
+}
+export interface NotificationSettings {
+  contradiction: boolean;    // 논제 충돌 (우선)
+  reinforcement: boolean;    // 논제 강화·지표 업데이트
+  event: boolean;            // 기업 이벤트
+  regime: boolean;           // 시장 국면 변화
+  data: boolean;             // 데이터 업데이트
+  risk: boolean;             // 위험 경고
 }

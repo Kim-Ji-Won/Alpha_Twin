@@ -3,6 +3,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
@@ -71,6 +72,42 @@ function FlowRow({ label, value }: { label: string; value: number }) {
   );
 }
 
+// 헤더 우측 진입점 — 알림 센터(09) · 프로필(25)
+function HeaderActions() {
+  const router = useRouter();
+  return (
+    <View style={styles.headerActions}>
+      <Pressable
+        onPress={() => router.push('/notifications')}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="알림 센터 열기"
+        style={styles.headerBtn}>
+        <Svg width={15} height={15} viewBox="0 0 16 16">
+          <Path
+            d="M8 2a4 4 0 0 0-4 4v3l-1.3 2.3h10.6L12 9V6a4 4 0 0 0-4-4zM6.5 13.5a1.5 1.5 0 0 0 3 0"
+            stroke={colors.mut}
+            strokeWidth={1.4}
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </Svg>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/profile')}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="프로필 열기"
+        style={styles.headerBtn}>
+        <Svg width={15} height={15} viewBox="0 0 16 16">
+          <Circle cx={8} cy={5.5} r={2.8} stroke={colors.mut} strokeWidth={1.4} fill="none" />
+          <Path d="M2.8 13.5a5.2 5.2 0 0 1 10.4 0" stroke={colors.mut} strokeWidth={1.4} fill="none" strokeLinecap="round" />
+        </Svg>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function HomeTab() {
   const router = useRouter();
   const { status, data, reload } = useMarketBrain();
@@ -81,7 +118,7 @@ export default function HomeTab() {
   if (status === 'loading' || status === 'empty') {
     return (
       <AppScreen scroll={false} edges={['top', 'left', 'right']}>
-        <AppHeader subtitle="ALPHA TWIN" title="Market Brain" live />
+        <AppHeader subtitle="ALPHA TWIN" title="Market Brain" live right={<HeaderActions />} />
         <LoadingState stage="시장 국면 분석 불러오는 중" />
       </AppScreen>
     );
@@ -89,7 +126,7 @@ export default function HomeTab() {
   if (status === 'error' || !data) {
     return (
       <AppScreen scroll={false} edges={['top', 'left', 'right']}>
-        <AppHeader subtitle="ALPHA TWIN" title="Market Brain" live />
+        <AppHeader subtitle="ALPHA TWIN" title="Market Brain" live right={<HeaderActions />} />
         <ErrorState onRetry={reload} />
       </AppScreen>
     );
@@ -106,6 +143,7 @@ export default function HomeTab() {
         subtitle={`${koreanDate(regime.asOf)}${regime.indexLabel ? ` · ${regime.indexLabel}` : ''}`}
         title="Market Brain"
         live
+        right={<HeaderActions />}
       />
 
       <HeroCard tag="현재 시장 국면 · MARKET REGIME">
@@ -248,6 +286,17 @@ export default function HomeTab() {
 }
 
 const styles = StyleSheet.create({
+  headerActions: { flexDirection: 'row', gap: 8 },
+  headerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.panel,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   regimeTitle: { marginTop: 8, fontSize: 25, fontWeight: '800', letterSpacing: -0.5, color: colors.ink },
   regimeEn: { fontSize: 12, color: colors.mut, marginTop: 2, marginBottom: 10 },
   regimeSummary: { fontSize: 14, lineHeight: 22, color: '#b8c4da' },

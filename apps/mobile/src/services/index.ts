@@ -6,3 +6,6 @@ export * from './portfolioService';
 export * from './aiService';
 export * from './notificationService';
 export * from './managementService';
+export * from './watchlistService';
+export * from './discoverService';
+export * from './settingsService';

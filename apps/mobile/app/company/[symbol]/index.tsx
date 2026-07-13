@@ -2,7 +2,7 @@
 // 종목 헤더 + 점수 스트립 + AI 요약 + 레이더/상태 영역 + 확률/이벤트 폴드 + 관계 지도.
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppScreen } from '@/components/AppScreen';
 import { DataMetadata, formatAsOf } from '@/components/DataMetadata';
@@ -234,6 +234,25 @@ export default function CompanyTwinRoute() {
       <SectionHeader label="기업 관계 지도 · Network" meta="딥러닝 그래프" />
       <NetworkGraph network={network} />
 
+      {/* Management Track Record 진입 (프레임 15) */}
+      <Pressable
+        onPress={() =>
+          router.push({ pathname: '/company/[symbol]/management', params: { symbol: quote.symbol } })
+        }
+        accessibilityRole="button"
+        accessibilityLabel="경영진 발언–실적 이행 기록 보기"
+        style={({ pressed }) => [styles.managementLink, { opacity: pressed ? 0.7 : 1 }]}>
+        <View style={styles.managementText}>
+          <Text style={[styles.managementTitle, { fontFamily: font('body', '700') }]}>
+            Management Track Record
+          </Text>
+          <Text style={[styles.managementSub, { fontFamily: font('body', '500') }]}>
+            경영진 발언–실적 이행 기록 · 이행률·가이던스 일관성
+          </Text>
+        </View>
+        <Text style={[styles.managementArrow, { fontFamily: font('mono', '600') }]}>›</Text>
+      </Pressable>
+
       {/* Scenario Lab / Thesis OS 진입 */}
       <View style={styles.cta}>
         <PrimaryButton
@@ -293,4 +312,21 @@ const styles = StyleSheet.create({
   ctaMain: { flex: 1.2 },
   ctaSub: { flex: 1 },
   meta: { marginTop: 14 },
+  managementLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.panel,
+    borderRadius: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+    marginTop: 14,
+    minHeight: 56,
+  },
+  managementText: { flex: 1 },
+  managementTitle: { fontSize: 13.5, fontWeight: '700', color: colors.ink },
+  managementSub: { fontSize: 11.5, color: colors.mut, marginTop: 3 },
+  managementArrow: { fontSize: 18, color: colors.dim },
 });

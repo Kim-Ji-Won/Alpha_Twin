@@ -1,0 +1,153 @@
+// 프레임 06 — 위험 중첩 지도: 보유 종목(좌) ↔ 공통 위험 요인(우) 연결.
+// 위험 요인을 선택하면 연결된 종목·연결선이 강조되고 아래 설명이 갱신된다.
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import Svg, { G, Line, Rect, Text as SvgText } from 'react-native-svg';
+import { colors } from '@/src/theme';
+import { RiskFactor } from '@/src/types';
+import { font } from '@/lib/fonts';
+
+export interface RiskOverlapGraphProps {
+  /** 보유 종목 (좌측 노드) */
+  stocks: { symbol: string; name: string }[];
+  /** 공통 위험 요인 (우측 노드) — linkedSymbols로 연결 */
+  factors: RiskFactor[];
+  style?: ViewStyle;
+}
+
+const VIEW_W = 350;
+const STOCK_W = 104;
+const STOCK_H = 22;
+const FACTOR_W = 120;
+const FACTOR_H = 28;
+const ROW_GAP_S = 36;
+const ROW_GAP_F = 52;
+const PAD_Y = 18;
+
+const SEVERITY_COLOR: Record<RiskFactor['severity'], { stroke: string; fill: string; text: string }> = {
+  high: { stroke: 'rgba(251,191,36,0.45)', fill: 'rgba(251,191,36,0.14)', text: colors.warn },
+  medium: { stroke: 'rgba(34,211,238,0.35)', fill: 'rgba(34,211,238,0.10)', text: colors.accent },
+  low: { stroke: 'rgba(255,255,255,0.18)', fill: 'rgba(255,255,255,0.05)', text: '#cdd7e8' },
+};
+
+export function RiskOverlapGraph({ stocks, factors, style }: RiskOverlapGraphProps) {
+  const [selected, setSelected] = useState<string | undefined>(
+    factors.find(f => f.severity === 'high')?.label,
+  );
+  const shown = stocks.slice(0, 6); // 화면 밀도 유지 — 상위 6종목
+  const height =
+    PAD_Y * 2 + Math.max(shown.length * ROW_GAP_S, factors.length * ROW_GAP_F, 100);
+
+  const stockY = (i: number) => PAD_Y + i * ROW_GAP_S + STOCK_H / 2;
+  const factorY = (i: number) => PAD_Y + i * ROW_GAP_F + FACTOR_H / 2;
+
+  const selectedFactor = factors.find(f => f.label === selected);
+  const linkedSet = new Set(selectedFactor?.linkedSymbols ?? []);
+
+  return (
+    <View style={style}>
+      <Svg
+        width="100%"
+        height={height * (1 + 0.06)}
+        viewBox={`0 0 ${VIEW_W} ${height}`}
+        accessibilityLabel={`위험 중첩 지도: 종목 ${shown.length}개, 위험 요인 ${factors.length}개`}>
+        {/* 연결선 — 선택된 요인의 연결은 강조 */}
+        {factors.map((f, fi) =>
+          f.linkedSymbols.map(sym => {
+            const si = shown.findIndex(s => s.symbol === sym);
+            if (si < 0) return null;
+            const emphasized = f.label === selected;
+            return (
+              <Line
+                key={`${f.label}-${sym}`}
+                x1={8 + STOCK_W}
+                y1={stockY(si)}
+                x2={VIEW_W - 12 - FACTOR_W}
+                y2={factorY(fi)}
+                stroke={emphasized ? SEVERITY_COLOR[f.severity].stroke : 'rgba(255,255,255,0.14)'}
+                strokeWidth={emphasized ? 1.6 : 1}
+                strokeDasharray={emphasized ? '3 5' : undefined}
+              />
+            );
+          }),
+        )}
+        {/* 종목 노드 */}
+        {shown.map((s, i) => {
+          const highlighted = linkedSet.has(s.symbol);
+          return (
+            <G key={s.symbol}>
+              <Rect
+                x={8}
+                y={stockY(i) - STOCK_H / 2}
+                width={STOCK_W}
+                height={STOCK_H}
+                rx={7}
+                fill={highlighted ? 'rgba(251,191,36,0.08)' : 'rgba(255,255,255,0.05)'}
+                stroke={highlighted ? 'rgba(251,191,36,0.4)' : 'rgba(255,255,255,0.14)'}
+              />
+              <SvgText
+                x={8 + STOCK_W / 2}
+                y={stockY(i) + 3}
+                fill={highlighted ? colors.ink : '#cdd7e8'}
+                fontSize={9}
+                fontWeight="700"
+                textAnchor="middle">
+                {s.name}
+              </SvgText>
+            </G>
+          );
+        })}
+        {/* 위험 요인 노드 — 탭으로 선택 */}
+        {factors.map((f, i) => {
+          const c = SEVERITY_COLOR[f.severity];
+          const on = f.label === selected;
+          return (
+            <G
+              key={f.label}
+              onPress={() => setSelected(prev => (prev === f.label ? undefined : f.label))}>
+              <Rect
+                x={VIEW_W - 12 - FACTOR_W}
+                y={factorY(i) - FACTOR_H / 2}
+                width={FACTOR_W}
+                height={FACTOR_H}
+                rx={9}
+                fill={on ? c.fill : 'rgba(255,255,255,0.05)'}
+                stroke={on ? c.stroke : 'rgba(255,255,255,0.18)'}
+                strokeWidth={on ? 1.4 : 1}
+              />
+              <SvgText
+                x={VIEW_W - 12 - FACTOR_W / 2}
+                y={factorY(i) + 3}
+                fill={on ? c.text : '#cdd7e8'}
+                fontSize={9}
+                fontWeight="700"
+                textAnchor="middle">
+                {f.label}
+              </SvgText>
+            </G>
+          );
+        })}
+      </Svg>
+      <View style={styles.hint}>
+        <View style={[styles.dot, { backgroundColor: colors.warn }]} />
+        <Text style={[styles.hintText, { fontFamily: font('body', '600') }]}>
+          위험 요인을 선택하면 연결된 종목이 강조됩니다
+        </Text>
+      </View>
+      <Text
+        style={[styles.selection, { fontFamily: font('body', '500') }]}
+        accessibilityLiveRegion="polite">
+        {selectedFactor
+          ? `선택됨: ${selectedFactor.label} — 노출 ${Math.round(selectedFactor.exposure * 100)}% · 연결 종목 ${selectedFactor.linkedSymbols.length}개`
+          : '위험 요인을 선택하세요'}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  hint: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8, paddingHorizontal: 2 },
+  dot: { width: 6, height: 6, borderRadius: 99 },
+  hintText: { fontSize: 11.5, color: colors.dim, fontWeight: '600' },
+  selection: { fontSize: 12.5, lineHeight: 19, color: '#b8c4da', marginTop: 6, marginHorizontal: 2 },
+});

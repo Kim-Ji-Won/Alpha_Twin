@@ -92,3 +92,141 @@ export function useQuote(symbol: string): AsyncState<Stock | null> {
     isEmpty: q => q == null,
   });
 }
+
+// ── P2 훅 ─────────────────────────────────────────────────────────────────
+import {
+  aiService,
+  discoverService,
+  managementService,
+  notificationService,
+  portfolioService,
+  settingsService,
+  watchlistService,
+} from '@/src/services';
+import {
+  AIAnalysis,
+  AppNotification,
+  DiscoverSignal,
+  IndustryTwin,
+  ManagementRecord,
+  NarrativeGapItem,
+  Portfolio,
+  PortfolioHolding,
+  PortfolioRisk,
+  UserProfile,
+} from '@/src/types';
+
+export interface PortfolioXrayData {
+  portfolio: Portfolio;
+  risk: PortfolioRisk;
+}
+
+// 종목 관리에서 돌아오면 X-Ray가 즉시 갱신되어야 하므로 focus마다 재조회.
+export function usePortfolioXray(): AsyncState<PortfolioXrayData> {
+  return useAsync(
+    async () => {
+      const [portfolio, risk] = await Promise.all([portfolioService.get(), portfolioService.getRisk()]);
+      return { portfolio, risk };
+    },
+    [],
+    { isEmpty: d => d.portfolio.holdings.length === 0, reloadOnFocus: true },
+  );
+}
+
+export function useHoldings(): AsyncState<Portfolio> {
+  return useAsync(() => portfolioService.get(), [], {
+    isEmpty: p => p.holdings.length === 0,
+    reloadOnFocus: true,
+  });
+}
+
+export function useHolding(symbol: string): AsyncState<PortfolioHolding | null> {
+  return useAsync(() => portfolioService.getHolding(symbol), [symbol], {
+    isEmpty: h => h == null,
+  });
+}
+
+export interface DiscoverData {
+  signals: DiscoverSignal[];
+  industries: IndustryTwin[];
+  narrativeGaps: NarrativeGapItem[];
+}
+
+export function useDiscover(): AsyncState<DiscoverData> {
+  return useAsync(
+    async () => {
+      const [signals, industries, narrativeGaps] = await Promise.all([
+        discoverService.getSignals(),
+        discoverService.getIndustries(),
+        discoverService.getNarrativeGaps(),
+      ]);
+      return { signals, industries, narrativeGaps };
+    },
+    [],
+    { isEmpty: () => false },
+  );
+}
+
+export function useNotifications(): AsyncState<AppNotification[]> {
+  return useAsync(() => notificationService.list(), [], {
+    isEmpty: list => list.length === 0,
+    reloadOnFocus: true,
+  });
+}
+
+export interface WatchlistEntry {
+  stock: Stock;
+  thesis: InvestmentThesis | null;
+}
+
+export function useWatchlist(): AsyncState<WatchlistEntry[]> {
+  return useAsync(
+    async () => {
+      const stocks = await watchlistService.list();
+      const theses = await Promise.all(stocks.map(s => thesisService.getBySymbol(s.symbol)));
+      return stocks.map((stock, i) => ({ stock, thesis: theses[i] }));
+    },
+    [],
+    { isEmpty: list => list.length === 0, reloadOnFocus: true },
+  );
+}
+
+export function useManagement(symbol: string): AsyncState<ManagementRecord> {
+  return useAsync(() => managementService.get(symbol), [symbol], { isEmpty: () => false });
+}
+
+export function useAnalysis(analysisId: string): AsyncState<AIAnalysis> {
+  return useAsync(() => aiService.getAnalysis(analysisId), [analysisId], {
+    isEmpty: () => false,
+  });
+}
+
+export interface ProfileStats {
+  profile: UserProfile;
+  twinCount: number;
+  thesisCount: number;
+  holdingCount: number;
+  scenarioCount: number;
+}
+
+export function useProfile(): AsyncState<ProfileStats> {
+  return useAsync(
+    async () => {
+      const [profile, watch, theses, portfolio] = await Promise.all([
+        settingsService.getProfile(),
+        watchlistService.list(),
+        thesisService.listForUser(),
+        portfolioService.get(),
+      ]);
+      return {
+        profile,
+        twinCount: watch.length,
+        thesisCount: theses.length,
+        holdingCount: portfolio.holdings.length,
+        scenarioCount: 12, // Mock 통계 (프레임 25)
+      };
+    },
+    [],
+    { isEmpty: () => false, reloadOnFocus: true },
+  );
+}

@@ -1,10 +1,20 @@
 // specs/components.md — FoldRow (.fold .chev)
 // 접힌 상태에도 핵심 수치 요약(summary)을 항상 노출한다.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '@/src/theme';
 import { font } from '@/lib/fonts';
+import { motionConfig, useShouldAnimate } from '@/lib/motion';
 
 export interface FoldSectionProps {
   title: string;
@@ -26,8 +36,27 @@ export function FoldSection({
   style,
 }: FoldSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const shouldAnimate = useShouldAnimate();
+  const rotation = useSharedValue(defaultExpanded ? 180 : 0);
+
+  useEffect(() => {
+    rotation.value = shouldAnimate
+      ? withTiming(expanded ? 180 : 0, {
+          duration: motionConfig.foldDuration,
+          easing: Easing.out(Easing.cubic),
+        })
+      : expanded ? 180 : 0;
+  }, [expanded, rotation, shouldAnimate]);
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+  const transition = LinearTransition.duration(shouldAnimate ? motionConfig.foldDuration : 0);
+  const entering = FadeIn.duration(shouldAnimate ? motionConfig.foldDuration : 0);
+  const exiting = FadeOut.duration(shouldAnimate ? Math.round(motionConfig.foldDuration * 0.65) : 0);
+
   return (
-    <View style={[bottomLine && styles.bottomLine, style]}>
+    <Animated.View layout={transition} style={[bottomLine && styles.bottomLine, style]}>
       <Pressable
         onPress={() => setExpanded(v => !v)}
         accessibilityRole="button"
@@ -41,7 +70,7 @@ export function FoldSection({
           ) : (
             summary
           )}
-          <View style={[styles.chev, expanded && styles.chevOpen]}>
+          <Animated.View style={[styles.chev, chevronStyle]}>
             <Svg width={12} height={12} viewBox="0 0 12 12">
               <Path
                 d="M2.5 4.5L6 8l3.5-3.5"
@@ -52,11 +81,15 @@ export function FoldSection({
                 fill="none"
               />
             </Svg>
-          </View>
+          </Animated.View>
         </View>
       </Pressable>
-      {expanded ? <View style={styles.content}>{children}</View> : null}
-    </View>
+      {expanded ? (
+        <Animated.View layout={transition} entering={entering} exiting={exiting} style={styles.content}>
+          {children}
+        </Animated.View>
+      ) : null}
+    </Animated.View>
   );
 }
 
@@ -84,6 +117,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chevOpen: { transform: [{ rotate: '180deg' }] },
   content: { paddingHorizontal: 2, paddingBottom: 12 },
 });

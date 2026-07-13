@@ -5,6 +5,7 @@ import { alpha, colors } from '@/src/theme';
 import { AppNotification } from '@/src/types';
 import { font } from '@/lib/fonts';
 import { signed } from '@/lib/direction';
+import { RichText } from '@/components/RichText';
 
 const KIND_META: Record<
   AppNotification['kind'],
@@ -64,7 +65,11 @@ export function NotificationCard({ notification: n, stockName, onPress, style }:
         {n.headline}
       </Text>
       {n.detail ? (
-        <Text style={[styles.detail, { fontFamily: font('body', '500') }]}>{n.detail}</Text>
+        <RichText
+          text={n.detail}
+          highlights={n.detailHighlights ?? [{ text: '확인하세요', tone: 'strong' }]}
+          style={[styles.detail, { fontFamily: font('body', '500') }]}
+        />
       ) : null}
       {n.sources || n.thesisImpact != null || n.evidenceCount != null ? (
         <View style={styles.foot}>

@@ -17,6 +17,7 @@ import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionHeader } from '@/components/SectionHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/States';
 import { AllocationBar } from '@/components/charts/AllocationBar';
+import { RichText } from '@/components/RichText';
 import { RiskOverlapGraph } from '@/components/charts/RiskOverlapGraph';
 import { font } from '@/lib/fonts';
 import { formatManwon } from '@/lib/format';
@@ -169,9 +170,11 @@ export default function PortfolioTab() {
 
       <Panel variant="alert">
         <SectionHeader label="AI 제안 · Suggestion" style={styles.panelHeader} />
-        <Text style={[styles.suggestion, { fontFamily: font('body', '500') }]}>
-          {risk.suggestion}
-        </Text>
+        <RichText
+          text={risk.suggestion}
+          highlights={risk.suggestionHighlights}
+          style={[styles.suggestion, { fontFamily: font('body', '500') }]}
+        />
       </Panel>
 
       <View style={styles.cta}>

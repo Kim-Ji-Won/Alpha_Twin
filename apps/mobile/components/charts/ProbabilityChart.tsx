@@ -8,6 +8,7 @@ import { ProbabilityDistribution } from '@/src/types';
 import { ChartLegend } from '@/components/ChartLegend';
 import { font } from '@/lib/fonts';
 import { signed } from '@/lib/direction';
+import { ChartReveal } from '@/components/charts/ChartReveal';
 
 export interface ProbabilityChartProps {
   dist: ProbabilityDistribution;
@@ -53,7 +54,7 @@ export function ProbabilityChart({ dist, style }: ProbabilityChartProps) {
 
   return (
     <View style={style} accessibilityLabel={a11y}>
-      <View style={styles.svgWrap}>
+      <ChartReveal style={styles.svgWrap}>
         <Svg width="100%" height={150} viewBox={`0 0 ${W} ${H + 20}`}>
           {/* 현재 시점 기준선 */}
           <Line x1={X0} y1={8} x2={X0} y2={112} stroke="rgba(255,255,255,0.14)" strokeDasharray="3 4" />
@@ -98,7 +99,7 @@ export function ProbabilityChart({ dist, style }: ProbabilityChartProps) {
             {`+${dist.horizonDays}D`}
           </SvgText>
         </Svg>
-      </View>
+      </ChartReveal>
       <ChartLegend
         items={[
           { color: chartColors.coneInner, label: '68% 구간' },

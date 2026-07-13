@@ -19,6 +19,7 @@ export const mockDiscoverSignals: DiscoverSignal[] = [
     title: 'LS일렉트릭 — 뉴스 없는 대량 매집',
     detail: '기관 순매수 5일 연속, 관련 공시 없음. 수급 선행 패턴.',
     recommendReason: '추천 이유 · 보유 중인 LS일렉트릭 — 수급 변화가 직접 영향',
+    recommendReasonHighlights: [{ text: '보유 중인 LS일렉트릭', tone: 'strong' }],
   },
   {
     id: 'ds-2',
@@ -30,6 +31,7 @@ export const mockDiscoverSignals: DiscoverSignal[] = [
     title: '한미반도체 — 주가·펀더멘털 괴리 상위 5%',
     detail: '주가 +34% 대비 실적 전망 변화 없음. Narrative Gap 높음.',
     recommendReason: "추천 이유 · 내 논제 'HBM 경쟁력'과 같은 공급망 — 간접 노출",
+    recommendReasonHighlights: [{ text: "내 논제 'HBM 경쟁력'", tone: 'warning' }],
   },
 ];
 

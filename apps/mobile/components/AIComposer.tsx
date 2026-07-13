@@ -1,11 +1,11 @@
 // specs/components.md — AIComposer (.input .send)
 // 자연어 입력 + 'AI가 변환 중' 상태 라벨 슬롯 + 전송 버튼.
-import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
+import React from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { colors } from '@/src/theme';
 import { font } from '@/lib/fonts';
-import { useReducedMotion } from '@/lib/useReducedMotion';
+import { Pulse } from '@/components/Pulse';
 
 export interface AIComposerProps {
   value: string;
@@ -21,23 +21,8 @@ export interface AIComposerProps {
 }
 
 function PulseDot({ active }: { active: boolean }) {
-  const pulse = useRef(new Animated.Value(1)).current;
-  const reduced = useReducedMotion();
-  useEffect(() => {
-    if (!active || reduced) {
-      pulse.setValue(1);
-      return undefined;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.3, duration: 1100, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [active, reduced, pulse]);
-  return <Animated.View style={[styles.dot, { opacity: pulse }]} />;
+  const dot = <View style={styles.dot} />;
+  return active ? <Pulse minOpacity={0.3}>{dot}</Pulse> : dot;
 }
 
 export function AIComposer({

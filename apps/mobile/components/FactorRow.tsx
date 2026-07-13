@@ -4,6 +4,7 @@ import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { colors } from '@/src/theme';
 import { font } from '@/lib/fonts';
+import { AnimatedBar } from '@/components/AnimatedBar';
 
 export interface FactorRowProps {
   label: string;
@@ -36,9 +37,7 @@ export function FactorRow({
         numberOfLines={1}>
         {label}
       </Text>
-      <View style={styles.track}>
-        <View style={[styles.fill, { width: `${clamped * 100}%`, backgroundColor: tone }]} />
-      </View>
+      <AnimatedBar progress={clamped} color={tone} style={styles.track} fillStyle={styles.fill} />
       <Text
         style={[styles.value, { color: valueColor, fontFamily: font('mono', '600') }]}
         numberOfLines={1}>
@@ -58,6 +57,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.07)',
     overflow: 'hidden',
   },
-  fill: { height: '100%', borderRadius: 99 },
+  fill: { borderRadius: 99 },
   value: { minWidth: 44, textAlign: 'right', fontSize: 12, fontWeight: '600' },
 });

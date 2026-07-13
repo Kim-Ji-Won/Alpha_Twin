@@ -22,5 +22,10 @@ export const mockPortfolioRisk: PortfolioRisk = {
   ],
   concentrationHHI: 0.31, var95: -0.22, avgCorrelation: 0.68,
   suggestion: '환율 민감도 41%가 단일 변수 위험입니다. Scenario Lab에서 환율 -10% 시나리오를 실험해 보세요.',
+  // 디자인 프레임 06: 'Scenario Lab에서 환율 −10% 시나리오' ink bold
+  suggestionHighlights: [
+    { text: '환율 민감도 41%', tone: 'warning' },
+    { text: 'Scenario Lab에서 환율 -10% 시나리오', tone: 'strong' },
+  ],
   asOf: '2026-07-06T09:00:00+09:00',
 };

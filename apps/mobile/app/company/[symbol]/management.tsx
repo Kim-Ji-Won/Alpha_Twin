@@ -22,6 +22,7 @@ import { font } from '@/lib/fonts';
 import { useManagement, useQuote } from '@/lib/hooks';
 import { useSafeBack } from '@/lib/useSafeBack';
 import { colors } from '@/src/theme';
+import { RichText } from '@/components/RichText';
 
 export default function ManagementRoute() {
   const { symbol } = useLocalSearchParams<{ symbol: string }>();
@@ -99,9 +100,14 @@ export default function ManagementRoute() {
 
       <Panel>
         <SectionHeader label="발언–실적 일치도 · Consistency" meta="딥러닝 텍스트" style={styles.panelHeader} />
-        <Text style={[styles.body, { fontFamily: font('body', '500') }]}>
-          {shiftSummary} {shift.note}
-        </Text>
+        <RichText
+          text={`${shiftSummary} ${shift.note}`}
+          highlights={[
+            { text: `${Math.abs(shift.assertive)}%p ${shift.assertive < 0 ? '감소' : '증가'}`, tone: shift.assertive < 0 ? 'negative' : 'positive' },
+            { text: '다음 발표에서 확인', tone: 'strong' },
+          ]}
+          style={[styles.body, { fontFamily: font('body', '500') }]}
+        />
         <View style={styles.g2}>
           <ScoreMetric
             label="확정적 표현"

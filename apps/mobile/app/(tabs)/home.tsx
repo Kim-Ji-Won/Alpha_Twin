@@ -11,6 +11,7 @@ import { AnalysisConfidence } from '@/components/AnalysisConfidence';
 import { DataMetadata, formatAsOf } from '@/components/DataMetadata';
 import { EventRow } from '@/components/EventRow';
 import { FoldSection } from '@/components/FoldSection';
+import { RichText } from '@/components/RichText';
 import { FactorRow } from '@/components/FactorRow';
 import { HeroCard } from '@/components/HeroCard';
 import { Panel } from '@/components/Panel';
@@ -169,9 +170,11 @@ export default function HomeTab() {
 
       <Panel variant="alert" style={styles.impactPanel}>
         <SectionHeader label="내 포트폴리오 영향 · IMPACT" meta="● LIVE" style={styles.panelHeader} />
-        <Text style={[styles.impactText, { fontFamily: font('body', '500') }]}>
-          {portfolioImpact.headline}
-        </Text>
+        <RichText
+          text={portfolioImpact.headline}
+          highlights={portfolioImpact.headlineHighlights}
+          style={[styles.impactText, { fontFamily: font('body', '500') }]}
+        />
         <View style={styles.chips}>
           {portfolioImpact.symbols.map(s => (
             <Pressable

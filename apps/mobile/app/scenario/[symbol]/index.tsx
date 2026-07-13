@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AIComposer } from '@/components/AIComposer';
+import { AnimatedBar } from '@/components/AnimatedBar';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
 import { StaticTabBar } from '@/components/StaticTabBar';
@@ -39,6 +40,7 @@ export default function ScenarioInputRoute() {
   // 파싱 요청 — 템플릿 선택/전송 시 호출. 언마운트 후 setState 방지.
   const alive = useRef(true);
   useEffect(() => {
+    alive.current = true;
     // 초기 진입: 기본 템플릿을 구조화해 미리보기 표시
     parseQuery(templates[0].rawQuery, templates[0].id);
     return () => {
@@ -162,9 +164,13 @@ export default function ScenarioInputRoute() {
       {starting ? (
         <Panel style={styles.progressPanel}>
           <SectionHeader label="분석 진행" style={styles.panelHeader} />
-          <View style={styles.progressTrack}>
-            <View style={styles.progressFill} />
-          </View>
+          <AnimatedBar
+            progress={1}
+            color={colors.accent}
+            style={styles.progressTrack}
+            fillStyle={styles.progressFill}
+            accessibilityLabel="시나리오 분석 진행 중"
+          />
           <Text style={[styles.progressText, { fontFamily: font('mono', '500') }]}>
             ML 재무영향 · 딥러닝 관계전파 · LLM 설명 결합 중…
           </Text>
@@ -203,7 +209,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 10,
   },
-  progressFill: { width: '45%', height: '100%', borderRadius: 99, backgroundColor: colors.accent, opacity: 0.85 },
+  progressFill: { borderRadius: 99, opacity: 0.85 },
   progressText: { fontSize: 11, color: colors.dim, marginTop: 10 },
   startBtn: { marginTop: 14 },
 });

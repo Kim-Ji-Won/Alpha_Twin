@@ -2,12 +2,13 @@
 // subtitle: dim 12.5px uppercase · title: 22px/800 · live=true → accent pulse dot
 // NOTE: fontFamily is resolved at render time (not in StyleSheet.create) so it
 // picks up the registered custom fonts after the root layout finishes loading them.
-import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '@/src/theme';
 import { text } from '@/lib/typography';
 import { font } from '@/lib/fonts';
+import { Pulse } from '@/components/Pulse';
 
 export interface AppHeaderProps {
   subtitle?: string;
@@ -18,18 +19,7 @@ export interface AppHeaderProps {
 }
 
 function LiveDot() {
-  const pulse = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.25, duration: 1100, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
-  return <Animated.View style={[styles.liveDot, { opacity: pulse }]} accessibilityLabel="실시간" />;
+  return <Pulse minOpacity={0.25}><View style={styles.liveDot} accessibilityLabel="실시간" /></Pulse>;
 }
 
 export function AppHeader({ subtitle, title, live, right, onBack }: AppHeaderProps) {

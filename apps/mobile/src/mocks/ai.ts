@@ -4,6 +4,10 @@ export const mockAnalysis: AIAnalysis = {
   question: 'SK하이닉스 최근 주가 상승은 실적 개선 때문이야, 기대감 때문이야?',
   symbol: '000660',
   conclusion: '둘 다 작용했지만, 약 60%는 실적, 40%는 기대감으로 추정됩니다.',
+  conclusionHighlights: [
+    { text: '약 60%는 실적', tone: 'positive' },
+    { text: '40%는 기대감', tone: 'warning' },
+  ],
   keyReasons: '최근 3개월 상승분 중 컨센서스 영업이익 상향(+18%)이 설명하는 부분이 가장 큽니다. 나머지는 HBM4 기대를 반영한 멀티플 확장(P/B 1.6→2.1)입니다.',
   counterCase: '기대 선반영 구간에서는 실적이 컨센서스를 충족해도 주가가 하락한 사례가 과거 4회 중 3회 있었습니다.',
   dataPoints: [

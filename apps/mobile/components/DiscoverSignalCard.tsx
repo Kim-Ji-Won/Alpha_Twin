@@ -6,6 +6,8 @@ import { colors } from '@/src/theme';
 import { DiscoverSignal } from '@/src/types';
 import { font } from '@/lib/fonts';
 import { StatusBadge } from '@/components/StatusBadge';
+import { RichText } from '@/components/RichText';
+import { Pulse } from '@/components/Pulse';
 
 const TONE_COLOR: Record<DiscoverSignal['tone'], string> = {
   accent: colors.accent,
@@ -39,10 +41,12 @@ export function DiscoverSignalCard({ signal, onPress, first, style }: DiscoverSi
         <Text style={[styles.title, { fontFamily: font('body', '700') }]}>{signal.title}</Text>
         <Text style={[styles.detail, { fontFamily: font('body', '500') }]}>{signal.detail}</Text>
         <View style={styles.reason}>
-          <View style={[styles.dot, { backgroundColor: color }]} />
-          <Text style={[styles.reasonText, { color, fontFamily: font('mono', '500') }]}>
-            {signal.recommendReason}
-          </Text>
+          <Pulse minOpacity={0.35}><View style={[styles.dot, { backgroundColor: color }]} /></Pulse>
+          <RichText
+            text={signal.recommendReason}
+            highlights={signal.recommendReasonHighlights ?? [{ text: '추천 이유', tone: 'strong' }]}
+            style={[styles.reasonText, { color, fontFamily: font('mono', '500') }]}
+          />
         </View>
       </View>
     </Pressable>

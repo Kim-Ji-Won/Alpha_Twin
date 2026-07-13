@@ -3,10 +3,13 @@ import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { fontAssets, markFontsReady } from '@/lib/fonts';
 import { AppStateProvider } from '@/lib/appState';
+import { loadMotionPreference } from '@/lib/motion';
 import { colors } from '@/src/theme';
 
 export { ErrorBoundary } from 'expo-router';
@@ -32,6 +35,11 @@ const AlphaTwinTheme: typeof DarkTheme = {
 export default function RootLayout() {
   const [loaded, error] = useFonts(fontAssets);
 
+  // P3-A: 저장된 모션 설정('애니메이션 사용')을 앱 시작 시 로드
+  useEffect(() => {
+    loadMotionPreference();
+  }, []);
+
   useEffect(() => {
     if (loaded) markFontsReady(true);
     if (error) {
@@ -44,22 +52,28 @@ export default function RootLayout() {
   if (!loaded && !error) return null;
 
   return (
-    <AppStateProvider>
-      <ThemeProvider value={AlphaTwinTheme}>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.bg },
-            animation: 'fade',
-          }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="auth/login" />
-          <Stack.Screen name="auth/interests" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-      </ThemeProvider>
-    </AppStateProvider>
+    <GestureHandlerRootView style={styles.fill}>
+      <AppStateProvider>
+        <ThemeProvider value={AlphaTwinTheme}>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg },
+              animation: 'fade',
+            }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="auth/login" />
+            <Stack.Screen name="auth/interests" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </ThemeProvider>
+      </AppStateProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  fill: { flex: 1 },
+});

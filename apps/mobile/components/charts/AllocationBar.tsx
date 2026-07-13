@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import { chartColors } from '@/src/theme';
 import { ChartLegend } from '@/components/ChartLegend';
+import { ChartReveal } from '@/components/charts/ChartReveal';
 
 export interface AllocationBarProps {
   items: { label: string; weight: number }[];
@@ -17,17 +18,19 @@ export function AllocationBar({ items, style }: AllocationBarProps) {
     .join(', ');
   return (
     <View style={style} accessibilityLabel={`산업별 비중: ${a11y}`}>
-      <View style={styles.bar}>
-        {items.map((item, i) => (
-          <View
-            key={item.label}
-            style={[
-              styles.segment,
-              { flex: item.weight / total, backgroundColor: palette[i % palette.length] },
-            ]}
-          />
-        ))}
-      </View>
+      <ChartReveal style={styles.bar}>
+        <View style={styles.segments}>
+          {items.map((item, i) => (
+            <View
+              key={item.label}
+              style={[
+                styles.segment,
+                { flex: item.weight / total, backgroundColor: palette[i % palette.length] },
+              ]}
+            />
+          ))}
+        </View>
+      </ChartReveal>
       <ChartLegend
         items={items.map((item, i) => ({
           color: palette[i % palette.length],
@@ -40,12 +43,11 @@ export function AllocationBar({ items, style }: AllocationBarProps) {
 
 const styles = StyleSheet.create({
   bar: {
-    flexDirection: 'row',
     height: 14,
     borderRadius: 99,
     overflow: 'hidden',
-    gap: 2,
     marginTop: 12,
   },
+  segments: { flex: 1, flexDirection: 'row', gap: 2 },
   segment: { height: '100%', borderRadius: 2 },
 });

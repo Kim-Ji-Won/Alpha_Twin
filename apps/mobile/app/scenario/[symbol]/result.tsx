@@ -75,7 +75,7 @@ export default function ScenarioResultRoute() {
         right={scenario.badge ? <StatusBadge label={scenario.badge} tone="accent" /> : undefined}
       />
 
-      <ConclusionPanel text={result.conclusion} />
+      <ConclusionPanel text={result.conclusion} highlights={result.conclusionHighlights} />
 
       <Panel>
         <SectionHeader label="전달 경로 · Transmission" style={styles.panelHeader} />

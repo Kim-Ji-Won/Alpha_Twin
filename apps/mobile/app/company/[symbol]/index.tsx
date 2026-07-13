@@ -19,6 +19,7 @@ import { StaticTabBar } from '@/components/StaticTabBar';
 import { StockHeader } from '@/components/StockHeader';
 import { HealthRadarChart } from '@/components/charts/HealthRadarChart';
 import { NetworkGraph } from '@/components/charts/NetworkGraph';
+import { RichText } from '@/components/RichText';
 import { ProbabilityChart } from '@/components/charts/ProbabilityChart';
 import { signed } from '@/lib/direction';
 import { font } from '@/lib/fonts';
@@ -149,9 +150,11 @@ export default function CompanyTwinRoute() {
       {/* AI 기업 요약 + 상승/하락 요인 */}
       <Panel>
         {health.summary ? (
-          <Text style={[styles.summary, { fontFamily: font('body', '500') }]}>
-            {health.summary}
-          </Text>
+          <RichText
+            text={health.summary}
+            highlights={health.summaryHighlights}
+            style={[styles.summary, { fontFamily: font('body', '500') }]}
+          />
         ) : null}
         <View style={styles.split}>
           <View style={styles.splitCol}>

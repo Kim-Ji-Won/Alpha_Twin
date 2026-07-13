@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -27,11 +28,48 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { useAppState } from '@/lib/appState';
 import { font } from '@/lib/fonts';
 import { colors, radius } from '@/src/theme';
+import { useShouldAnimate } from '@/lib/motion';
 
-const AnimatedLine = Animated.createAnimatedComponent(Line);
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedG = Animated.createAnimatedComponent(G);
+const NativeAnimatedLine = Animated.createAnimatedComponent(Line);
+const NativeAnimatedPath = Animated.createAnimatedComponent(Path);
+const NativeAnimatedCircle = Animated.createAnimatedComponent(Circle);
+const NativeAnimatedG = Animated.createAnimatedComponent(G);
+
+type AnimatedScalar = number | Animated.Value;
+type MotionLineProps = Omit<React.ComponentProps<typeof Line>, 'opacity' | 'strokeDashoffset'> & {
+  opacity?: AnimatedScalar;
+  strokeDashoffset?: AnimatedScalar;
+};
+type MotionPathProps = Omit<React.ComponentProps<typeof Path>, 'opacity' | 'strokeDashoffset'> & {
+  opacity?: AnimatedScalar;
+  strokeDashoffset?: AnimatedScalar;
+};
+type MotionCircleProps = Omit<React.ComponentProps<typeof Circle>, 'opacity'> & { opacity?: AnimatedScalar };
+type MotionGProps = Omit<React.ComponentProps<typeof G>, 'opacity'> & { opacity?: AnimatedScalar };
+
+function AnimatedLine({ opacity, strokeDashoffset, ...props }: MotionLineProps) {
+  return Platform.OS === 'web' ? (
+    <Line {...props} opacity={1} strokeDashoffset={0} />
+  ) : (
+    <NativeAnimatedLine {...props} opacity={opacity} strokeDashoffset={strokeDashoffset} />
+  );
+}
+
+function AnimatedPath({ opacity, strokeDashoffset, ...props }: MotionPathProps) {
+  return Platform.OS === 'web' ? (
+    <Path {...props} opacity={1} strokeDashoffset={0} />
+  ) : (
+    <NativeAnimatedPath {...props} opacity={opacity} strokeDashoffset={strokeDashoffset} />
+  );
+}
+
+function AnimatedCircle({ opacity, ...props }: MotionCircleProps) {
+  return Platform.OS === 'web' ? <Circle {...props} opacity={1} /> : <NativeAnimatedCircle {...props} opacity={opacity} />;
+}
+
+function AnimatedG({ opacity, ...props }: MotionGProps) {
+  return Platform.OS === 'web' ? <G {...props} opacity={1} /> : <NativeAnimatedG {...props} opacity={opacity} />;
+}
 
 function useLoopedValue({
   from,
@@ -43,8 +81,13 @@ function useLoopedValue({
   duration: number;
 }) {
   const value = useRef(new Animated.Value(from)).current;
+  const shouldAnimate = useShouldAnimate();
 
   React.useEffect(() => {
+    if (!shouldAnimate) {
+      value.setValue(from);
+      return undefined;
+    }
     const loop = Animated.loop(
       Animated.timing(value, {
         toValue: to,
@@ -55,15 +98,20 @@ function useLoopedValue({
     );
     loop.start();
     return () => loop.stop();
-  }, [duration, to, value]);
+  }, [duration, from, shouldAnimate, to, value]);
 
   return value;
 }
 
 function usePulseValue() {
   const value = useRef(new Animated.Value(1)).current;
+  const shouldAnimate = useShouldAnimate();
 
   React.useEffect(() => {
+    if (!shouldAnimate) {
+      value.setValue(1);
+      return undefined;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(value, {
@@ -82,17 +130,22 @@ function usePulseValue() {
     );
     loop.start();
     return () => loop.stop();
-  }, [value]);
+  }, [shouldAnimate, value]);
 
   return value;
 }
 
 function useDelayedFade(delay: number, enabled = true) {
   const value = useRef(new Animated.Value(0)).current;
+  const shouldAnimate = useShouldAnimate();
 
   React.useEffect(() => {
     if (!enabled) {
       value.setValue(0);
+      return undefined;
+    }
+    if (!shouldAnimate) {
+      value.setValue(1);
       return undefined;
     }
 
@@ -106,17 +159,22 @@ function useDelayedFade(delay: number, enabled = true) {
     });
     fade.start();
     return () => fade.stop();
-  }, [delay, enabled, value]);
+  }, [delay, enabled, shouldAnimate, value]);
 
   return value;
 }
 
 function useDrawIn(enabled = true) {
   const value = useRef(new Animated.Value(240)).current;
+  const shouldAnimate = useShouldAnimate();
 
   React.useEffect(() => {
     if (!enabled) {
       value.setValue(240);
+      return undefined;
+    }
+    if (!shouldAnimate) {
+      value.setValue(0);
       return undefined;
     }
 
@@ -129,7 +187,7 @@ function useDrawIn(enabled = true) {
     });
     draw.start();
     return () => draw.stop();
-  }, [enabled, value]);
+  }, [enabled, shouldAnimate, value]);
 
   return value;
 }
@@ -318,6 +376,7 @@ export default function OnboardingRoute() {
   const { width } = useWindowDimensions();
   const listRef = useRef<FlatList<Page>>(null);
   const [page, setPage] = useState(0);
+  const shouldAnimate = useShouldAnimate();
 
   const finish = () => {
     completeOnboarding();
@@ -326,7 +385,7 @@ export default function OnboardingRoute() {
 
   const next = () => {
     if (page < PAGES.length - 1) {
-      listRef.current?.scrollToIndex({ index: page + 1, animated: true });
+      listRef.current?.scrollToIndex({ index: page + 1, animated: shouldAnimate });
     } else {
       finish();
     }

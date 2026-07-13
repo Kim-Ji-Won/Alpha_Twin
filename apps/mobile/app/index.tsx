@@ -1,32 +1,22 @@
 // Frame 10 — 스플래시: 트윈 동기화 로딩 → 온보딩/로그인/홈 분기
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Polygon } from 'react-native-svg';
 
 import { AppScreen } from '@/components/AppScreen';
 import { useAppState } from '@/lib/appState';
 import { font } from '@/lib/fonts';
 import { colors } from '@/src/theme';
+import { Pulse } from '@/components/Pulse';
+import { useShouldAnimate } from '@/lib/motion';
 
 const SPLASH_MS = 1600;
 
 function SplashArt() {
-  const pulse = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.3, duration: 1200, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1200, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
-
   return (
     <View accessibilityLabel="ALPHA TWIN 로고 — 디지털 트윈 동기화 중">
-      <Animated.View style={{ opacity: pulse }}>
+      <Pulse minOpacity={0.3}>
         <Svg width={216} height={216} viewBox="0 0 240 240">
           <Circle cx={120} cy={120} r={106} fill="none" stroke="rgba(34,211,238,0.09)" />
           <Circle cx={120} cy={120} r={74} fill="none" stroke="rgba(255,255,255,0.06)" />
@@ -42,25 +32,30 @@ function SplashArt() {
           <Polygon points="120,80 160,120 120,164 80,120" fill={colors.accent2} opacity={0.4} />
           <Circle cx={120} cy={120} r={6} fill={colors.accent} />
         </Svg>
-      </Animated.View>
+      </Pulse>
     </View>
   );
 }
 
 function LoadBar() {
+  const shouldAnimate = useShouldAnimate();
   const x = useRef(new Animated.Value(-0.45)).current;
   useEffect(() => {
+    if (!shouldAnimate) {
+      x.setValue(1);
+      return undefined;
+    }
     const loop = Animated.loop(
       Animated.timing(x, {
         toValue: 1,
         duration: 1500,
         easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     );
     loop.start();
     return () => loop.stop();
-  }, [x]);
+  }, [shouldAnimate, x]);
   const translateX = x.interpolate({ inputRange: [-0.45, 1], outputRange: [-67, 148] });
   return (
     <View style={styles.loadbar} accessibilityRole="progressbar" accessibilityLabel="로딩 중">

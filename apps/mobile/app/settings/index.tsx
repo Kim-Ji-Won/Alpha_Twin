@@ -14,6 +14,7 @@ import { StaticTabBar } from '@/components/StaticTabBar';
 import { ToggleSettingRow } from '@/components/ToggleSettingRow';
 import { LoadingState } from '@/components/States';
 import { useAppState } from '@/lib/appState';
+import { setMotionEnabled } from '@/lib/motion';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { useSafeBack } from '@/lib/useSafeBack';
 import { settingsService } from '@/src/services';
@@ -101,7 +102,11 @@ export default function SettingsRoute() {
           }
           value={settings.animationsEnabled && !reducedMotion}
           disabled={reducedMotion}
-          onChange={v => update({ animationsEnabled: v })}
+          onChange={async v => {
+            // 모션 스토어 갱신(전 화면 즉시 반영) + AsyncStorage 저장
+            await setMotionEnabled(v);
+            setSettings(prev => (prev ? { ...prev, animationsEnabled: v } : prev));
+          }}
         />
       </View>
 

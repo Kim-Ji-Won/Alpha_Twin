@@ -7,6 +7,7 @@ import { AIAnalysis } from '@/src/types';
 import { directionColor, directionSymbol } from '@/lib/direction';
 import { font } from '@/lib/fonts';
 import { StatusBadge } from '@/components/StatusBadge';
+import { RichText } from '@/components/RichText';
 
 const CONFIDENCE_TEXT: Record<'high' | 'medium' | 'low', string> = {
   high: '신뢰도 높음',
@@ -38,9 +39,11 @@ export function AIAnswerPanel({ analysis, onOpenEvidence, style }: AIAnswerPanel
 
   return (
     <View style={[styles.bubble, style]} accessibilityLabel={`AI 답변: ${analysis.conclusion}`}>
-      <Text style={[styles.conclusion, { fontFamily: font('body', '800') }]}>
-        {analysis.conclusion}
-      </Text>
+      <RichText
+        text={analysis.conclusion}
+        highlights={analysis.conclusionHighlights}
+        style={[styles.conclusion, { fontFamily: font('body', '800') }]}
+      />
 
       <Section title="핵심 근거">
         <Text style={[styles.body, { fontFamily: font('body', '500') }]}>{analysis.keyReasons}</Text>

@@ -1,5 +1,9 @@
 // ALPHA TWIN — domain types. Every screen renders exactly these shapes.
 export type Direction = 'positive' | 'negative' | 'mixed' | 'neutral';
+
+// P3-A — 문장 내 키워드 강조 스팬 (실서비스: LLM이 스팬을 함께 반환)
+export type HighlightTone = 'strong' | 'accent' | 'positive' | 'negative' | 'warning';
+export interface Highlight { text: string; tone: HighlightTone; }
 export type Severity = 'high' | 'medium' | 'low';
 export type Confidence = { level: 'high' | 'medium' | 'low'; score: number }; // 0..1
 export type Trend = { delta: number; period: string }; // e.g. {delta:-6, period:'1D'}
@@ -35,7 +39,8 @@ export interface MarketRegime {
 
 // 프레임 01 — 내 포트폴리오 영향 알림 (Market Brain)
 export interface PortfolioImpactNotice {
-  headline: string;          // '보유 종목 중 3개가 오늘 원/달러 환율 하락(−1.2%)에 노출...'
+  headline: string;
+  headlineHighlights?: Highlight[];          // '보유 종목 중 3개가 오늘 원/달러 환율 하락(−1.2%)에 노출...'
   symbols: { symbol: string; name: string }[];
 }
 
@@ -68,6 +73,7 @@ export interface CompanyHealth {
   riskLevel?: Severity;      // 위험 수준 셀
   riskNote?: string;         // '변동성 ↑'
   summary?: string;          // AI 기업 요약 문장
+  summaryHighlights?: Highlight[];
   changeNote?: string;       // '변화 원인 · 모멘텀 점수가 ... +9 상승'
 }
 
@@ -187,6 +193,7 @@ export interface ScenarioResult {
   scenarioId: string;
   symbol?: string;           // or portfolio-wide
   conclusion: string;        // 1-2문장 AI 핵심 결론 — 화면 최상단
+  conclusionHighlights?: Highlight[];
   transmissionPath: { step: string; effect: string; direction: Direction }[];
   transmissionNote?: string; // 경로 아래 보조 설명
   deltas: ScenarioDelta[];   // 상태 74→63, 초과수익 61%→49% ...
@@ -219,6 +226,7 @@ export interface PortfolioRisk {
   var95: number;
   avgCorrelation: number;
   suggestion: string;        // Scenario Lab 유도 문구
+  suggestionHighlights?: Highlight[];
   asOf: string;
 }
 
@@ -243,6 +251,7 @@ export interface AIAnalysis {
   question: string;
   symbol?: string;           // 관련 종목 — Company Twin/Thesis 이동용
   conclusion: string;        // bold 핵심 결론
+  conclusionHighlights?: Highlight[];
   keyReasons: string;
   counterCase: string;       // 반대 가능성 — 필수 섹션
   dataPoints: { label: string; value: string; direction: Direction }[];
@@ -259,6 +268,7 @@ export interface AppNotification {
   time: string;
   headline: string;          // 충돌: '발언 vs 데이터' 대비 구조
   detail?: string;
+  detailHighlights?: Highlight[];
   sources?: string;
   thesisImpact?: number;     // -4 등
   importance?: Severity;     // 알림 중요도
@@ -299,6 +309,7 @@ export interface DiscoverSignal {
   title: string;             // 'LS일렉트릭 — 뉴스 없는 대량 매집'
   detail: string;            // 감지 이유
   recommendReason: string;   // 개인화: 내 포트폴리오/논제와의 관련성
+  recommendReasonHighlights?: Highlight[];
 }
 export interface IndustryTwin {
   name: string;              // '반도체 · 업황 회복 중반'

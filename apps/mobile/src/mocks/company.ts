@@ -29,6 +29,7 @@ export const mockHealth: CompanyHealth = {
   riskLevel: 'medium',
   riskNote: '변동성 ↑',
   summary: '현재 주가는 실적 전망 상향이 주도하고 있으나, 일부는 AI 기대감이 선반영된 상태입니다.',
+  summaryHighlights: [{ text: '실적 전망 상향', tone: 'strong' }], // 디자인 프레임 02 bold
   changeNote: '모멘텀 점수가 외국인 순매수와 HBM 뉴스 빈도 증가로 +9 상승. 밸류에이션은 주가 상승으로 부담 구간 진입.',
 };
 

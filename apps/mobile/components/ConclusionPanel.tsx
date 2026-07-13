@@ -1,20 +1,23 @@
 // specs/components.md — ConclusionPanel: HeroCard 변형.
 // Scenario 결과 화면 최상단 필수 ('AI 핵심 결론').
 import React from 'react';
-import { StyleSheet, Text, ViewStyle } from 'react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
 import { HeroCard } from '@/components/HeroCard';
 import { font } from '@/lib/fonts';
+import { RichText } from '@/components/RichText';
+import { Highlight } from '@/src/types';
 
 export interface ConclusionPanelProps {
   tag?: string;
   text: string;
+  highlights?: Highlight[];
   style?: ViewStyle;
 }
 
-export function ConclusionPanel({ tag = 'AI 핵심 결론 · CONCLUSION', text, style }: ConclusionPanelProps) {
+export function ConclusionPanel({ tag = 'AI 핵심 결론 · CONCLUSION', text, highlights, style }: ConclusionPanelProps) {
   return (
     <HeroCard tag={tag} style={style}>
-      <Text style={[styles.text, { fontFamily: font('body', '600') }]}>{text}</Text>
+      <RichText text={text} highlights={highlights} style={[styles.text, { fontFamily: font('body', '600') }]} />
     </HeroCard>
   );
 }

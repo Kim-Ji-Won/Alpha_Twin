@@ -21,6 +21,11 @@ export const mockRegime: MarketRegime = {
 export const mockPortfolioImpact: PortfolioImpactNotice = {
   headline:
     '보유 종목 중 3개가 오늘 원/달러 환율 하락(−1.2%)에 노출되어 있습니다. 수출 비중이 높은 종목의 단기 영업이익 추정에 부정적일 수 있습니다.',
+  // 디자인 프레임 01: '3개' ink bold · 환율 하락 warn bold
+  headlineHighlights: [
+    { text: '3개', tone: 'strong' },
+    { text: '원/달러 환율 하락(−1.2%)', tone: 'warning' },
+  ],
   symbols: [
     { symbol: '000660', name: 'SK하이닉스' },
     { symbol: '006400', name: '삼성SDI' },

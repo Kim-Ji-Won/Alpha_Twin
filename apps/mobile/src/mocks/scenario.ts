@@ -62,6 +62,11 @@ export const mockScenarioResult: ScenarioResult = {
   scenarioId: 'sc-1', symbol: '000660',
   conclusion:
     '환율 10% 하락은 수출 매출 환산 감소로 단기 영업이익에 부정적이며, 기업 상태 점수가 74에서 63으로 낮아질 가능성이 있습니다. 다만 외화부채 상환 부담 완화가 일부를 상쇄합니다.',
+  conclusionHighlights: [
+    { text: '수출 매출 환산 감소', tone: 'negative' },
+    { text: '74에서 63', tone: 'strong' },
+    { text: '외화부채 상환 부담 완화', tone: 'positive' },
+  ],
   transmissionPath: [
     { step: '환율 ↓', effect: '달러 매출 원화 환산 감소', direction: 'negative' },
     { step: '수출단가 환산↓', effect: '영업이익률 압박', direction: 'negative' },

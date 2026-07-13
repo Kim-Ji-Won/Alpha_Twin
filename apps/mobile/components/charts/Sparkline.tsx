@@ -5,6 +5,7 @@ import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Polyline, Text as SvgText } from 'react-native-svg';
 import { colors } from '@/src/theme';
 import { font } from '@/lib/fonts';
+import { ChartReveal } from '@/components/charts/ChartReveal';
 
 export interface SparklineMarker {
   /** points 배열 내 인덱스 */
@@ -56,7 +57,7 @@ export function Sparkline({
             </Text>
           </View>
         ) : (
-          <SparklineSvg
+          <ChartReveal><SparklineSvg
             width={width}
             height={height}
             labelSpace={labelSpace}
@@ -66,7 +67,7 @@ export function Sparkline({
             axisLeft={axisLeft}
             axisRight={axisRight}
             stroke={stroke}
-          />
+          /></ChartReveal>
         )
       ) : null}
     </View>

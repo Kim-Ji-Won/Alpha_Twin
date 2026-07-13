@@ -1,0 +1,77 @@
+{
+  "response": {
+    "header": {
+      "resultCode": "00",
+      "resultMsg": "NORMAL SERVICE."
+    },
+    "body": {
+      "numOfRows": 400,
+      "pageNo": 1,
+      "totalCount": 4,
+      "items": {
+        "item": [
+          {
+            "basDt": "20260709",
+            "srtnCd": "000660",
+            "isinCd": "KR7000660001",
+            "itmsNm": "SK하이닉스",
+            "mrktCtg": "KOSPI",
+            "clpr": "176,000",
+            "vs": "-1,200",
+            "fltRt": "-0.68",
+            "mkp": "177,500",
+            "hipr": "179,000",
+            "lopr": "175,500",
+            "trqu": "3,500,000",
+            "trPrc": "618,000,000,000"
+          },
+          {
+            "basDt": "20260710",
+            "srtnCd": "000660",
+            "isinCd": "KR7000660001",
+            "itmsNm": "SK하이닉스",
+            "mrktCtg": "KOSPI",
+            "clpr": "178,400",
+            "vs": "2,400",
+            "fltRt": "1.36",
+            "mkp": "176,500",
+            "hipr": "180,000",
+            "lopr": "176,000",
+            "trqu": "3,812,450",
+            "trPrc": "684,291,080,000"
+          },
+          {
+            "basDt": "20260710",
+            "srtnCd": "000660",
+            "isinCd": "KR7000660001",
+            "itmsNm": "SK하이닉스",
+            "mrktCtg": "KOSPI",
+            "clpr": "178,400",
+            "vs": "2,400",
+            "fltRt": "1.36",
+            "mkp": "176,500",
+            "hipr": "180,000",
+            "lopr": "176,000",
+            "trqu": "3,812,450",
+            "trPrc": "684,291,080,000"
+          },
+          {
+            "basDt": "20260710",
+            "srtnCd": "005930",
+            "isinCd": "KR7005930003",
+            "itmsNm": "삼성전자",
+            "mrktCtg": "KOSPI",
+            "clpr": "84,200",
+            "vs": "600",
+            "fltRt": "0.72",
+            "mkp": "83,700",
+            "hipr": "84,600",
+            "lopr": "83,500",
+            "trqu": "12,400,000",
+            "trPrc": "1,043,000,000,000"
+          }
+        ]
+      }
+    }
+  }
+}

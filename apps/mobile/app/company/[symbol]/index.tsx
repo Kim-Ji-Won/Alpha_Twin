@@ -61,6 +61,7 @@ function marketStatus(metadata: MarketDataMetadata): { label: string; tone: Badg
   if (metadata.stale) return { label: '최신 데이터가 아닐 수 있음', tone: 'warn' };
   if (metadata.partial) return { label: '일부 시세만 최신', tone: 'warn' };
   if (metadata.fallback) return { label: 'Mock Data로 표시 중', tone: 'neutral' };
+  if (metadata.mode === 'confirmed') return { label: '최근 확정 시세', tone: 'accent' };
   return { label: 'ALPHA TWIN API', tone: 'accent' };
 }
 
@@ -104,6 +105,7 @@ export default function CompanyTwinRoute() {
   const { quote, marketData, health, events, distribution, network, thesis } = data;
   const risk = SEVERITY_TEXT[health.riskLevel ?? 'medium'];
   const marketState = marketStatus(marketData.metadata);
+  const isConfirmedPublicData = marketData.metadata.source.includes('public-data-fsc');
   const candlePoints = marketData.candles.map(candle => ({ date: candle.date, score: candle.close }));
   const firstCandle = marketData.candles[0];
   const lastCandle = marketData.candles.at(-1);
@@ -303,8 +305,9 @@ export default function CompanyTwinRoute() {
 
       <DataMetadata
         items={[
-          `시세 기준 ${formatAsOf(marketData.metadata.asOf)}`,
+          `${isConfirmedPublicData ? '최근 확정 시세 기준일' : '시세 기준'} ${formatAsOf(marketData.metadata.asOf)}`,
           `시세 출처 ${marketData.metadata.source}`,
+          ...(isConfirmedPublicData ? ['실시간 아님'] : []),
           marketState.label,
           `기업 분석 기준 ${formatAsOf(health.asOf)}`,
           `분석 신뢰도 ${Math.round(health.confidence.score * 100)}%`,

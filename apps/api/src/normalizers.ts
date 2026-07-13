@@ -14,7 +14,12 @@ function optionalText(input: UnknownRecord, key: string): string | undefined {
 }
 
 export function finiteNumber(value: unknown, field: string): number {
-  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value.replace(/,/g, '')) : NaN;
+  const normalized = typeof value === 'string' ? value.replace(/,/g, '').trim() : value;
+  const parsed = typeof normalized === 'number'
+    ? normalized
+    : typeof normalized === 'string' && normalized
+      ? Number(normalized)
+      : NaN;
   if (!Number.isFinite(parsed)) throw new Error(`Invalid numeric field: ${field}`);
   return parsed;
 }

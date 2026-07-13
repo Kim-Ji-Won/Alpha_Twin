@@ -4,12 +4,15 @@ import { loadConfig } from './config.js';
 import { MarketDataService } from './marketDataService.js';
 import { MockMarketDataProvider } from './providers/mockMarketDataProvider.js';
 import { PlaceholderLiveMarketDataProvider } from './providers/placeholderLiveMarketDataProvider.js';
+import { PublicDataMarketDataProvider } from './providers/publicDataMarketDataProvider.js';
 
 const config = loadConfig();
 const mockProvider = new MockMarketDataProvider();
-const provider = config.provider === 'live'
-  ? new PlaceholderLiveMarketDataProvider(config)
-  : mockProvider;
+const provider = config.provider === 'public-data'
+  ? new PublicDataMarketDataProvider(config)
+  : config.provider === 'live-placeholder'
+    ? new PlaceholderLiveMarketDataProvider(config)
+    : mockProvider;
 const marketData = new MarketDataService(provider, mockProvider, new MemoryCache(), config.allowMockFallback);
 const app = await buildApp(config, marketData);
 

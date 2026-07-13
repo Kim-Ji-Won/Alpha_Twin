@@ -45,7 +45,7 @@ export interface MarketDataMetadata {
   stale: boolean;
   fallback: boolean;
   partial: boolean;
-  mode: 'live' | 'stale' | 'partial' | 'fallback';
+  mode: 'live' | 'confirmed' | 'stale' | 'partial' | 'fallback';
 }
 
 export interface CompanyMarketData {

@@ -2,7 +2,7 @@ export interface AppConfig {
   port: number;
   host: string;
   corsOrigins: string[];
-  provider: 'mock' | 'live';
+  provider: 'mock' | 'public-data' | 'live-placeholder';
   marketDataBaseUrl?: string;
   marketDataApiKey?: string;
   marketDataAppSecret?: string;
@@ -18,7 +18,11 @@ function numberFromEnv(value: string | undefined, fallback: number): number {
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const provider = env.MARKET_DATA_PROVIDER === 'live' ? 'live' : 'mock';
+  const provider = env.MARKET_DATA_PROVIDER === 'public-data'
+    ? 'public-data'
+    : env.MARKET_DATA_PROVIDER === 'live' || env.MARKET_DATA_PROVIDER === 'live-placeholder'
+      ? 'live-placeholder'
+      : 'mock';
   return {
     port: numberFromEnv(env.PORT, 4000),
     host: env.HOST?.trim() || '127.0.0.1',

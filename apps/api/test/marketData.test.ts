@@ -68,6 +68,34 @@ test('returns stale cache when provider fails after expiry', async () => {
   assert.equal(stale.stale, true);
 });
 
+test('ignores stale cache beyond the provider max age and uses Mock fallback', async () => {
+  const mock = new MockMarketDataProvider();
+  let now = 0;
+  let fail = false;
+  const provider: MarketDataProvider = {
+    id: 'short-stale',
+    isFallback: false,
+    cachePolicy: {
+      quoteTtlMs: 1,
+      candlesTtlMs: 1,
+      quoteStaleMaxAgeMs: 5,
+      candlesStaleMaxAgeMs: 5,
+    },
+    async getQuote(symbol) {
+      if (fail) throw new Error('provider failed');
+      return mock.getQuote(symbol).then(quote => ({ ...quote, source: 'short-stale', fallback: false }));
+    },
+    async getDailyCandles(symbol, range) { return mock.getDailyCandles(symbol, range); },
+  };
+  const service = new MarketDataService(provider, mock, new MemoryCache(() => now), true);
+  await service.getQuote('000660');
+  now = 10;
+  fail = true;
+  const fallback = await service.getQuote('000660');
+  assert.equal(fallback.source, mock.id);
+  assert.equal(fallback.fallback, true);
+});
+
 test('API validates symbols and returns all market endpoints', async t => {
   const config = loadConfig({});
   const mock = new MockMarketDataProvider();
@@ -77,6 +105,8 @@ test('API validates symbols and returns all market endpoints', async t => {
 
   const bad = await app.inject({ method: 'GET', url: '/api/v1/stocks/SK/quote' });
   assert.equal(bad.statusCode, 400);
+  const unsupported = await app.inject({ method: 'GET', url: '/api/v1/stocks/035420/quote' });
+  assert.equal(unsupported.statusCode, 400);
 
   for (const path of ['quote', 'candles', 'summary']) {
     const response = await app.inject({ method: 'GET', url: `/api/v1/stocks/000660/${path}` });

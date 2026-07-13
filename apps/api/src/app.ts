@@ -6,7 +6,14 @@ import { ApiErrorDto, CandleRange } from './contracts.js';
 import { MarketDataService } from './marketDataService.js';
 
 const SYMBOL_PATTERN = /^\d{6}$/;
+const SUPPORTED_SYMBOLS = new Set(['000660', '005930']);
 const RANGES = new Set<CandleRange>(['1m', '3m', '6m', '1y']);
+
+function invalidSymbol(symbol: string): string | undefined {
+  if (!SYMBOL_PATTERN.test(symbol)) return 'symbol must be six digits';
+  if (!SUPPORTED_SYMBOLS.has(symbol)) return 'symbol is not enabled in P3-C-1';
+  return undefined;
+}
 
 function errorBody(code: string, message: string): ApiErrorDto {
   return {
@@ -53,7 +60,8 @@ export async function buildApp(config: AppConfig, marketData: MarketDataService)
 
   app.get<{ Params: { symbol: string } }>('/api/v1/stocks/:symbol/quote', async (request, reply) => {
     const { symbol } = request.params;
-    if (!SYMBOL_PATTERN.test(symbol)) return reply.code(400).send(errorBody('INVALID_SYMBOL', 'symbol must be six digits'));
+    const symbolError = invalidSymbol(symbol);
+    if (symbolError) return reply.code(400).send(errorBody('INVALID_SYMBOL', symbolError));
     try {
       return await marketData.getQuote(symbol);
     } catch {
@@ -64,7 +72,8 @@ export async function buildApp(config: AppConfig, marketData: MarketDataService)
   app.get<{ Params: { symbol: string }; Querystring: { range?: string } }>('/api/v1/stocks/:symbol/candles', async (request, reply) => {
     const { symbol } = request.params;
     const range = request.query.range ?? '1m';
-    if (!SYMBOL_PATTERN.test(symbol)) return reply.code(400).send(errorBody('INVALID_SYMBOL', 'symbol must be six digits'));
+    const symbolError = invalidSymbol(symbol);
+    if (symbolError) return reply.code(400).send(errorBody('INVALID_SYMBOL', symbolError));
     if (!RANGES.has(range as CandleRange)) return reply.code(400).send(errorBody('INVALID_RANGE', 'range must be one of 1m, 3m, 6m, 1y'));
     try {
       return await marketData.getCandles(symbol, range as CandleRange);
@@ -76,7 +85,8 @@ export async function buildApp(config: AppConfig, marketData: MarketDataService)
   app.get<{ Params: { symbol: string }; Querystring: { range?: string } }>('/api/v1/stocks/:symbol/summary', async (request, reply) => {
     const { symbol } = request.params;
     const range = request.query.range ?? '1m';
-    if (!SYMBOL_PATTERN.test(symbol)) return reply.code(400).send(errorBody('INVALID_SYMBOL', 'symbol must be six digits'));
+    const symbolError = invalidSymbol(symbol);
+    if (symbolError) return reply.code(400).send(errorBody('INVALID_SYMBOL', symbolError));
     if (!RANGES.has(range as CandleRange)) return reply.code(400).send(errorBody('INVALID_RANGE', 'range must be one of 1m, 3m, 6m, 1y'));
     try {
       return await marketData.getSummary(symbol, range as CandleRange);

@@ -22,13 +22,16 @@ export const stockService = {
       const summary = await alphaTwinApi.getStockSummary(symbol);
       const base = fallback.quote;
       const partial = summary.candles.length === 0;
+      const isConfirmedPublicData = summary.metadata.source.includes('public-data-fsc');
       const mode = summary.metadata.stale
         ? 'stale'
         : partial
           ? 'partial'
           : summary.metadata.fallback
             ? 'fallback'
-            : 'live';
+            : isConfirmedPublicData
+              ? 'confirmed'
+              : 'live';
       return {
         quote: {
           symbol: summary.quote.symbol,

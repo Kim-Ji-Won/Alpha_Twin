@@ -17,6 +17,41 @@ export interface Stock {
   healthScore: number;       // 0..100 기업 상태 점수
   thesisId?: string;
   flags?: Array<'narrative_gap' | 'anomaly' | 'stale_data'>;
+  market?: string;
+  currency?: string;
+  change?: number;
+  volume?: number;
+  tradingValue?: number;
+  asOf?: string;
+  source?: string;
+  stale?: boolean;
+  fallback?: boolean;
+}
+
+export interface StockCandle {
+  symbol: string;
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  source: string;
+}
+
+export interface MarketDataMetadata {
+  asOf: string;
+  source: string;
+  stale: boolean;
+  fallback: boolean;
+  partial: boolean;
+  mode: 'live' | 'stale' | 'partial' | 'fallback';
+}
+
+export interface CompanyMarketData {
+  quote: Stock | null;
+  candles: StockCandle[];
+  metadata: MarketDataMetadata;
 }
 
 export interface MarketRegime {

@@ -25,7 +25,7 @@ export interface StockHeaderProps {
 }
 
 export function StockHeader({ stock, onBack, style }: StockHeaderProps) {
-  const changeAmount = Math.round(stock.price - stock.price / (1 + stock.changePct / 100));
+  const changeAmount = stock.change ?? Math.round(stock.price - stock.price / (1 + stock.changePct / 100));
   const up = stock.changePct >= 0;
   const changeColor = up ? colors.pos : colors.neg;
   const changeText = `${up ? '▲' : '▼'} ${Math.abs(changeAmount).toLocaleString()} ${signed(stock.changePct, '%')}`;
@@ -63,7 +63,7 @@ export function StockHeader({ stock, onBack, style }: StockHeaderProps) {
           {stock.name}
         </Text>
         <Text style={[styles.code, { fontFamily: font('mono', '500') }]} numberOfLines={1}>
-          {stock.symbol} · KOSPI · {stock.sector}
+          {stock.symbol} · {stock.market ?? 'KOSPI'} · {stock.sector}
         </Text>
       </View>
       <View

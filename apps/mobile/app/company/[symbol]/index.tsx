@@ -17,15 +17,17 @@ import { SectionHeader } from '@/components/SectionHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/States';
 import { StaticTabBar } from '@/components/StaticTabBar';
 import { StockHeader } from '@/components/StockHeader';
+import { BadgeTone, StatusBadge } from '@/components/StatusBadge';
 import { HealthRadarChart } from '@/components/charts/HealthRadarChart';
 import { NetworkGraph } from '@/components/charts/NetworkGraph';
 import { RichText } from '@/components/RichText';
 import { ProbabilityChart } from '@/components/charts/ProbabilityChart';
+import { Sparkline } from '@/components/charts/Sparkline';
 import { signed } from '@/lib/direction';
 import { font } from '@/lib/fonts';
 import { useCompanyTwin } from '@/lib/hooks';
 import { colors } from '@/src/theme';
-import { HealthArea, Severity } from '@/src/types';
+import { HealthArea, MarketDataMetadata, Severity } from '@/src/types';
 
 // 프레임 02의 기업 상태 6개 항목 (레이더 + 상태 바)
 const RADAR_KEYS: HealthArea['key'][] = [
@@ -53,6 +55,13 @@ function scoreTone(score: number): string {
   if (score >= 75) return colors.pos;
   if (score >= 55) return colors.accent;
   return colors.warn;
+}
+
+function marketStatus(metadata: MarketDataMetadata): { label: string; tone: BadgeTone } {
+  if (metadata.stale) return { label: '최신 데이터가 아닐 수 있음', tone: 'warn' };
+  if (metadata.partial) return { label: '일부 시세만 최신', tone: 'warn' };
+  if (metadata.fallback) return { label: 'Mock Data로 표시 중', tone: 'neutral' };
+  return { label: 'ALPHA TWIN API', tone: 'accent' };
 }
 
 export default function CompanyTwinRoute() {
@@ -92,8 +101,12 @@ export default function CompanyTwinRoute() {
     );
   }
 
-  const { quote, health, events, distribution, network, thesis } = data;
+  const { quote, marketData, health, events, distribution, network, thesis } = data;
   const risk = SEVERITY_TEXT[health.riskLevel ?? 'medium'];
+  const marketState = marketStatus(marketData.metadata);
+  const candlePoints = marketData.candles.map(candle => ({ date: candle.date, score: candle.close }));
+  const firstCandle = marketData.candles[0];
+  const lastCandle = marketData.candles.at(-1);
   const radarAreas = RADAR_KEYS.map(k => health.areas.find(a => a.key === k)).filter(
     (a): a is HealthArea => a != null,
   );
@@ -103,6 +116,24 @@ export default function CompanyTwinRoute() {
   return (
     <AppScreen edges={['top', 'left', 'right']} tabBar={<StaticTabBar />}>
       <StockHeader stock={quote} onBack={goBack} />
+
+      <Panel style={styles.marketPanel}>
+        <View style={styles.marketHead}>
+          <Text style={[styles.marketTitle, { fontFamily: font('body', '700') }]}>일봉 시세 · Daily</Text>
+          <StatusBadge label={marketState.label} tone={marketState.tone} size="sm" />
+        </View>
+        <Sparkline
+          points={candlePoints}
+          height={62}
+          axisLeft={firstCandle?.date.slice(5).replace('-', '/')}
+          axisRight={lastCandle?.date.slice(5).replace('-', '/')}
+          style={styles.marketChart}
+        />
+        <View style={styles.marketStats}>
+          <Text style={[styles.marketStat, { fontFamily: font('mono', '500') }]}>거래량 {quote.volume?.toLocaleString() ?? '—'}</Text>
+          <Text style={[styles.marketStat, { fontFamily: font('mono', '500') }]}>거래대금 {quote.tradingValue ? `${Math.round(quote.tradingValue / 100_000_000).toLocaleString()}억원` : '—'}</Text>
+        </View>
+      </Panel>
 
       {/* 점수 스트립 — 기업 상태 / 논제 건강도 / 위험 수준 / AI 신뢰도 */}
       <View style={styles.strip}>
@@ -272,9 +303,12 @@ export default function CompanyTwinRoute() {
 
       <DataMetadata
         items={[
-          `데이터 기준 ${formatAsOf(health.asOf)}`,
+          `시세 기준 ${formatAsOf(marketData.metadata.asOf)}`,
+          `시세 출처 ${marketData.metadata.source}`,
+          marketState.label,
+          `기업 분석 기준 ${formatAsOf(health.asOf)}`,
           `분석 신뢰도 ${Math.round(health.confidence.score * 100)}%`,
-          'Mock 데이터 · 추정 범위',
+          '기업 분석 Mock 데이터 · 추정 범위',
         ]}
         style={styles.meta}
       />
@@ -283,6 +317,12 @@ export default function CompanyTwinRoute() {
 }
 
 const styles = StyleSheet.create({
+  marketPanel: { marginBottom: 14 },
+  marketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  marketTitle: { fontSize: 12, fontWeight: '700', color: colors.mut, textTransform: 'uppercase' },
+  marketChart: { marginTop: 10 },
+  marketStats: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 8 },
+  marketStat: { fontSize: 10.5, color: colors.dim },
   strip: {
     flexDirection: 'row',
     borderWidth: 1,

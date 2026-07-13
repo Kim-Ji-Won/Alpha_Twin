@@ -10,6 +10,7 @@ import {
   AnomalySignal,
   CompanyEvent,
   CompanyHealth,
+  CompanyMarketData,
   CompanyNetwork,
   InvestmentThesis,
   MarketRegime,
@@ -47,6 +48,7 @@ export function useMarketBrain(): AsyncState<MarketBrainData> {
 
 export interface CompanyTwinData {
   quote: Stock | null;
+  marketData: CompanyMarketData;
   health: CompanyHealth;
   events: CompanyEvent[];
   distribution: ProbabilityDistribution;
@@ -57,15 +59,15 @@ export interface CompanyTwinData {
 export function useCompanyTwin(symbol: string): AsyncState<CompanyTwinData> {
   return useAsync(
     async () => {
-      const [quote, health, events, distribution, network, thesis] = await Promise.all([
-        stockService.getQuote(symbol),
+      const [marketData, health, events, distribution, network, thesis] = await Promise.all([
+        stockService.getCompanyMarketData(symbol),
         stockService.getHealth(symbol),
         stockService.getEvents(symbol),
         stockService.getDistribution(symbol),
         stockService.getNetwork(symbol),
         thesisService.getBySymbol(symbol),
       ]);
-      return { quote, health, events, distribution, network, thesis };
+      return { quote: marketData.quote, marketData, health, events, distribution, network, thesis };
     },
     [symbol],
     { isEmpty: d => d.quote == null, reloadOnFocus: true },

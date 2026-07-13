@@ -1,4 +1,5 @@
 export * from './stocks';
+export * from './stockMarket';
 export * from './market';
 export * from './company';
 export * from './thesis';

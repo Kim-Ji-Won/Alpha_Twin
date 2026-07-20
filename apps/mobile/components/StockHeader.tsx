@@ -27,6 +27,7 @@ export interface StockHeaderProps {
 export function StockHeader({ stock, onBack, style }: StockHeaderProps) {
   const changeAmount = stock.change ?? Math.round(stock.price - stock.price / (1 + stock.changePct / 100));
   const up = stock.changePct >= 0;
+  const priceLabel = stock.source === 'public-data-fsc' ? '최근 확정가' : '현재가';
   const changeColor = up ? colors.pos : colors.neg;
   const changeText = `${up ? '▲' : '▼'} ${Math.abs(changeAmount).toLocaleString()} ${signed(stock.changePct, '%')}`;
   return (
@@ -68,7 +69,7 @@ export function StockHeader({ stock, onBack, style }: StockHeaderProps) {
       </View>
       <View
         style={styles.price}
-        accessibilityLabel={`현재가 ${stock.price.toLocaleString()}원, ${up ? '상승' : '하락'} ${Math.abs(changeAmount).toLocaleString()}원, ${signed(stock.changePct, '%')}`}>
+        accessibilityLabel={`${priceLabel} ${stock.price.toLocaleString()}원, ${up ? '상승' : '하락'} ${Math.abs(changeAmount).toLocaleString()}원, ${signed(stock.changePct, '%')}`}>
         <Text style={[styles.priceValue, { fontFamily: font('mono', '700') }]}>
           {stock.price.toLocaleString()}
         </Text>

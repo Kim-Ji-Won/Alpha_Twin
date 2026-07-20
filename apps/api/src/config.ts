@@ -10,6 +10,8 @@ export interface AppConfig {
   timeoutMs: number;
   rateLimitMax: number;
   rateLimitWindowMs: number;
+  cacheMaxEntries: number;
+  logLevel: 'silent' | 'error' | 'warn' | 'info';
 }
 
 function numberFromEnv(value: string | undefined, fallback: number): number {
@@ -23,6 +25,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     : env.MARKET_DATA_PROVIDER === 'live' || env.MARKET_DATA_PROVIDER === 'live-placeholder'
       ? 'live-placeholder'
       : 'mock';
+  const logLevel = ['silent', 'error', 'warn', 'info'].includes(env.LOG_LEVEL ?? '')
+    ? env.LOG_LEVEL as AppConfig['logLevel']
+    : 'info';
   return {
     port: numberFromEnv(env.PORT, 4000),
     host: env.HOST?.trim() || '127.0.0.1',
@@ -38,5 +43,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     timeoutMs: numberFromEnv(env.MARKET_DATA_TIMEOUT_MS, 5000),
     rateLimitMax: numberFromEnv(env.RATE_LIMIT_MAX, 120),
     rateLimitWindowMs: numberFromEnv(env.RATE_LIMIT_WINDOW_MS, 60_000),
+    cacheMaxEntries: numberFromEnv(env.MARKET_DATA_CACHE_MAX_ENTRIES, 500),
+    logLevel,
   };
 }

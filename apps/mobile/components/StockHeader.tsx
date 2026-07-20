@@ -27,9 +27,10 @@ export interface StockHeaderProps {
 export function StockHeader({ stock, onBack, style }: StockHeaderProps) {
   const changeAmount = stock.change ?? Math.round(stock.price - stock.price / (1 + stock.changePct / 100));
   const up = stock.changePct >= 0;
-  const priceLabel = stock.source === 'public-data-fsc' ? '최근 확정가' : '현재가';
+  const priceLabel = stock.dataMode === 'eod' || stock.source === 'public-data-fsc' ? '최근 확정가' : '현재가';
   const changeColor = up ? colors.pos : colors.neg;
   const changeText = `${up ? '▲' : '▼'} ${Math.abs(changeAmount).toLocaleString()} ${signed(stock.changePct, '%')}`;
+  const metadataText = [stock.symbol, stock.market ?? 'KOSPI', stock.sector].filter(Boolean).join(' · ');
   return (
     <View style={[styles.row, style]}>
       {onBack ? (
@@ -64,16 +65,20 @@ export function StockHeader({ stock, onBack, style }: StockHeaderProps) {
           {stock.name}
         </Text>
         <Text style={[styles.code, { fontFamily: font('mono', '500') }]} numberOfLines={1}>
-          {stock.symbol} · {stock.market ?? 'KOSPI'} · {stock.sector}
+          {metadataText}
         </Text>
       </View>
       <View
         style={styles.price}
         accessibilityLabel={`${priceLabel} ${stock.price.toLocaleString()}원, ${up ? '상승' : '하락'} ${Math.abs(changeAmount).toLocaleString()}원, ${signed(stock.changePct, '%')}`}>
-        <Text style={[styles.priceValue, { fontFamily: font('mono', '700') }]}>
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          style={[styles.priceValue, { fontFamily: font('mono', '700') }]}>
           {stock.price.toLocaleString()}
         </Text>
-        <Text style={[styles.change, { color: changeColor, fontFamily: font('mono', '600') }]}>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78} style={[styles.change, { color: changeColor, fontFamily: font('mono', '600') }]}>
           {changeText}
         </Text>
       </View>
@@ -108,10 +113,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileText: { fontSize: 15, fontWeight: '700', color: colors.accent },
-  names: { flex: 1 },
+  names: { flex: 1, minWidth: 0 },
   name: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4, color: colors.ink },
   code: { fontSize: 11, color: colors.dim, marginTop: 2 },
-  price: { alignItems: 'flex-end' },
+  price: { alignItems: 'flex-end', maxWidth: '42%', minWidth: 74 },
   priceValue: { fontSize: 20, fontWeight: '700', letterSpacing: -0.6, color: colors.ink },
   change: { fontSize: 12, fontWeight: '600', marginTop: 2 },
 });

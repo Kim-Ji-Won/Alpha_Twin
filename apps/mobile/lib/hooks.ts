@@ -49,10 +49,10 @@ export function useMarketBrain(): AsyncState<MarketBrainData> {
 export interface CompanyTwinData {
   quote: Stock | null;
   marketData: CompanyMarketData;
-  health: CompanyHealth;
-  events: CompanyEvent[];
-  distribution: ProbabilityDistribution;
-  network: CompanyNetwork;
+  health: CompanyHealth | null;
+  events: CompanyEvent[] | null;
+  distribution: ProbabilityDistribution | null;
+  network: CompanyNetwork | null;
   thesis: InvestmentThesis | null; // 논제 건강도 셀 — 없으면 '없음' 표시
 }
 

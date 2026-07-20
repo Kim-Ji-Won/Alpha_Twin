@@ -22,7 +22,8 @@ export const stockService = {
       const summary = await alphaTwinApi.getStockSummary(symbol);
       const base = fallback.quote;
       const partial = summary.candles.length === 0;
-      const isConfirmedPublicData = summary.metadata.source.includes('public-data-fsc');
+      const isConfirmedPublicData = summary.metadata.dataMode === 'eod'
+        || summary.metadata.source.includes('public-data-fsc');
       const mode = summary.metadata.stale
         ? 'stale'
         : partial
@@ -51,6 +52,8 @@ export const stockService = {
           source: summary.quote.source,
           stale: summary.quote.stale,
           fallback: summary.quote.fallback,
+          dataMode: summary.quote.dataMode ?? summary.metadata.dataMode,
+          priceAdjustment: summary.quote.priceAdjustment ?? summary.metadata.priceAdjustment,
         },
         candles: summary.candles,
         metadata: { ...summary.metadata, partial, mode },
@@ -60,8 +63,8 @@ export const stockService = {
     }
   },
   // P1 감사 #5 수정: 종목별 키 구조(companyDataFor)에서 조회
-  async getHealth(symbol: string): Promise<CompanyHealth> { await delay(); return companyDataFor(symbol).health; },
-  async getEvents(symbol: string): Promise<CompanyEvent[]> { await delay(); return companyDataFor(symbol).events; },
-  async getDistribution(symbol: string): Promise<ProbabilityDistribution> { await delay(); return companyDataFor(symbol).distribution; },
-  async getNetwork(symbol: string): Promise<CompanyNetwork> { await delay(); return companyDataFor(symbol).network; },
+  async getHealth(symbol: string): Promise<CompanyHealth | null> { await delay(); return companyDataFor(symbol)?.health ?? null; },
+  async getEvents(symbol: string): Promise<CompanyEvent[] | null> { await delay(); return companyDataFor(symbol)?.events ?? null; },
+  async getDistribution(symbol: string): Promise<ProbabilityDistribution | null> { await delay(); return companyDataFor(symbol)?.distribution ?? null; },
+  async getNetwork(symbol: string): Promise<CompanyNetwork | null> { await delay(); return companyDataFor(symbol)?.network ?? null; },
 };

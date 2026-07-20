@@ -155,6 +155,8 @@ function derivedCompanyData(symbol: string): CompanyData {
   };
 }
 
-export function companyDataFor(symbol: string): CompanyData {
-  return companyData[symbol] ?? derivedCompanyData(symbol);
+export function companyDataFor(symbol: string): CompanyData | null {
+  if (companyData[symbol]) return companyData[symbol];
+  if (!mockStocks.some(stock => stock.symbol === symbol)) return null;
+  return derivedCompanyData(symbol);
 }

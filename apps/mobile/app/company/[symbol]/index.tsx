@@ -103,12 +103,54 @@ export default function CompanyTwinRoute() {
   }
 
   const { quote, marketData, health, events, distribution, network, thesis } = data;
-  const risk = SEVERITY_TEXT[health.riskLevel ?? 'medium'];
   const marketState = marketStatus(marketData.metadata);
-  const isConfirmedPublicData = marketData.metadata.source.includes('public-data-fsc');
+  const isConfirmedPublicData = marketData.metadata.dataMode === 'eod'
+    || marketData.metadata.source.includes('public-data-fsc');
+  const sourceLabel = isConfirmedPublicData ? '금융위원회 공공데이터' : marketData.metadata.fallback ? 'Mock Data' : 'ALPHA TWIN API';
   const candlePoints = marketData.candles.map(candle => ({ date: candle.date, score: candle.close }));
   const firstCandle = marketData.candles[0];
   const lastCandle = marketData.candles.at(-1);
+
+  if (!health || !events || !distribution || !network) {
+    return (
+      <AppScreen edges={['top', 'left', 'right']} tabBar={<StaticTabBar />}>
+        <StockHeader stock={quote} onBack={goBack} />
+        <Panel style={styles.marketPanel}>
+          <View style={styles.marketHead}>
+            <Text style={[styles.marketTitle, { fontFamily: font('body', '700') }]}>일봉 시세 · Daily</Text>
+            <StatusBadge label={marketState.label} tone={marketState.tone} size="sm" />
+          </View>
+          <Sparkline
+            points={candlePoints}
+            height={62}
+            axisLeft={firstCandle?.date.slice(5).replace('-', '/')}
+            axisRight={lastCandle?.date.slice(5).replace('-', '/')}
+            style={styles.marketChart}
+          />
+          <View style={styles.marketStats}>
+            <Text style={[styles.marketStat, { fontFamily: font('mono', '500') }]}>거래량 {quote.volume?.toLocaleString() ?? '—'}</Text>
+            <Text style={[styles.marketStat, { fontFamily: font('mono', '500') }]}>거래대금 {quote.tradingValue ? `${Math.round(quote.tradingValue / 100_000_000).toLocaleString()}억원` : '—'}</Text>
+          </View>
+        </Panel>
+        <Panel>
+          <Text style={[styles.analysisPendingTitle, { fontFamily: font('body', '700') }]}>기업 분석 준비 중</Text>
+          <Text style={[styles.analysisPendingBody, { fontFamily: font('body', '500') }]}>이 종목은 최근 확정 시세만 제공됩니다. 검증된 기업 분석 데이터가 준비되기 전까지 상태 점수와 AI 분석은 표시하지 않습니다.</Text>
+        </Panel>
+        <DataMetadata
+          items={[
+            `${isConfirmedPublicData ? '최근 확정 시세 기준일' : '시세 기준'} ${formatAsOf(marketData.metadata.asOf)}`,
+            `시세 출처 ${sourceLabel}`,
+            ...(isConfirmedPublicData ? ['실시간 아님'] : []),
+            marketState.label,
+            '기업 분석 데이터 미제공',
+          ]}
+          style={styles.meta}
+        />
+      </AppScreen>
+    );
+  }
+
+  const risk = SEVERITY_TEXT[health.riskLevel ?? 'medium'];
   const radarAreas = RADAR_KEYS.map(k => health.areas.find(a => a.key === k)).filter(
     (a): a is HealthArea => a != null,
   );
@@ -306,7 +348,7 @@ export default function CompanyTwinRoute() {
       <DataMetadata
         items={[
           `${isConfirmedPublicData ? '최근 확정 시세 기준일' : '시세 기준'} ${formatAsOf(marketData.metadata.asOf)}`,
-          `시세 출처 ${marketData.metadata.source}`,
+          `시세 출처 ${sourceLabel}`,
           ...(isConfirmedPublicData ? ['실시간 아님'] : []),
           marketState.label,
           `기업 분석 기준 ${formatAsOf(health.asOf)}`,
@@ -358,6 +400,8 @@ const styles = StyleSheet.create({
   ctaMain: { flex: 1.2 },
   ctaSub: { flex: 1 },
   meta: { marginTop: 14 },
+  analysisPendingTitle: { fontSize: 14, color: colors.ink },
+  analysisPendingBody: { fontSize: 13, lineHeight: 20, color: colors.mut, marginTop: 7 },
   managementLink: {
     flexDirection: 'row',
     alignItems: 'center',

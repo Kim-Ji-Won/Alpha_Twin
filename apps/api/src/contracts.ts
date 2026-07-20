@@ -1,4 +1,6 @@
 export type CandleRange = '1m' | '3m' | '6m' | '1y';
+export type MarketDataMode = 'eod' | 'realtime' | 'mock';
+export type PriceAdjustment = 'raw' | 'adjusted' | 'unknown';
 
 export interface StockQuoteDto {
   symbol: string;
@@ -15,6 +17,8 @@ export interface StockQuoteDto {
   source: string;
   stale: boolean;
   fallback: boolean;
+  dataMode?: MarketDataMode;
+  priceAdjustment?: PriceAdjustment;
 }
 
 export interface StockCandleDto {
@@ -33,6 +37,8 @@ export interface ResponseMetadata {
   source: string;
   stale: boolean;
   fallback: boolean;
+  dataMode?: MarketDataMode;
+  priceAdjustment?: PriceAdjustment;
 }
 
 export interface StockCandlesDto {

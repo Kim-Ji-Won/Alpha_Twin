@@ -12,11 +12,13 @@ const RANGE_DAYS: Record<CandleRange, number> = { '1m': 22, '3m': 66, '6m': 132,
 export class MockMarketDataProvider implements MarketDataProvider {
   readonly id = 'alpha-twin-mock';
   readonly isFallback = true;
+  readonly dataMode = 'mock' as const;
+  readonly priceAdjustment = 'unknown' as const;
 
   async getQuote(symbol: string): Promise<StockQuoteDto> {
     const stock = STOCKS[symbol];
     if (!stock) throw new Error(`Mock quote is not available for symbol ${symbol}`);
-    return normalizeQuote({
+    const quote = normalizeQuote({
       symbol,
       name: stock.name,
       market: 'KOSPI',
@@ -29,6 +31,7 @@ export class MockMarketDataProvider implements MarketDataProvider {
       tradingValue: '684,291,080,000',
       asOf: new Date().toISOString(),
     }, this.id, true);
+    return { ...quote, dataMode: this.dataMode, priceAdjustment: this.priceAdjustment };
   }
 
   async getDailyCandles(symbol: string, range: CandleRange): Promise<StockCandleDto[]> {

@@ -15,6 +15,8 @@ interface StockQuoteDto {
   source: string;
   stale: boolean;
   fallback: boolean;
+  dataMode?: 'eod' | 'realtime' | 'mock';
+  priceAdjustment?: 'raw' | 'adjusted' | 'unknown';
 }
 
 export interface StockSummaryDto {
@@ -25,6 +27,8 @@ export interface StockSummaryDto {
     source: string;
     stale: boolean;
     fallback: boolean;
+    dataMode?: 'eod' | 'realtime' | 'mock';
+    priceAdjustment?: 'raw' | 'adjusted' | 'unknown';
   };
 }
 

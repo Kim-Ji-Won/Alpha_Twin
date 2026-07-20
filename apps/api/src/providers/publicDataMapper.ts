@@ -26,7 +26,7 @@ export function publicDataDate(value: unknown): string {
 }
 
 export function mapPublicDataQuote(item: PublicDataStockItem): StockQuoteDto {
-  return normalizeQuote({
+  const quote = normalizeQuote({
     symbol: requiredText(item.srtnCd, 'srtnCd'),
     name: requiredText(item.itmsNm, 'itmsNm'),
     market: requiredText(item.mrktCtg, 'mrktCtg'),
@@ -38,6 +38,11 @@ export function mapPublicDataQuote(item: PublicDataStockItem): StockQuoteDto {
     tradingValue: item.trPrc,
     asOf: publicDataDate(item.basDt),
   }, PUBLIC_DATA_SOURCE);
+  return {
+    ...quote,
+    dataMode: 'eod',
+    priceAdjustment: 'unknown',
+  };
 }
 
 export function mapPublicDataCandle(item: PublicDataStockItem): StockCandleDto {

@@ -26,6 +26,8 @@ export interface Stock {
   source?: string;
   stale?: boolean;
   fallback?: boolean;
+  dataMode?: 'eod' | 'realtime' | 'mock';
+  priceAdjustment?: 'raw' | 'adjusted' | 'unknown';
 }
 
 export interface StockCandle {
@@ -44,6 +46,8 @@ export interface MarketDataMetadata {
   source: string;
   stale: boolean;
   fallback: boolean;
+  dataMode?: 'eod' | 'realtime' | 'mock';
+  priceAdjustment?: 'raw' | 'adjusted' | 'unknown';
   partial: boolean;
   mode: 'live' | 'confirmed' | 'stale' | 'partial' | 'fallback';
 }

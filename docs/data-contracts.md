@@ -1,10 +1,10 @@
 # ALPHA TWIN Data Contracts
 
-## 1. P3-B and P3-C-1 Scope
+## 1. P3-B through P3-C-2 Scope
 
 P3-B establishes the backend boundary for market data and completes one vertical slice: Company Twin quote and daily candles. It does not connect AI, ML/DL, OpenDART, news, accounts, orders, or a database.
 
-P3-C-1 adds the Financial Services Commission public stock price API as the first real provider. It supports only `000660` and `005930`, and its values are confirmed daily prices rather than real-time quotes. The source updates once per business day, generally after 13:00 on the following business day.
+P3-C-1 adds the Financial Services Commission public stock price API as the first real provider. P3-C-2 removes the two-symbol allowlist, adds bounded pagination, KST date-only handling, cache isolation, request coalescing, and safe operational status. Values remain confirmed daily prices rather than real-time quotes. The source generally updates on the following business day.
 
 ## 2. Mobile API Boundary
 
@@ -36,7 +36,7 @@ For Android Emulator use `http://10.0.2.2:4000`. This variable is an address, no
 | GET | `/api/v1/stocks/:symbol/candles?range=1m` | Normalized daily candles and metadata |
 | GET | `/api/v1/stocks/:symbol/summary?range=1m` | Quote and candles for Company Twin |
 
-Symbols must contain six digits and P3-C-1 enables only `000660` and `005930`. Candle ranges are `1m`, `3m`, `6m`, and `1y`.
+Symbols are trimmed and must then contain exactly six digits. Malformed symbols return HTTP 400 before a provider call, symbols with no public rows return HTTP 404, and unavailable providers without usable stale or Mock data return HTTP 503. Candle ranges remain `1m`, `3m`, `6m`, and `1y`.
 
 ## 4. DTOs
 
@@ -55,6 +55,8 @@ Symbols must contain six digits and P3-C-1 enables only `000660` and `005930`. C
     source: string;
     stale: boolean;
     fallback: boolean;
+    dataMode?: 'eod' | 'realtime' | 'mock';
+    priceAdjustment?: 'raw' | 'adjusted' | 'unknown';
   };
 }
 ```
@@ -77,6 +79,8 @@ If a valid quote arrives without candles, mobile marks the result as partial and
 
 Public data responses use `source=public-data-fsc`. Mobile labels a successful response `최근 확정 시세`, displays its `YYYY-MM-DD` trading date, and states `실시간 아님`. It never shows the public-data response as `LIVE`.
 
+`dataMode` and `priceAdjustment` are optional additive fields. Public data uses `dataMode=eod`; Mock data uses `dataMode=mock`. EOD is a normal data characteristic and does not imply `stale=true`. `stale` is reserved for expired cache reuse after a provider failure, while `fallback` means another provider supplied the response.
+
 ## 7. Environment Variables
 
 Backend (`apps/api/.env`):
@@ -92,8 +96,10 @@ Backend (`apps/api/.env`):
 | `MARKET_DATA_APP_SECRET` | Provider app secret | Yes |
 | `MARKET_DATA_ALLOW_MOCK_FALLBACK` | Permit backend Mock fallback | No |
 | `MARKET_DATA_TIMEOUT_MS` | Provider/request timeout | No |
+| `MARKET_DATA_CACHE_MAX_ENTRIES` | In-memory cache entry limit | No |
 | `RATE_LIMIT_MAX` | Requests allowed per IP window | No |
 | `RATE_LIMIT_WINDOW_MS` | Rate-limit window duration | No |
+| `LOG_LEVEL` | `silent`, `error`, `warn`, or `info` | No |
 
 Mobile (`apps/mobile/.env`):
 
@@ -113,7 +119,7 @@ MARKET_DATA_BASE_URL=https://apis.data.go.kr/1160100/service/GetStockSecuritiesI
 MARKET_DATA_API_KEY=<data.go.kr decoding serviceKey>
 ```
 
-Use the decoding service key shown by data.go.kr; `URLSearchParams` safely encodes it for transport. The service key remains server-only. The provider uses Node's built-in `fetch`, a five-second default timeout, and `/getStockPriceInfo` with `likeSrtnCd`, `beginBasDt`, and `endBasDt`. Missing credentials and upstream 429/5xx/timeout/invalid payloads become controlled provider errors and enter the existing stale/Mock fallback flow.
+Use the decoding service key shown by data.go.kr; `URLSearchParams` safely encodes it for transport. The service key remains server-only. The provider uses Node's built-in `fetch`, a five-second default timeout per page, and `/getStockPriceInfo` with `likeSrtnCd`, `beginBasDt`, and `endBasDt`. Missing credentials and upstream 429/5xx/timeout/invalid payloads become controlled provider errors and enter the existing stale/Mock fallback flow. Full URLs, query strings, provider response bodies, and credentials are never logged.
 
 | Public field | Internal field |
 | --- | --- |
@@ -123,9 +129,17 @@ Use the decoding service key shown by data.go.kr; `URLSearchParams` safely encod
 | `basDt` | date-only `asOf` / candle `date` |
 | `mkp`, `hipr`, `lopr`, `clpr`, `trqu` | candle OHLCV |
 
-Public-data cache policy is six hours for quotes and 24 hours for candles. Expired values may be used for up to four days for quotes and seven days for candles. The default provider policy remains 45 seconds and 15 minutes respectively, with the same maximum stale ages.
+Public-data cache policy is six hours for quotes and 24 hours for candles. Expired values may be used for up to four days for quotes and seven days for candles. Keys include provider, operation, symbol, and candle range. Cache entries store `createdAt`, `freshUntil`, and `staleUntil`; expired entries are removed and the default in-memory store is bounded to 500 entries. Concurrent misses for the same key share one in-flight Promise.
 
-The API returns confirmed daily rows. A `1m`, `3m`, `6m`, or `1y` request computes a calendar date window, requests at most 400 rows, filters the exact symbol, removes duplicate trading dates, and returns ascending dates. Trading holidays naturally produce fewer rows. Persistent storage and an exchange calendar remain later work.
+The API returns confirmed daily rows. A request computes a KST date-only window, follows `pageNo`, `numOfRows`, and `totalCount`, then filters the exact symbol, removes duplicate trading dates, and returns ascending dates. Pagination is limited to 20 pages and 2,000 rows. Repeated pages, non-advancing metadata, empty intermediate pages, inconsistent totals, and partial-page failures reject the entire provider operation.
+
+Weekends and exchange holidays naturally produce fewer rows. The latest returned `basDt` is trusted and displayed; a date differing from today is not marked stale. A bounded 14-day candle lookup expansion and 180-day quote lookup expansion cover long closures or suspended trading without unbounded history scans. A full KRX holiday calendar is not included.
+
+The provider does not calculate adjusted prices. Because the public response contract does not establish complete split, consolidation, and ex-dividend adjustment semantics for this app, `priceAdjustment=unknown`. These candles must not be treated as adjusted data for long-horizon returns or ML inputs without a separately licensed adjusted-price/corporate-action source.
+
+`CacheStore` and bounded `MemoryCacheStore` form the persistence boundary. A file store is not implemented in P3-C-2: local files are not distributed-process safe, and Redis/DB storage remains an operational deployment decision.
+
+Safe provider events include status category, provider, symbol, range, duration, page count, cache state, and fallback state. `/health` exposes only provider id, data mode, cache kind, entry count, aggregate event counts, and the last safe event. It never exposes credential state, local paths, provider URLs, query strings, or response bodies.
 
 ## 9. Placeholder Live Provider
 
@@ -142,17 +156,19 @@ The current `PlaceholderLiveMarketDataProvider` returns a controlled error until
 - Scenario Lab and Thesis OS
 - Portfolio X-Ray, Discover, notifications, and AI Analyst
 
-## 11. P3-C-2 and Later
+## 11. P3-C-3 and Later
 
-Before adding real-time coverage, contract with a provider licensed for KRX display and redistribution. P3-C-2 should also decide adjusted-price semantics, add an exchange calendar, persistent cache/observability without secret logging, and versioned DTO migration rules. OpenDART, news, AI/RAG, user data, and portfolio account integrations remain separate future work.
+Before adding real-time coverage, contract with a provider licensed for KRX display and redistribution. Remaining work includes a licensed adjusted-price policy, official exchange calendar, production distributed cache/metrics, and versioned DTO migration rules. OpenDART, news, AI/RAG, user data, and portfolio account integrations remain separate future work.
 
 ## Development Commands
 
 ```bash
 cd apps/api
-npm install
+npm ci
 npm run dev
 ```
+
+`npm run dev` uses Node watch mode. If macOS reports `EMFILE`, use `npm run start` for a one-shot verification. The project does not modify OS file limits.
 
 ```bash
 cd apps/mobile

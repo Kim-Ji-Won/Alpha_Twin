@@ -5,6 +5,8 @@ import { MarketDataProvider } from './marketDataProvider.js';
 export class PlaceholderLiveMarketDataProvider implements MarketDataProvider {
   readonly id = 'live-provider-placeholder';
   readonly isFallback = false;
+  readonly dataMode = 'realtime' as const;
+  readonly priceAdjustment = 'unknown' as const;
 
   constructor(private readonly config: AppConfig) {}
 

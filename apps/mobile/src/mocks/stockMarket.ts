@@ -41,6 +41,8 @@ export function mockCompanyMarketData(symbol: string): CompanyMarketData {
       source: 'mobile-mock',
       stale: false,
       fallback: true,
+      dataMode: 'mock',
+      priceAdjustment: 'unknown',
     } : null,
     candles: stock ? fallbackCandles(stock) : [],
     metadata: {
@@ -48,6 +50,8 @@ export function mockCompanyMarketData(symbol: string): CompanyMarketData {
       source: 'mobile-mock',
       stale: false,
       fallback: true,
+      dataMode: 'mock',
+      priceAdjustment: 'unknown',
       partial: false,
       mode: 'fallback',
     },

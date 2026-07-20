@@ -8,31 +8,78 @@ export const CACHE_STALE_MAX_AGE_MS = {
   candles: 7 * 24 * 60 * 60_000,
 } as const;
 
-interface CacheEntry<T> {
+export interface CacheEntry<T> {
   value: T;
   createdAt: number;
-  expiresAt: number;
+  freshUntil: number;
+  staleUntil: number;
 }
 
-export class MemoryCache {
+export interface CacheStore {
+  get<T>(key: string): Promise<CacheEntry<T> | undefined>;
+  isFresh<T>(entry: CacheEntry<T>): boolean;
+  set<T>(key: string, value: T, freshTtlMs: number, staleMaxAgeMs: number): Promise<void>;
+  delete(key: string): Promise<void>;
+  clearExpired(): Promise<void>;
+  readonly kind: string;
+  readonly size: number;
+}
+
+export class MemoryCacheStore implements CacheStore {
+  readonly kind = 'memory';
   private readonly values = new Map<string, CacheEntry<unknown>>();
 
-  constructor(private readonly now: () => number = Date.now) {}
+  constructor(
+    private readonly now: () => number = Date.now,
+    private readonly maxEntries = 500,
+  ) {}
 
-  getFresh<T>(key: string): T | undefined {
-    const entry = this.values.get(key) as CacheEntry<T> | undefined;
-    if (!entry || entry.expiresAt <= this.now()) return undefined;
-    return entry.value;
+  get size(): number {
+    return this.values.size;
   }
 
-  getStale<T>(key: string, maxAgeMs = Number.POSITIVE_INFINITY): T | undefined {
+  async get<T>(key: string): Promise<CacheEntry<T> | undefined> {
     const entry = this.values.get(key) as CacheEntry<T> | undefined;
-    if (!entry || this.now() - entry.createdAt > maxAgeMs) return undefined;
-    return entry.value;
+    if (!entry) return undefined;
+    if (entry.staleUntil <= this.now()) {
+      this.values.delete(key);
+      return undefined;
+    }
+    return entry;
   }
 
-  set<T>(key: string, value: T, ttlMs: number): void {
+  isFresh<T>(entry: CacheEntry<T>): boolean {
+    return entry.freshUntil > this.now();
+  }
+
+  async set<T>(key: string, value: T, freshTtlMs: number, staleMaxAgeMs: number): Promise<void> {
     const createdAt = this.now();
-    this.values.set(key, { value, createdAt, expiresAt: createdAt + ttlMs });
+    this.values.delete(key);
+    this.values.set(key, {
+      value,
+      createdAt,
+      freshUntil: createdAt + freshTtlMs,
+      staleUntil: createdAt + staleMaxAgeMs,
+    });
+    await this.clearExpired();
+    while (this.values.size > this.maxEntries) {
+      const oldestKey = this.values.keys().next().value as string | undefined;
+      if (oldestKey == null) break;
+      this.values.delete(oldestKey);
+    }
+  }
+
+  async delete(key: string): Promise<void> {
+    this.values.delete(key);
+  }
+
+  async clearExpired(): Promise<void> {
+    const now = this.now();
+    for (const [key, entry] of this.values) {
+      if (entry.staleUntil <= now) this.values.delete(key);
+    }
   }
 }
+
+// Compatibility name retained for P3-B/P3-C-1 call sites.
+export class MemoryCache extends MemoryCacheStore {}

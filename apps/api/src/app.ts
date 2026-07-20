@@ -3,16 +3,16 @@ import Fastify, { FastifyInstance } from 'fastify';
 
 import { AppConfig } from './config.js';
 import { ApiErrorDto, CandleRange } from './contracts.js';
+import { isMarketDataError } from './marketDataErrors.js';
 import { MarketDataService } from './marketDataService.js';
 
 const SYMBOL_PATTERN = /^\d{6}$/;
-const SUPPORTED_SYMBOLS = new Set(['000660', '005930']);
 const RANGES = new Set<CandleRange>(['1m', '3m', '6m', '1y']);
 
-function invalidSymbol(symbol: string): string | undefined {
-  if (!SYMBOL_PATTERN.test(symbol)) return 'symbol must be six digits';
-  if (!SUPPORTED_SYMBOLS.has(symbol)) return 'symbol is not enabled in P3-C-1';
-  return undefined;
+function normalizeSymbol(symbol: string): { symbol?: string; error?: string } {
+  const normalized = symbol.trim();
+  if (!SYMBOL_PATTERN.test(normalized)) return { error: 'symbol must contain exactly six digits' };
+  return { symbol: normalized };
 }
 
 function errorBody(code: string, message: string): ApiErrorDto {
@@ -28,7 +28,8 @@ function errorBody(code: string, message: string): ApiErrorDto {
 }
 
 export async function buildApp(config: AppConfig, marketData: MarketDataService): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false, requestTimeout: config.timeoutMs });
+  const app = Fastify({ logger: { level: config.logLevel }, requestTimeout: config.timeoutMs });
+  marketData.setLogger(app.log);
   const requestWindows = new Map<string, { count: number; resetsAt: number }>();
   await app.register(cors, {
     origin(origin, callback) {
@@ -56,41 +57,52 @@ export async function buildApp(config: AppConfig, marketData: MarketDataService)
     status: 'ok',
     service: 'alpha-twin-api',
     asOf: new Date().toISOString(),
+    marketData: marketData.status,
   }));
 
+  app.setNotFoundHandler((_request, reply) => {
+    return reply.code(404).send(errorBody('NOT_FOUND', 'Route was not found'));
+  });
+
   app.get<{ Params: { symbol: string } }>('/api/v1/stocks/:symbol/quote', async (request, reply) => {
-    const { symbol } = request.params;
-    const symbolError = invalidSymbol(symbol);
-    if (symbolError) return reply.code(400).send(errorBody('INVALID_SYMBOL', symbolError));
+    const normalized = normalizeSymbol(request.params.symbol);
+    if (!normalized.symbol) return reply.code(400).send(errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol'));
     try {
-      return await marketData.getQuote(symbol);
-    } catch {
+      return await marketData.getQuote(normalized.symbol);
+    } catch (error) {
+      if (isMarketDataError(error, 'SYMBOL_NOT_FOUND')) {
+        return reply.code(404).send(errorBody('SYMBOL_NOT_FOUND', 'Stock symbol was not found'));
+      }
       return reply.code(503).send(errorBody('MARKET_DATA_UNAVAILABLE', 'Market data is temporarily unavailable'));
     }
   });
 
   app.get<{ Params: { symbol: string }; Querystring: { range?: string } }>('/api/v1/stocks/:symbol/candles', async (request, reply) => {
-    const { symbol } = request.params;
+    const normalized = normalizeSymbol(request.params.symbol);
     const range = request.query.range ?? '1m';
-    const symbolError = invalidSymbol(symbol);
-    if (symbolError) return reply.code(400).send(errorBody('INVALID_SYMBOL', symbolError));
+    if (!normalized.symbol) return reply.code(400).send(errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol'));
     if (!RANGES.has(range as CandleRange)) return reply.code(400).send(errorBody('INVALID_RANGE', 'range must be one of 1m, 3m, 6m, 1y'));
     try {
-      return await marketData.getCandles(symbol, range as CandleRange);
-    } catch {
+      return await marketData.getCandles(normalized.symbol, range as CandleRange);
+    } catch (error) {
+      if (isMarketDataError(error, 'SYMBOL_NOT_FOUND')) {
+        return reply.code(404).send(errorBody('SYMBOL_NOT_FOUND', 'Stock symbol was not found'));
+      }
       return reply.code(503).send(errorBody('MARKET_DATA_UNAVAILABLE', 'Market data is temporarily unavailable'));
     }
   });
 
   app.get<{ Params: { symbol: string }; Querystring: { range?: string } }>('/api/v1/stocks/:symbol/summary', async (request, reply) => {
-    const { symbol } = request.params;
+    const normalized = normalizeSymbol(request.params.symbol);
     const range = request.query.range ?? '1m';
-    const symbolError = invalidSymbol(symbol);
-    if (symbolError) return reply.code(400).send(errorBody('INVALID_SYMBOL', symbolError));
+    if (!normalized.symbol) return reply.code(400).send(errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol'));
     if (!RANGES.has(range as CandleRange)) return reply.code(400).send(errorBody('INVALID_RANGE', 'range must be one of 1m, 3m, 6m, 1y'));
     try {
-      return await marketData.getSummary(symbol, range as CandleRange);
-    } catch {
+      return await marketData.getSummary(normalized.symbol, range as CandleRange);
+    } catch (error) {
+      if (isMarketDataError(error, 'SYMBOL_NOT_FOUND')) {
+        return reply.code(404).send(errorBody('SYMBOL_NOT_FOUND', 'Stock symbol was not found'));
+      }
       return reply.code(503).send(errorBody('MARKET_DATA_UNAVAILABLE', 'Market data is temporarily unavailable'));
     }
   });

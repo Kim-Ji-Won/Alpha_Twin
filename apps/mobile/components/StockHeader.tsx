@@ -21,10 +21,16 @@ const INITIALS: Record<string, string> = {
 export interface StockHeaderProps {
   stock: Stock;
   onBack?: () => void;
+  priceState?: 'ready' | 'loading' | 'unavailable';
   style?: ViewStyle;
 }
 
-export function StockHeader({ stock, onBack, style }: StockHeaderProps) {
+export function StockHeader({
+  stock,
+  onBack,
+  priceState = 'ready',
+  style,
+}: StockHeaderProps) {
   const changeAmount = stock.change ?? Math.round(stock.price - stock.price / (1 + stock.changePct / 100));
   const up = stock.changePct >= 0;
   const priceLabel = stock.dataMode === 'eod' || stock.source === 'public-data-fsc' ? '최근 확정가' : '현재가';
@@ -68,20 +74,30 @@ export function StockHeader({ stock, onBack, style }: StockHeaderProps) {
           {metadataText}
         </Text>
       </View>
-      <View
-        style={styles.price}
-        accessibilityLabel={`${priceLabel} ${stock.price.toLocaleString()}원, ${up ? '상승' : '하락'} ${Math.abs(changeAmount).toLocaleString()}원, ${signed(stock.changePct, '%')}`}>
-        <Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.72}
-          style={[styles.priceValue, { fontFamily: font('mono', '700') }]}>
-          {stock.price.toLocaleString()}
-        </Text>
-        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78} style={[styles.change, { color: changeColor, fontFamily: font('mono', '600') }]}>
-          {changeText}
-        </Text>
-      </View>
+      {priceState === 'ready' ? (
+        <View
+          style={styles.price}
+          accessibilityLabel={`${priceLabel} ${stock.price.toLocaleString()}원, ${up ? '상승' : '하락'} ${Math.abs(changeAmount).toLocaleString()}원, ${signed(stock.changePct, '%')}`}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.72}
+            style={[styles.priceValue, { fontFamily: font('mono', '700') }]}>
+            {stock.price.toLocaleString()}
+          </Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78} style={[styles.change, { color: changeColor, fontFamily: font('mono', '600') }]}>
+            {changeText}
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={styles.price}
+          accessibilityLabel={priceState === 'loading' ? '시세 불러오는 중' : '시세를 불러오지 못함'}>
+          <Text style={[styles.pricePending, { fontFamily: font('body', '600') }]}>
+            {priceState === 'loading' ? '시세 확인 중' : '시세 확인 불가'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -118,5 +134,6 @@ const styles = StyleSheet.create({
   code: { fontSize: 11, color: colors.dim, marginTop: 2 },
   price: { alignItems: 'flex-end', maxWidth: '42%', minWidth: 74 },
   priceValue: { fontSize: 20, fontWeight: '700', letterSpacing: -0.6, color: colors.ink },
+  pricePending: { fontSize: 11.5, color: colors.mut, textAlign: 'right' },
   change: { fontSize: 12, fontWeight: '600', marginTop: 2 },
 });

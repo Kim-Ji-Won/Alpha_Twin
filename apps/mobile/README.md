@@ -44,3 +44,17 @@ src/                 루트 인계 패키지에서 복사한 실소스 (theme/ty
 - `src/`는 루트 `../../src`의 복사본입니다. 루트가 원본(source of truth)이며, 수정 시 양쪽 동기화가 필요합니다.
 - 화면은 `src/services`만 호출합니다 (Mock → 실제 API 교체 지점, HANDOFF.md 참조).
 - 온보딩/로그인 상태는 AsyncStorage 키 `@alpha-twin/app-flags-v1`에 저장됩니다. 초기화하려면 앱 삭제 후 재설치하거나 해당 키를 지우세요.
+
+## Company Twin 데이터
+
+Company Twin은 모바일에서 외부 금융 서비스를 직접 호출하지 않고
+`EXPO_PUBLIC_ALPHA_TWIN_API_BASE_URL`로 설정된 ALPHA TWIN Backend만 사용합니다.
+
+- 최근 확정 시세와 일봉: 금융위원회 공공데이터
+- 기업개황, 최근 공시: OpenDART
+- 최근 정기보고서와 정규화 재무 8개 항목: OpenDART Latest Financial Resolver
+- 시장, 기업개황, 공시, 재무는 독립적으로 로드되어 일부 API가 실패해도 다른 영역을 유지
+- 재무 금액은 정밀도 손실을 막기 위해 integer string 상태로 보존하고 표시할 때만 문자열로 구분
+
+Company Health, 미래 확률, 관계 해석, 경영진 성과, Scenario 계산과 AI 분석은
+아직 실제 엔진이 없으므로 Company Twin에서 점수나 판정 대신 준비 중 상태로 표시합니다.

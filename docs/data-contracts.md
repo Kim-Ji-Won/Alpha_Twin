@@ -223,7 +223,9 @@ Disclosure queries default to 90 KST calendar days, `finalOnly=false`, page 1, a
 
 OpenDART authentication, rate-limit, maintenance, malformed response, timeout, and provider request-mapping failures use stable ALPHA TWIN error codes. External messages, full URLs, query strings, and credentials are not returned or logged. The server can start without the key; only OpenDART routes return `OPENDART_NOT_CONFIGURED`.
 
-Mobile integration remains separate. DB, Redis, distributed locking, Prometheus, financial ratios and analysis scores, Company Health, and actual AI remain outside P3-C-3C-D.
+P3-C-3D connects the mobile Company Twin to the ALPHA TWIN Backend for confirmed market data, OpenDART company profiles and disclosures, and the latest normalized financial summary. Mobile requests these four domains independently, preserves resolution and financial provenance separately, and keeps financial integer values as strings. A failure in one domain does not hide successful sections.
+
+Company Health, probability and scenario engines, relationship interpretation, management scoring, ratios, news, and actual AI remain unavailable. The mobile screen presents neutral pending states instead of combining real company data with Mock analysis. DB, Redis, distributed locking, and Prometheus also remain outside P3-C-3D.
 
 Before adding real-time coverage, contract with a provider licensed for KRX display and redistribution. Remaining work also includes a licensed adjusted-price policy, official exchange calendar, production distributed cache/metrics, and versioned DTO migration rules. News, AI/RAG, user data, and portfolio account integrations remain separate future work.
 

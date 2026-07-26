@@ -1,23 +1,29 @@
 // 화면별 데이터 훅 — 화면은 이 훅만 사용하고 서비스/Mock을 직접 부르지 않는다.
+import { useFocusEffect } from 'expo-router';
+import { Dispatch, SetStateAction, useCallback, useRef, useState } from 'react';
+
 import {
   marketService,
   scenarioService,
   stockService,
   thesisService,
 } from '@/src/services';
+import { alphaTwinApi, AlphaTwinApiError } from '@/src/services/alphaTwinApi';
 import { AsyncState, useAsync } from '@/lib/useAsync';
 import {
   AnomalySignal,
   CompanyEvent,
-  CompanyHealth,
   CompanyMarketData,
-  CompanyNetwork,
   InvestmentThesis,
   MarketRegime,
   PortfolioImpactNotice,
-  ProbabilityDistribution,
   Stock,
 } from '@/src/types';
+import {
+  CompanyProfileResponseDto,
+  DisclosurePageDto,
+  LatestNormalizedFinancialSummaryResponseDto,
+} from '@/src/types/companyTwin';
 
 export interface MarketBrainData {
   regime: MarketRegime;
@@ -46,32 +52,180 @@ export function useMarketBrain(): AsyncState<MarketBrainData> {
   );
 }
 
-export interface CompanyTwinData {
-  quote: Stock | null;
-  marketData: CompanyMarketData;
-  health: CompanyHealth | null;
-  events: CompanyEvent[] | null;
-  distribution: ProbabilityDistribution | null;
-  network: CompanyNetwork | null;
-  thesis: InvestmentThesis | null; // 논제 건강도 셀 — 없으면 '없음' 표시
+export type CompanyTwinSectionStatus = 'loading' | 'success' | 'empty' | 'error';
+
+export interface CompanyTwinSection<T> {
+  status: CompanyTwinSectionStatus;
+  data: T | null;
+  errorCode: string | null;
+  errorMessage: string | null;
 }
 
-export function useCompanyTwin(symbol: string): AsyncState<CompanyTwinData> {
-  return useAsync(
-    async () => {
-      const [marketData, health, events, distribution, network, thesis] = await Promise.all([
-        stockService.getCompanyMarketData(symbol),
-        stockService.getHealth(symbol),
-        stockService.getEvents(symbol),
-        stockService.getDistribution(symbol),
-        stockService.getNetwork(symbol),
-        thesisService.getBySymbol(symbol),
-      ]);
-      return { quote: marketData.quote, marketData, health, events, distribution, network, thesis };
-    },
-    [symbol],
-    { isEmpty: d => d.quote == null, reloadOnFocus: true },
+export interface CompanyTwinData {
+  market: CompanyTwinSection<CompanyMarketData>;
+  profile: CompanyTwinSection<CompanyProfileResponseDto>;
+  disclosures: CompanyTwinSection<DisclosurePageDto>;
+  financials: CompanyTwinSection<LatestNormalizedFinancialSummaryResponseDto>;
+  refreshing: boolean;
+  reload: () => void;
+}
+
+function loadingSection<T>(): CompanyTwinSection<T> {
+  return { status: 'loading', data: null, errorCode: null, errorMessage: null };
+}
+
+function userMessage(error: unknown): { code: string; message: string } {
+  const code = error instanceof AlphaTwinApiError ? error.code : 'UNKNOWN_ERROR';
+  if (code === 'INVALID_SYMBOL') return { code, message: '잘못된 종목 코드입니다.' };
+  if (code === 'CORP_CODE_NOT_FOUND') {
+    return { code, message: '이 종목의 기업 정보는 아직 준비 중입니다.' };
+  }
+  if (code === 'OPENDART_NOT_CONFIGURED' || code === 'API_NOT_CONFIGURED') {
+    return { code, message: '기업 데이터 서비스 연결이 필요합니다.' };
+  }
+  if (
+    code === 'FINANCIAL_REPORT_NOT_FOUND'
+    || code === 'LATEST_FINANCIAL_REPORT_NOT_FOUND'
+  ) {
+    return { code, message: '최근 정기 재무보고서를 찾을 수 없습니다.' };
+  }
+  if (
+    code === 'OPENDART_TIMEOUT'
+    || code === 'OPENDART_UNAVAILABLE'
+    || code === 'NETWORK_UNAVAILABLE'
+  ) {
+    return { code, message: '데이터를 일시적으로 불러올 수 없습니다.' };
+  }
+  if (
+    code === 'LATEST_FINANCIAL_REPORT_UNRESOLVED'
+    || code === 'LATEST_FINANCIAL_REPORT_RESPONSE_INCONSISTENT'
+    || code === 'LATEST_FINANCIAL_REPORT_RECEIPT_MISMATCH'
+    || code === 'INVALID_API_RESPONSE'
+  ) {
+    return { code, message: '데이터 확인 중 문제가 발생했습니다.' };
+  }
+  return { code, message: '데이터를 불러오지 못했습니다.' };
+}
+
+async function loadCompanyTwinSection<T>(
+  load: () => Promise<T>,
+  setState: Dispatch<SetStateAction<CompanyTwinSection<T>>>,
+  active: () => boolean,
+  isEmpty: (data: T) => boolean = () => false,
+): Promise<void> {
+  try {
+    const data = await load();
+    if (!active()) return;
+    setState({
+      status: isEmpty(data) ? 'empty' : 'success',
+      data,
+      errorCode: null,
+      errorMessage: null,
+    });
+  } catch (error) {
+    if (!active()) return;
+    const mapped = userMessage(error);
+    const empty = mapped.code === 'FINANCIAL_REPORT_NOT_FOUND'
+      || mapped.code === 'LATEST_FINANCIAL_REPORT_NOT_FOUND'
+      || mapped.code === 'CORP_CODE_NOT_FOUND';
+    setState({
+      status: empty ? 'empty' : 'error',
+      data: null,
+      errorCode: mapped.code,
+      errorMessage: mapped.message,
+    });
+  }
+}
+
+export function useCompanyTwin(symbol: string): CompanyTwinData {
+  const [market, setMarket] =
+    useState<CompanyTwinSection<CompanyMarketData>>(loadingSection);
+  const [profile, setProfile] =
+    useState<CompanyTwinSection<CompanyProfileResponseDto>>(loadingSection);
+  const [disclosures, setDisclosures] =
+    useState<CompanyTwinSection<DisclosurePageDto>>(loadingSection);
+  const [financials, setFinancials] =
+    useState<CompanyTwinSection<LatestNormalizedFinancialSummaryResponseDto>>(loadingSection);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(true);
+  const requestGeneration = useRef(0);
+  const inFlight = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const generation = requestGeneration.current + 1;
+      requestGeneration.current = generation;
+      const controller = new AbortController();
+      const active = () =>
+        !controller.signal.aborted && requestGeneration.current === generation;
+
+      setMarket(loadingSection());
+      setProfile(loadingSection());
+      setDisclosures(loadingSection());
+      setFinancials(loadingSection());
+      setRefreshing(true);
+      inFlight.current = true;
+
+      if (!/^\d{6}$/.test(symbol)) {
+        const invalid = {
+          status: 'error' as const,
+          data: null,
+          errorCode: 'INVALID_SYMBOL',
+          errorMessage: '잘못된 종목 코드입니다.',
+        };
+        setMarket(invalid);
+        setProfile(invalid);
+        setDisclosures(invalid);
+        setFinancials(invalid);
+        setRefreshing(false);
+        inFlight.current = false;
+        return () => controller.abort();
+      }
+
+      const requests = [
+        loadCompanyTwinSection(
+          () => stockService.getCompanyMarketData(symbol, controller.signal),
+          setMarket,
+          active,
+          data => data.quote == null,
+        ),
+        loadCompanyTwinSection(
+          () => alphaTwinApi.getCompanyProfile(symbol, controller.signal),
+          setProfile,
+          active,
+        ),
+        loadCompanyTwinSection(
+          () => alphaTwinApi.getCompanyDisclosures(symbol, controller.signal),
+          setDisclosures,
+          active,
+          data => data.items.length === 0,
+        ),
+        loadCompanyTwinSection(
+          () => alphaTwinApi.getLatestNormalizedFinancials(symbol, controller.signal),
+          setFinancials,
+          active,
+        ),
+      ];
+
+      Promise.allSettled(requests).then(() => {
+        if (!active()) return;
+        setRefreshing(false);
+        inFlight.current = false;
+      });
+
+      return () => {
+        controller.abort();
+        if (requestGeneration.current === generation) inFlight.current = false;
+      };
+    }, [symbol, refreshKey]),
   );
+
+  const reload = useCallback(() => {
+    if (inFlight.current) return;
+    setRefreshKey(key => key + 1);
+  }, []);
+
+  return { market, profile, disclosures, financials, refreshing, reload };
 }
 
 // 논제는 편집 화면에서 돌아올 때 최신 저장본을 반영해야 하므로 focus마다 재조회.

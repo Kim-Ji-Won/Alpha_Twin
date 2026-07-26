@@ -16,11 +16,10 @@ export const stockService = {
     return mockStocks.find(s => s.symbol === symbol) ?? null;
   },
   // P3-B 수직 기능: ALPHA TWIN API 시세/일봉 → 실패 시 모바일 Mock fallback.
-  async getCompanyMarketData(symbol: string): Promise<CompanyMarketData> {
+  async getCompanyMarketData(symbol: string, signal?: AbortSignal): Promise<CompanyMarketData> {
     const fallback = mockCompanyMarketData(symbol);
     try {
-      const summary = await alphaTwinApi.getStockSummary(symbol);
-      const base = fallback.quote;
+      const summary = await alphaTwinApi.getStockSummary(symbol, signal);
       const partial = summary.candles.length === 0;
       const isConfirmedPublicData = summary.metadata.dataMode === 'eod'
         || summary.metadata.source.includes('public-data-fsc');
@@ -37,12 +36,10 @@ export const stockService = {
         quote: {
           symbol: summary.quote.symbol,
           name: summary.quote.name,
-          sector: summary.quote.sector ?? base?.sector ?? '',
+          sector: summary.quote.sector ?? '',
           price: summary.quote.price,
           changePct: summary.quote.changePercent,
-          healthScore: base?.healthScore ?? 0,
-          thesisId: base?.thesisId,
-          flags: base?.flags,
+          healthScore: 0,
           market: summary.quote.market,
           currency: summary.quote.currency,
           change: summary.quote.change,
@@ -59,6 +56,7 @@ export const stockService = {
         metadata: { ...summary.metadata, partial, mode },
       };
     } catch {
+      if (signal?.aborted) throw new Error('REQUEST_ABORTED');
       return fallback;
     }
   },

@@ -23,6 +23,7 @@ export interface SparklineProps {
   axisLeft?: string;
   axisRight?: string;
   stroke?: string;
+  accessibilityLabel?: string;
   style?: ViewStyle;
 }
 
@@ -34,12 +35,13 @@ export function Sparkline({
   axisLeft,
   axisRight,
   stroke = colors.accent,
+  accessibilityLabel,
   style,
 }: SparklineProps) {
   const [width, setWidth] = useState(0);
   const labelSpace = axisLeft || axisRight ? 16 : 0;
 
-  const a11y =
+  const defaultAccessibilityLabel =
     points.length > 0
       ? `건강도 추이: ${points[0].score}점에서 ${points[points.length - 1].score}점`
       : '건강도 추이 데이터 없음';
@@ -48,7 +50,7 @@ export function Sparkline({
     <View
       style={[{ height: height + labelSpace }, style]}
       onLayout={e => setWidth(e.nativeEvent.layout.width)}
-      accessibilityLabel={a11y}>
+      accessibilityLabel={accessibilityLabel ?? defaultAccessibilityLabel}>
       {width > 0 ? (
         points.length === 0 ? (
           <View style={styles.emptyWrap}>
@@ -84,7 +86,7 @@ function SparklineSvg({
   axisLeft,
   axisRight,
   stroke,
-}: Required<Omit<SparklineProps, 'style' | 'axisLeft' | 'axisRight'>> & {
+}: Required<Omit<SparklineProps, 'style' | 'axisLeft' | 'axisRight' | 'accessibilityLabel'>> & {
   width: number;
   labelSpace: number;
   axisLeft?: string;

@@ -19,6 +19,11 @@ const PREFIXES: Array<[string, DisclosureCorrectionType]> = [
   ['[정정제출요구]', 'correction-request'],
 ];
 
+export function stripDisclosureCorrectionPrefix(reportName: string): string {
+  const found = PREFIXES.find(([prefix]) => reportName.startsWith(prefix));
+  return found ? reportName.slice(found[0].length).trim() : reportName.trim();
+}
+
 function requiredText(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) {
     throw new OpenDartError('OPENDART_BAD_RESPONSE', 'disclosures', false);

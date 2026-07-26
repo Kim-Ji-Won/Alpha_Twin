@@ -1,12 +1,12 @@
 # ALPHA TWIN Data Contracts
 
-## 1. P3-B through P3-C-3C-C Scope
+## 1. P3-B through P3-C-3C-D Scope
 
 P3-B establishes the backend boundary for market data and completes one vertical slice: Company Twin quote and daily candles. It does not connect AI, ML/DL, OpenDART, news, accounts, orders, or a database.
 
 P3-C-1 adds the Financial Services Commission public stock price API as the first real provider. P3-C-2 removes the two-symbol allowlist, adds bounded pagination, KST date-only handling, cache isolation, request coalescing, and safe operational status. Values remain confirmed daily prices rather than real-time quotes. The source generally updates on the following business day.
 
-P3-C-3B adds a separate OpenDART domain for six-digit symbol resolution, company profiles, and disclosure lists. P3-C-3C-B adds one explicit OpenDART financial report as a lossless transport DTO. P3-C-3C-C adds deterministic account normalization for exactly eight canonical metrics. It does not add latest-report inference, mobile OpenDART screens, ratios, analysis scores, or an operational Mock fallback.
+P3-C-3B adds a separate OpenDART domain for six-digit symbol resolution, company profiles, and disclosure lists. P3-C-3C-B adds one explicit OpenDART financial report as a lossless transport DTO. P3-C-3C-C adds deterministic account normalization for exactly eight canonical metrics. P3-C-3C-D resolves the latest filed periodic report from OpenDART disclosure history. It does not add mobile OpenDART screens, ratios, analysis scores, or an operational Mock fallback.
 
 ## 2. Mobile API Boundary
 
@@ -41,6 +41,8 @@ For Android Emulator use `http://10.0.2.2:4000`. This variable is an address, no
 | GET | `/api/v1/companies/:symbol/disclosures` | One normalized OpenDART disclosure page |
 | GET | `/api/v1/companies/:symbol/financials` | One specific OpenDART financial report |
 | GET | `/api/v1/companies/:symbol/financials/normalized` | Canonical summary for one specific report |
+| GET | `/api/v1/companies/:symbol/financials/latest` | Latest filed periodic report plus financial DTO |
+| GET | `/api/v1/companies/:symbol/financials/normalized/latest` | Latest filing plus canonical summary |
 
 Symbols are trimmed and must then contain exactly six digits. Malformed symbols return HTTP 400 before a provider call, symbols with no public rows return HTTP 404, and unavailable providers without usable stale or Mock data return HTTP 503. Candle ranges remain `1m`, `3m`, `6m`, and `1y`.
 
@@ -197,6 +199,20 @@ Resolved values remain integer strings and preserve nullable currency. Missing c
 
 Report metadata preserves requested/resolved CFS or OFS and any CFS-to-OFS resolution. OpenDART source, retrieval time, stale flag/reasons, fallback flag, and request ID are inherited without mutation. This layer does not calculate ratios, growth, scores, forecasts, unit conversions, or Company Health.
 
+The latest resolver treats OpenDART's submitted final periodic disclosures as the source of truth. It performs one page-one, page-size-100 search for each detail code A001, A002, and A003 over an inclusive 366-day KST window with `last_reprt_at=Y`, descending date order. A004/A005 are excluded. A normal `013` result means no candidates for that detail code; three empty categories return `LATEST_FINANCIAL_REPORT_NOT_FOUND`.
+
+OpenDART live validation showed that sending broad `pblntf_ty=A` together with `pblntf_detail_ty` causes the broad result to win. Therefore the internal logical query retains category A, while provider transport sends only the more specific detail parameter whenever one is present. Sending A001/A002/A003 separately then yields the intended disjoint periodic categories. The existing public disclosure query contract remains category/detail based.
+
+Candidate type comes from the detail request context, not report-name classification. Withdrawn rows are removed, receipts are deduplicated, and candidates sort by receipt date then receipt number descending. A selected row with an unresolved subsequent-correction flag fails explicitly. A malformed newest valid candidate is never skipped in favor of an older report.
+
+After known correction-prefix removal, exactly one final `(YYYY.MM)` marker is required. Its year is `businessYear`; receipt year and current date are never used to infer a report. A001 requires the profile fiscal year-end month and maps to `11011/FY`. A002 requires fiscal end plus six months and maps to `11012/H1`. A003 requires fiscal end plus three or nine months and maps to `11013/Q1` or `11014/Q3`. Month arithmetic supports non-December fiscal years without a date package. Missing profile fiscal month, malformed markers, and alignment mismatches are unresolved 502 errors.
+
+`LatestFinancialReportResolutionDto` contains symbol, corp code, business year, report code, period kind, disclosure detail type, `YYYY-MM` period end, fiscal year-end month, selected filing provenance, resolution method, and OpenDART metadata. Raw latest wraps it with `FinancialStatementsResponseDto`; normalized latest wraps it with `NormalizedFinancialSummaryDto`. Resolution and financial stale metadata remain separate.
+
+Latest pointer cache keys use corp code. Fresh/stale windows are 30 minutes/one day, and same-corp misses share the entire three-category resolution chain. Stale pointers add `latest-report-cache` and are available only after rate-limit, timeout, or availability failures. Empty results, authentication/configuration errors, malformed responses, ambiguous candidates, fiscal mismatches, and withdrawn-only results cannot use stale.
+
+Latest routes accept only optional exact uppercase `fsDiv`, defaulting to CFS. The existing financial service retains its CFS-to-OFS behavior. Before returning either latest wrapper, the selected disclosure receipt must equal the financial report receipt; mismatch returns `LATEST_FINANCIAL_REPORT_RECEIPT_MISMATCH`. A selected filing with no CFS or OFS financial data remains a 404 and never causes an older filing lookup.
+
 For a requested CFS report, only OpenDART status `013` permits one OFS request. A second `013` returns `FINANCIAL_REPORT_NOT_FOUND`; direct OFS requests never try CFS. Authentication, rate limit, timeout, transport, malformed response, consistency, and amount errors never trigger OFS resolution. Status `013` is authoritative and cannot return stale data.
 
 Financial cache keys include provider operation, corp code, business year, report code, and requested division. The fresh TTL is 12 hours and stale maximum age is seven days. Same-key misses share the entire CFS/OFS resolution promise. Stale financial data is returned only after rate-limit, unavailable, or timeout errors and is marked with `financial-statements-cache`; corp-index stale state remains separately ordered.
@@ -207,7 +223,7 @@ Disclosure queries default to 90 KST calendar days, `finalOnly=false`, page 1, a
 
 OpenDART authentication, rate-limit, maintenance, malformed response, timeout, and provider request-mapping failures use stable ALPHA TWIN error codes. External messages, full URLs, query strings, and credentials are not returned or logged. The server can start without the key; only OpenDART routes return `OPENDART_NOT_CONFIGURED`.
 
-P3-C-3C-D will design latest-report resolution. Mobile integration remains separate. DB, Redis, distributed locking, Prometheus, financial ratios and analysis scores, Company Health, and actual AI remain outside P3-C-3C-C.
+Mobile integration remains separate. DB, Redis, distributed locking, Prometheus, financial ratios and analysis scores, Company Health, and actual AI remain outside P3-C-3C-D.
 
 Before adding real-time coverage, contract with a provider licensed for KRX display and redistribution. Remaining work also includes a licensed adjusted-price policy, official exchange calendar, production distributed cache/metrics, and versioned DTO migration rules. News, AI/RAG, user data, and portfolio account integrations remain separate future work.
 

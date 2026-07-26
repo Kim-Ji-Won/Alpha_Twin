@@ -138,7 +138,8 @@ test('provider converts profile/disclosure operations without exposing raw trans
   assert.equal(requested[0]?.searchParams.get('corp_code'), '00126380');
   assert.equal(requested[1]?.searchParams.get('bgn_de'), '20260422');
   assert.equal(requested[1]?.searchParams.get('last_reprt_at'), 'Y');
-  assert.equal(requested[1]?.searchParams.get('pblntf_ty'), 'A');
+  assert.equal(requested[1]?.searchParams.get('pblntf_ty'), null);
+  assert.equal(requested[1]?.searchParams.get('pblntf_detail_ty'), 'A001');
   assert.equal(requested[1]?.searchParams.get('page_count'), '100');
 });
 

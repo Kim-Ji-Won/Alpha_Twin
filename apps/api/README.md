@@ -70,6 +70,8 @@ The server starts without `OPENDART_API_KEY`. Market-data routes and `/health` c
 | GET | `/api/v1/companies/:symbol/disclosures` | One bounded disclosure page |
 | GET | `/api/v1/companies/:symbol/financials` | One specific financial report |
 | GET | `/api/v1/companies/:symbol/financials/normalized` | Eight canonical metrics for one specific report |
+| GET | `/api/v1/companies/:symbol/financials/latest` | Latest filed periodic financial report |
+| GET | `/api/v1/companies/:symbol/financials/normalized/latest` | Canonical summary for the latest filed report |
 
 Disclosure query parameters are `from`, `to`, `finalOnly`, `category`, `detailCategory`, `page`, and `pageSize`. Dates use `YYYY-MM-DD`; the default is the latest 90 calendar days in KST. The inclusive range is limited to 366 days, pages start at 1, and `pageSize` is limited to 100. A request retrieves one page only and never crawls all history.
 
@@ -89,6 +91,16 @@ BS metrics use `currentAmount` as a point-in-time value. Q1, H1, and Q3 income m
 
 Normalized summaries inherit report resolution and OpenDART stale metadata from the cached transport DTO. They add no second cache. The normalizer is an account-selection layer, not a financial-ratio, scoring, forecasting, or display-formatting engine.
 
+The latest financial resolver uses filed periodic disclosures rather than the current date. It searches one bounded page for each of A001 business reports, A002 half-year reports, and A003 quarterly reports over the latest 366 KST calendar days with final-report filtering. OpenDART applies its broad `pblntf_ty` filter instead of the detail filter when both transport parameters are sent, so a logical A001/A002/A003 query sends only `pblntf_detail_ty`; the detail code already identifies the periodic category. This preserves the public query meaning while preventing cross-category results.
+
+The strict final `(YYYY.MM)` marker supplies `businessYear` and period end. A001 maps to FY, A002 to H1, and A003 maps to Q1 or Q3 using the company's profile `fiscalYearEndMonth`. Non-December fiscal calendars use modulo-12 month arithmetic. Missing or malformed markers, invalid fiscal months, and fiscal-period mismatches return an explicit error without using receipt date, the current date, or an older filing.
+
+Withdrawn filings are excluded. A selected filing that still declares a subsequent correction is unresolved. Remaining candidates are sorted by receipt date and receipt number; a malformed newest valid candidate is never replaced by an older report. The selected disclosure receipt must exactly equal the financial statement receipt before raw or normalized latest data is returned.
+
+Latest pointers use a process-local 30-minute fresh cache and a one-day stale window with same-corp single-flight. `latest-report-cache` stale is allowed only for provider timeout, rate limit, or availability failures. Empty searches, malformed candidates, fiscal mismatches, authentication errors, and withdrawn-only results never use stale pointers. Financial CFS-to-OFS handling remains in the existing financial service, and an unavailable selected report never falls back to an older periodic filing.
+
+Both latest routes accept only optional uppercase `fsDiv=CFS|OFS`, defaulting to CFS. Their wrappers retain separate resolution and financial metadata, including independent stale reasons and filing/account provenance.
+
 The corp-code resolver downloads a bounded ZIP only when needed, rejects encrypted or ambiguous archives, rejects XML containing DOCTYPE or ENTITY declarations, validates records, and creates a deterministic SHA-256 checked JSON snapshot. It keeps a process-local Map plus an atomic local snapshot under `apps/api/.runtime-cache/opendart/` by default. The index is fresh for 24 hours and may be reused stale for 30 days. Profile cache is 7/30 days fresh/stale; disclosure cache is 30 minutes/1 day. OpenDART has no operational Mock fallback.
 
 Runtime cache files, downloaded archives, extracted XML, complete request URLs, query strings, credentials, and raw provider bodies must not be logged or committed. The profile mapper intentionally excludes corporate registration number, business registration number, full address, phone, and fax. Local snapshots are process-local acceleration only: ephemeral deployments can redownload after restart, and multiple instances do not share a lock or cache.
@@ -99,4 +111,4 @@ Fixture tests need no API key. Optional live verification should be run only whe
 
 `npm run dev` and `npm run start` both load `.env` only when it exists. Watch mode can hit the macOS `EMFILE` limit in a heavily loaded development session; use `npm run start` for one-shot verification instead of changing system limits.
 
-This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, latest-report resolution, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Latest-report resolution remains P3-C-3C-D, and mobile OpenDART integration, Company Health, ratios, and analysis scores remain separate. Real-time or redistributed KRX data requires a separate licensed provider agreement.
+This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Mobile OpenDART integration, Company Health, ratios, and analysis scores remain separate. Real-time or redistributed KRX data requires a separate licensed provider agreement.

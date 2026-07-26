@@ -38,8 +38,9 @@ export class OpenDartProvider implements CompanyDisclosureProvider {
         bgn_de: compactDate(query.from),
         end_de: compactDate(query.to),
         last_reprt_at: query.finalOnly ? 'Y' : 'N',
-        ...(query.category ? { pblntf_ty: query.category } : {}),
-        ...(query.detailCategory ? { pblntf_detail_ty: query.detailCategory } : {}),
+        ...(query.detailCategory
+          ? { pblntf_detail_ty: query.detailCategory }
+          : query.category ? { pblntf_ty: query.category } : {}),
         sort: 'date',
         sort_mth: 'desc',
         page_no: String(query.page),

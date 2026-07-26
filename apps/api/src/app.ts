@@ -7,6 +7,8 @@ import { isMarketDataError } from './marketDataErrors.js';
 import { MarketDataService } from './marketDataService.js';
 import { isOpenDartError, OpenDartError } from './openDart/errors.js';
 import { parseFinancialStatementsQuery } from './openDart/financialQuery.js';
+import { parseLatestFinancialQuery } from './openDart/latestFinancial/latestFinancialParser.js';
+import { LatestFinancialService } from './openDart/latestFinancial/latestFinancialService.js';
 import { FinancialAccountNormalizer } from './openDart/normalization/accountNormalizer.js';
 import { OpenDartFinancialService } from './openDart/openDartFinancialService.js';
 import { OpenDartService } from './openDart/openDartService.js';
@@ -38,6 +40,7 @@ export interface AppDependencies {
   openDart?: OpenDartService;
   openDartFinancial?: OpenDartFinancialService;
   openDartFinancialNormalizer?: FinancialAccountNormalizer;
+  latestFinancial?: LatestFinancialService;
 }
 
 export async function buildApp(
@@ -59,6 +62,7 @@ export async function buildApp(
   marketData.setLogger(app.log);
   dependencies.openDart?.setLogger(app.log);
   dependencies.openDartFinancial?.setLogger(app.log);
+  dependencies.latestFinancial?.setLogger(app.log);
   const requestWindows = new Map<string, { count: number; resetsAt: number }>();
   await app.register(cors, {
     origin(origin, callback) {
@@ -90,6 +94,9 @@ export async function buildApp(
     ...(dependencies.openDart ? { openDart: dependencies.openDart.status } : {}),
     ...(dependencies.openDartFinancial
       ? { openDartFinancial: dependencies.openDartFinancial.status }
+      : {}),
+    ...(dependencies.latestFinancial
+      ? { latestFinancial: dependencies.latestFinancial.status }
       : {}),
   }));
 
@@ -143,7 +150,11 @@ export async function buildApp(
   const openDartErrorResponse = (
     error: unknown,
     requestId: string,
-    operation: 'company-profile' | 'disclosures' | 'financial-statements',
+    operation:
+      | 'company-profile'
+      | 'disclosures'
+      | 'financial-statements'
+      | 'latest-financial-report',
   ) => {
     const safe = isOpenDartError(error)
       ? error
@@ -246,6 +257,74 @@ export async function buildApp(
       return dependencies.openDartFinancialNormalizer.normalize(financial);
     } catch (error) {
       const response = openDartErrorResponse(error, request.id, 'financial-statements');
+      return reply.code(response.status).send(response.body);
+    }
+  });
+
+  app.get<{
+    Params: { symbol: string };
+    Querystring: { fsDiv?: string };
+  }>('/api/v1/companies/:symbol/financials/latest', async (request, reply) => {
+    const normalized = normalizeSymbol(request.params.symbol);
+    if (!normalized.symbol) {
+      return reply.code(400).send(
+        errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol', request.id),
+      );
+    }
+    try {
+      const query = parseLatestFinancialQuery(request.query);
+      if (!dependencies.latestFinancial) {
+        throw new OpenDartError(
+          'OPENDART_NOT_CONFIGURED',
+          'latest-financial-report',
+          false,
+        );
+      }
+      return await dependencies.latestFinancial.getLatestFinancials(
+        normalized.symbol,
+        query.fsDiv,
+        request.id,
+      );
+    } catch (error) {
+      const response = openDartErrorResponse(
+        error,
+        request.id,
+        'latest-financial-report',
+      );
+      return reply.code(response.status).send(response.body);
+    }
+  });
+
+  app.get<{
+    Params: { symbol: string };
+    Querystring: { fsDiv?: string };
+  }>('/api/v1/companies/:symbol/financials/normalized/latest', async (request, reply) => {
+    const normalized = normalizeSymbol(request.params.symbol);
+    if (!normalized.symbol) {
+      return reply.code(400).send(
+        errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol', request.id),
+      );
+    }
+    try {
+      const query = parseLatestFinancialQuery(request.query);
+      if (!dependencies.latestFinancial) {
+        throw new OpenDartError(
+          'OPENDART_NOT_CONFIGURED',
+          'latest-financial-report',
+          false,
+        );
+      }
+      return await dependencies.latestFinancial.getLatestNormalizedFinancials(
+        normalized.symbol,
+        query.fsDiv,
+        request.id,
+      );
+    } catch (error) {
+      const response = openDartErrorResponse(
+        error,
+        request.id,
+        'latest-financial-report',
+      );
       return reply.code(response.status).send(response.body);
     }
   });

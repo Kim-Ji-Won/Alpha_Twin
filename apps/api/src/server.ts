@@ -11,6 +11,8 @@ import { HttpCorpCodeArchiveSource } from './openDart/corpCode/corpCodeArchiveSo
 import { FileCorpCodeIndexStore } from './openDart/corpCode/corpCodeIndexStore.js';
 import { CorpCodeResolver } from './openDart/corpCode/corpCodeResolver.js';
 import { OpenDartHttpClient } from './openDart/openDartHttpClient.js';
+import { LatestFinancialReportResolver } from './openDart/latestFinancial/latestFinancialReportResolver.js';
+import { LatestFinancialService } from './openDart/latestFinancial/latestFinancialService.js';
 import { FinancialAccountNormalizer } from './openDart/normalization/accountNormalizer.js';
 import { OpenDartFinancialService } from './openDart/openDartFinancialService.js';
 import { OpenDartService } from './openDart/openDartService.js';
@@ -50,9 +52,10 @@ const corpCodeResolver = new CorpCodeResolver(
   () => new Date(),
   openDartObservability,
 );
+const openDartProvider = new OpenDartProvider(openDartClient);
 const openDart = new OpenDartService(
   corpCodeResolver,
-  new OpenDartProvider(openDartClient),
+  openDartProvider,
   new MemoryCache(Date.now, config.cacheMaxEntries),
   () => new Date(),
   openDartObservability,
@@ -64,10 +67,24 @@ const openDartFinancial = new OpenDartFinancialService(
   () => new Date(),
   new OpenDartObservability(),
 );
+const financialNormalizer = new FinancialAccountNormalizer();
+const latestFinancial = new LatestFinancialService(
+  new LatestFinancialReportResolver(
+    corpCodeResolver,
+    openDart,
+    openDartProvider,
+    new MemoryCache(Date.now, config.cacheMaxEntries),
+    () => new Date(),
+    new OpenDartObservability(),
+  ),
+  openDartFinancial,
+  financialNormalizer,
+);
 const app = await buildApp(config, marketData, {
   openDart,
   openDartFinancial,
-  openDartFinancialNormalizer: new FinancialAccountNormalizer(),
+  openDartFinancialNormalizer: financialNormalizer,
+  latestFinancial,
 });
 
 try {

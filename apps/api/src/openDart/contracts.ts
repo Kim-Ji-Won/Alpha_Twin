@@ -2,7 +2,8 @@ export type OpenDartStaleReason =
   | 'corp-code-index'
   | 'company-profile-cache'
   | 'disclosures-cache'
-  | 'financial-statements-cache';
+  | 'financial-statements-cache'
+  | 'latest-report-cache';
 
 export interface OpenDartResponseMetadata {
   source: 'opendart-fss';

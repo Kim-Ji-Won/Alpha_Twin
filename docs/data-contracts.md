@@ -1,10 +1,12 @@
 # ALPHA TWIN Data Contracts
 
-## 1. P3-B through P3-C-2 Scope
+## 1. P3-B through P3-C-3B Scope
 
 P3-B establishes the backend boundary for market data and completes one vertical slice: Company Twin quote and daily candles. It does not connect AI, ML/DL, OpenDART, news, accounts, orders, or a database.
 
 P3-C-1 adds the Financial Services Commission public stock price API as the first real provider. P3-C-2 removes the two-symbol allowlist, adds bounded pagination, KST date-only handling, cache isolation, request coalescing, and safe operational status. Values remain confirmed daily prices rather than real-time quotes. The source generally updates on the following business day.
+
+P3-C-3B adds a separate OpenDART domain for six-digit symbol resolution, company profiles, and disclosure lists. It does not add financial statements, mobile OpenDART screens, analysis scores, or an operational Mock fallback.
 
 ## 2. Mobile API Boundary
 
@@ -35,6 +37,8 @@ For Android Emulator use `http://10.0.2.2:4000`. This variable is an address, no
 | GET | `/api/v1/stocks/:symbol/quote` | Normalized latest quote |
 | GET | `/api/v1/stocks/:symbol/candles?range=1m` | Normalized daily candles and metadata |
 | GET | `/api/v1/stocks/:symbol/summary?range=1m` | Quote and candles for Company Twin |
+| GET | `/api/v1/companies/:symbol/profile` | Normalized OpenDART company profile |
+| GET | `/api/v1/companies/:symbol/disclosures` | One normalized OpenDART disclosure page |
 
 Symbols are trimmed and must then contain exactly six digits. Malformed symbols return HTTP 400 before a provider call, symbols with no public rows return HTTP 404, and unavailable providers without usable stale or Mock data return HTTP 503. Candle ranges remain `1m`, `3m`, `6m`, and `1y`.
 
@@ -97,6 +101,11 @@ Backend (`apps/api/.env`):
 | `MARKET_DATA_ALLOW_MOCK_FALLBACK` | Permit backend Mock fallback | No |
 | `MARKET_DATA_TIMEOUT_MS` | Provider/request timeout | No |
 | `MARKET_DATA_CACHE_MAX_ENTRIES` | In-memory cache entry limit | No |
+| `OPENDART_API_KEY` | OpenDART server credential | Yes |
+| `OPENDART_BASE_URL` | OpenDART origin override for testing | No |
+| `OPENDART_TIMEOUT_MS` | OpenDART JSON timeout | No |
+| `OPENDART_ARCHIVE_TIMEOUT_MS` | Corp-code archive timeout | No |
+| `OPENDART_INDEX_CACHE_DIR` | Ignored local snapshot directory | No |
 | `RATE_LIMIT_MAX` | Requests allowed per IP window | No |
 | `RATE_LIMIT_WINDOW_MS` | Rate-limit window duration | No |
 | `LOG_LEVEL` | `silent`, `error`, `warn`, or `info` | No |
@@ -158,7 +167,23 @@ The current `PlaceholderLiveMarketDataProvider` returns a controlled error until
 
 ## 11. P3-C-3 and Later
 
-Before adding real-time coverage, contract with a provider licensed for KRX display and redistribution. Remaining work includes a licensed adjusted-price policy, official exchange calendar, production distributed cache/metrics, and versioned DTO migration rules. OpenDART, news, AI/RAG, user data, and portfolio account integrations remain separate future work.
+### OpenDART contracts
+
+`CompanyProfileDto` exposes symbol, corp code, names, chief executive, market, industry code, establishment date, fiscal year-end month, safe website URLs, and the corp-index company information modification date. It excludes corporate and business registration numbers, full address, phone, and fax.
+
+`DisclosurePageDto` contains normalized items, validated pagination, the effective query, and OpenDART metadata. Receipt numbers are validated before viewer URLs are built. Correction prefixes remain distinct from `rm` flags: `정` means a later correction exists, `철` means withdrawn, and `연` means consolidated content. Status `013` returns an empty disclosure page but maps to profile-not-found for company profiles.
+
+OpenDART metadata uses `source=opendart-fss`, `retrievedAt`, `stale`, ordered `staleReasons`, `fallback=false`, and an optional request ID. Corp index stale state, profile cache stale state, and disclosure cache stale state remain distinguishable. No other company's Mock data is substituted.
+
+The corp-code archive is limited to 20 MiB compressed, 8 entries, 64 MiB for the single XML entry, and 200,000 listed records. DOCTYPE and ENTITY declarations are rejected. Listed records are sorted by stock code and stored as a schema-versioned, SHA-256 checked JSON snapshot using a temporary file plus atomic rename. The default runtime directory is Git-ignored. Fresh/stale windows are 24 hours/30 days for the index, 7/30 days for profiles, and 30 minutes/1 day for disclosures.
+
+Disclosure queries default to 90 KST calendar days, `finalOnly=false`, page 1, and page size 20. Dates must be real `YYYY-MM-DD` values, the inclusive range cannot exceed 366 days, and page size cannot exceed 100. Only the requested page is fetched.
+
+OpenDART authentication, rate-limit, maintenance, malformed response, timeout, and provider request-mapping failures use stable ALPHA TWIN error codes. External messages, full URLs, query strings, and credentials are not returned or logged. The server can start without the key; only OpenDART routes return `OPENDART_NOT_CONFIGURED`.
+
+P3-C-3C will add financial statements and account normalization. P3-C-3D will connect the normalized company and disclosure data to mobile. DB, Redis, distributed locking, Prometheus, financial analysis scores, and actual AI remain outside P3-C-3B.
+
+Before adding real-time coverage, contract with a provider licensed for KRX display and redistribution. Remaining work also includes a licensed adjusted-price policy, official exchange calendar, production distributed cache/metrics, and versioned DTO migration rules. News, AI/RAG, user data, and portfolio account integrations remain separate future work.
 
 ## Development Commands
 

@@ -5,6 +5,9 @@ import { AppConfig } from './config.js';
 import { ApiErrorDto, CandleRange } from './contracts.js';
 import { isMarketDataError } from './marketDataErrors.js';
 import { MarketDataService } from './marketDataService.js';
+import { isOpenDartError, OpenDartError } from './openDart/errors.js';
+import { OpenDartService } from './openDart/openDartService.js';
+import { parseDisclosureQuery } from './openDart/query.js';
 
 const SYMBOL_PATTERN = /^\d{6}$/;
 const RANGES = new Set<CandleRange>(['1m', '3m', '6m', '1y']);
@@ -15,7 +18,7 @@ function normalizeSymbol(symbol: string): { symbol?: string; error?: string } {
   return { symbol: normalized };
 }
 
-function errorBody(code: string, message: string): ApiErrorDto {
+function errorBody(code: string, message: string, requestId?: string): ApiErrorDto {
   return {
     error: { code, message },
     metadata: {
@@ -23,13 +26,33 @@ function errorBody(code: string, message: string): ApiErrorDto {
       source: 'alpha-twin-api',
       stale: false,
       fallback: false,
+      ...(requestId ? { requestId } : {}),
     },
   };
 }
 
-export async function buildApp(config: AppConfig, marketData: MarketDataService): Promise<FastifyInstance> {
-  const app = Fastify({ logger: { level: config.logLevel }, requestTimeout: config.timeoutMs });
+export interface AppDependencies {
+  openDart?: OpenDartService;
+}
+
+export async function buildApp(
+  config: AppConfig,
+  marketData: MarketDataService,
+  dependencies: AppDependencies = {},
+): Promise<FastifyInstance> {
+  const app = Fastify({
+    logger: {
+      level: config.logLevel,
+      serializers: {
+        req(request) {
+          return { method: request.method };
+        },
+      },
+    },
+    requestTimeout: config.timeoutMs,
+  });
   marketData.setLogger(app.log);
+  dependencies.openDart?.setLogger(app.log);
   const requestWindows = new Map<string, { count: number; resetsAt: number }>();
   await app.register(cors, {
     origin(origin, callback) {
@@ -58,6 +81,7 @@ export async function buildApp(config: AppConfig, marketData: MarketDataService)
     service: 'alpha-twin-api',
     asOf: new Date().toISOString(),
     marketData: marketData.status,
+    ...(dependencies.openDart ? { openDart: dependencies.openDart.status } : {}),
   }));
 
   app.setNotFoundHandler((_request, reply) => {
@@ -104,6 +128,51 @@ export async function buildApp(config: AppConfig, marketData: MarketDataService)
         return reply.code(404).send(errorBody('SYMBOL_NOT_FOUND', 'Stock symbol was not found'));
       }
       return reply.code(503).send(errorBody('MARKET_DATA_UNAVAILABLE', 'Market data is temporarily unavailable'));
+    }
+  });
+
+  const openDartErrorResponse = (error: unknown, requestId: string) => {
+    const safe = isOpenDartError(error)
+      ? error
+      : new OpenDartError('OPENDART_UNAVAILABLE', 'company-profile', true);
+    return {
+      status: safe.httpStatus,
+      body: errorBody(safe.code, safe.safeMessage, requestId),
+    };
+  };
+
+  app.get<{ Params: { symbol: string } }>('/api/v1/companies/:symbol/profile', async (request, reply) => {
+    const normalized = normalizeSymbol(request.params.symbol);
+    if (!normalized.symbol) {
+      return reply.code(400).send(errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol', request.id));
+    }
+    try {
+      if (!dependencies.openDart) throw new OpenDartError('OPENDART_NOT_CONFIGURED', 'company-profile', false);
+      return await dependencies.openDart.getCompanyProfile(normalized.symbol, request.id);
+    } catch (error) {
+      const response = openDartErrorResponse(error, request.id);
+      return reply.code(response.status).send(response.body);
+    }
+  });
+
+  app.get<{
+    Params: { symbol: string };
+    Querystring: {
+      from?: string; to?: string; finalOnly?: string; category?: string;
+      detailCategory?: string; page?: string; pageSize?: string;
+    };
+  }>('/api/v1/companies/:symbol/disclosures', async (request, reply) => {
+    const normalized = normalizeSymbol(request.params.symbol);
+    if (!normalized.symbol) {
+      return reply.code(400).send(errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol', request.id));
+    }
+    try {
+      const query = parseDisclosureQuery(request.query);
+      if (!dependencies.openDart) throw new OpenDartError('OPENDART_NOT_CONFIGURED', 'disclosures', false);
+      return await dependencies.openDart.getDisclosures(normalized.symbol, query, request.id);
+    } catch (error) {
+      const response = openDartErrorResponse(error, request.id);
+      return reply.code(response.status).send(response.body);
     }
   });
 

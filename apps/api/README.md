@@ -2,6 +2,8 @@
 
 Fastify backend for normalized market data. The mobile app calls this API only; provider credentials remain in the ignored `apps/api/.env` file.
 
+P3-C-3B also provides normalized OpenDART company profiles and disclosure lists. OpenDART credentials remain server-only and are never passed to the mobile application.
+
 ## Setup
 
 ```bash
@@ -48,8 +50,37 @@ Fastify logs safe structured market-data categories only. Logs may include provi
 
 `/health` exposes process status plus non-sensitive provider/cache state. It does not test or reveal credential configuration.
 
+## OpenDART company and disclosure data
+
+Configure OpenDART only in the ignored backend `.env`:
+
+```text
+OPENDART_API_KEY=
+OPENDART_BASE_URL=https://opendart.fss.or.kr
+OPENDART_TIMEOUT_MS=7000
+OPENDART_ARCHIVE_TIMEOUT_MS=15000
+OPENDART_INDEX_CACHE_DIR=
+```
+
+The server starts without `OPENDART_API_KEY`. Market-data routes and `/health` continue to work, while OpenDART routes return a safe `503 OPENDART_NOT_CONFIGURED`. Never create an `EXPO_PUBLIC_*` OpenDART credential.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/v1/companies/:symbol/profile` | Allowlisted company profile fields |
+| GET | `/api/v1/companies/:symbol/disclosures` | One bounded disclosure page |
+
+Disclosure query parameters are `from`, `to`, `finalOnly`, `category`, `detailCategory`, `page`, and `pageSize`. Dates use `YYYY-MM-DD`; the default is the latest 90 calendar days in KST. The inclusive range is limited to 366 days, pages start at 1, and `pageSize` is limited to 100. A request retrieves one page only and never crawls all history.
+
+OpenDART status `013` means profile-not-found for the profile operation but a successful empty page for disclosures. Report-name prefixes determine `correctionType`. The `rm` flag `정` means that a subsequent correction exists, not that the current item is itself a correction; `철` marks withdrawal and `연` marks consolidated content.
+
+The corp-code resolver downloads a bounded ZIP only when needed, rejects encrypted or ambiguous archives, rejects XML containing DOCTYPE or ENTITY declarations, validates records, and creates a deterministic SHA-256 checked JSON snapshot. It keeps a process-local Map plus an atomic local snapshot under `apps/api/.runtime-cache/opendart/` by default. The index is fresh for 24 hours and may be reused stale for 30 days. Profile cache is 7/30 days fresh/stale; disclosure cache is 30 minutes/1 day. OpenDART has no operational Mock fallback.
+
+Runtime cache files, downloaded archives, extracted XML, complete request URLs, query strings, credentials, and raw provider bodies must not be logged or committed. The profile mapper intentionally excludes corporate registration number, business registration number, full address, phone, and fax. Local snapshots are process-local acceleration only: ephemeral deployments can redownload after restart, and multiple instances do not share a lock or cache.
+
+Fixture tests need no API key. Optional live verification should be run only when an ignored `.env` already contains `OPENDART_API_KEY`; it must keep request URLs and credentials out of output. OpenDART usage limits are provider-controlled and are not hard-coded in this project.
+
 ## Development notes
 
 `npm run dev` and `npm run start` both load `.env` only when it exists. Watch mode can hit the macOS `EMFILE` limit in a heavily loaded development session; use `npm run start` for one-shot verification instead of changing system limits.
 
-This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, OpenDART, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Real-time or redistributed KRX data requires a separate licensed provider agreement.
+This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, OpenDART financial statements, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Financial statements are P3-C-3C and mobile OpenDART integration is P3-C-3D. Real-time or redistributed KRX data requires a separate licensed provider agreement.

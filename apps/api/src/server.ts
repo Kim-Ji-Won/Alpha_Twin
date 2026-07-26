@@ -6,6 +6,14 @@ import { MarketDataObservability } from './observability.js';
 import { MockMarketDataProvider } from './providers/mockMarketDataProvider.js';
 import { PlaceholderLiveMarketDataProvider } from './providers/placeholderLiveMarketDataProvider.js';
 import { PublicDataMarketDataProvider } from './providers/publicDataMarketDataProvider.js';
+import { CorpCodeArchiveParser } from './openDart/corpCode/corpCodeArchiveParser.js';
+import { HttpCorpCodeArchiveSource } from './openDart/corpCode/corpCodeArchiveSource.js';
+import { FileCorpCodeIndexStore } from './openDart/corpCode/corpCodeIndexStore.js';
+import { CorpCodeResolver } from './openDart/corpCode/corpCodeResolver.js';
+import { OpenDartHttpClient } from './openDart/openDartHttpClient.js';
+import { OpenDartService } from './openDart/openDartService.js';
+import { OpenDartObservability } from './openDart/observability.js';
+import { OpenDartProvider } from './openDart/providers/openDartProvider.js';
 
 const config = loadConfig();
 const observability = new MarketDataObservability();
@@ -22,7 +30,31 @@ const marketData = new MarketDataService(
   config.allowMockFallback,
   observability,
 );
-const app = await buildApp(config, marketData);
+const openDartObservability = new OpenDartObservability();
+const openDartClient = new OpenDartHttpClient({
+  apiKey: config.openDartApiKey,
+  baseUrl: config.openDartBaseUrl,
+  timeoutMs: config.openDartTimeoutMs,
+});
+const corpCodeResolver = new CorpCodeResolver(
+  new HttpCorpCodeArchiveSource({
+    apiKey: config.openDartApiKey,
+    baseUrl: config.openDartBaseUrl,
+    timeoutMs: config.openDartArchiveTimeoutMs,
+  }),
+  new CorpCodeArchiveParser(),
+  new FileCorpCodeIndexStore(config.openDartIndexCacheDir),
+  () => new Date(),
+  openDartObservability,
+);
+const openDart = new OpenDartService(
+  corpCodeResolver,
+  new OpenDartProvider(openDartClient),
+  new MemoryCache(Date.now, config.cacheMaxEntries),
+  () => new Date(),
+  openDartObservability,
+);
+const app = await buildApp(config, marketData, { openDart });
 
 try {
   await app.listen({ port: config.port, host: config.host });

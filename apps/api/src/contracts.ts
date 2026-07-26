@@ -39,6 +39,7 @@ export interface ResponseMetadata {
   fallback: boolean;
   dataMode?: MarketDataMode;
   priceAdjustment?: PriceAdjustment;
+  requestId?: string;
 }
 
 export interface StockCandlesDto {

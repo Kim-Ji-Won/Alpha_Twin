@@ -1,0 +1,87 @@
+export type OpenDartOperation = 'corp-code' | 'company-profile' | 'disclosures';
+
+export type OpenDartErrorCode =
+  | 'INVALID_SYMBOL'
+  | 'INVALID_DISCLOSURE_QUERY'
+  | 'CORP_CODE_NOT_FOUND'
+  | 'CORP_CODE_CONFLICT'
+  | 'CORP_CODE_INDEX_UNAVAILABLE'
+  | 'CORP_CODE_ARCHIVE_INVALID'
+  | 'OPENDART_NOT_CONFIGURED'
+  | 'COMPANY_PROFILE_NOT_FOUND'
+  | 'OPENDART_AUTH_ERROR'
+  | 'OPENDART_RATE_LIMITED'
+  | 'OPENDART_UNAVAILABLE'
+  | 'OPENDART_BAD_REQUEST_MAPPING'
+  | 'OPENDART_BAD_RESPONSE'
+  | 'OPENDART_TIMEOUT';
+
+const SAFE_MESSAGES: Record<OpenDartErrorCode, string> = {
+  INVALID_SYMBOL: 'symbol must contain exactly six digits',
+  INVALID_DISCLOSURE_QUERY: 'Disclosure query is invalid',
+  CORP_CODE_NOT_FOUND: 'Company identifier was not found',
+  CORP_CODE_CONFLICT: 'Company identifier index is inconsistent',
+  CORP_CODE_INDEX_UNAVAILABLE: 'Company identifier index is temporarily unavailable',
+  CORP_CODE_ARCHIVE_INVALID: 'Company identifier archive is invalid',
+  OPENDART_NOT_CONFIGURED: 'Company disclosure data is not configured',
+  COMPANY_PROFILE_NOT_FOUND: 'Company profile was not found',
+  OPENDART_AUTH_ERROR: 'Company disclosure provider authentication failed',
+  OPENDART_RATE_LIMITED: 'Company disclosure provider limit was reached',
+  OPENDART_UNAVAILABLE: 'Company disclosure provider is temporarily unavailable',
+  OPENDART_BAD_REQUEST_MAPPING: 'Company disclosure request could not be processed',
+  OPENDART_BAD_RESPONSE: 'Company disclosure provider returned an invalid response',
+  OPENDART_TIMEOUT: 'Company disclosure provider timed out',
+};
+
+const HTTP_STATUS: Record<OpenDartErrorCode, number> = {
+  INVALID_SYMBOL: 400,
+  INVALID_DISCLOSURE_QUERY: 400,
+  CORP_CODE_NOT_FOUND: 404,
+  COMPANY_PROFILE_NOT_FOUND: 404,
+  CORP_CODE_CONFLICT: 502,
+  OPENDART_BAD_REQUEST_MAPPING: 502,
+  OPENDART_BAD_RESPONSE: 502,
+  CORP_CODE_INDEX_UNAVAILABLE: 503,
+  CORP_CODE_ARCHIVE_INVALID: 503,
+  OPENDART_NOT_CONFIGURED: 503,
+  OPENDART_AUTH_ERROR: 503,
+  OPENDART_RATE_LIMITED: 503,
+  OPENDART_UNAVAILABLE: 503,
+  OPENDART_TIMEOUT: 503,
+};
+
+export class OpenDartError extends Error {
+  readonly safeMessage: string;
+  readonly httpStatus: number;
+
+  constructor(
+    readonly code: OpenDartErrorCode,
+    readonly operation: OpenDartOperation,
+    readonly retryable: boolean,
+    readonly providerStatus?: string,
+    options?: ErrorOptions,
+  ) {
+    super(SAFE_MESSAGES[code], options);
+    this.name = 'OpenDartError';
+    this.safeMessage = SAFE_MESSAGES[code];
+    this.httpStatus = HTTP_STATUS[code];
+  }
+}
+
+export function isOpenDartError(value: unknown): value is OpenDartError {
+  return value instanceof OpenDartError;
+}
+
+export function openDartErrorFromStatus(status: string, operation: OpenDartOperation): OpenDartError {
+  if (['010', '011', '012', '901'].includes(status)) {
+    return new OpenDartError('OPENDART_AUTH_ERROR', operation, false, status);
+  }
+  if (status === '020') return new OpenDartError('OPENDART_RATE_LIMITED', operation, true, status);
+  if (['014', '800', '900'].includes(status)) {
+    return new OpenDartError('OPENDART_UNAVAILABLE', operation, true, status);
+  }
+  if (['100', '101', '021'].includes(status)) {
+    return new OpenDartError('OPENDART_BAD_REQUEST_MAPPING', operation, false, status);
+  }
+  return new OpenDartError('OPENDART_BAD_RESPONSE', operation, false, status);
+}

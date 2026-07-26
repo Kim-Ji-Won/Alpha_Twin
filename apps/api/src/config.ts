@@ -11,12 +11,27 @@ export interface AppConfig {
   rateLimitMax: number;
   rateLimitWindowMs: number;
   cacheMaxEntries: number;
+  openDartApiKey?: string;
+  openDartBaseUrl: string;
+  openDartTimeoutMs: number;
+  openDartArchiveTimeoutMs: number;
+  openDartIndexCacheDir: string;
   logLevel: 'silent' | 'error' | 'warn' | 'info';
 }
 
 function numberFromEnv(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function boundedNumberFromEnv(
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : fallback;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -44,6 +59,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     rateLimitMax: numberFromEnv(env.RATE_LIMIT_MAX, 120),
     rateLimitWindowMs: numberFromEnv(env.RATE_LIMIT_WINDOW_MS, 60_000),
     cacheMaxEntries: numberFromEnv(env.MARKET_DATA_CACHE_MAX_ENTRIES, 500),
+    openDartApiKey: env.OPENDART_API_KEY?.trim() || undefined,
+    openDartBaseUrl: env.OPENDART_BASE_URL?.trim().replace(/\/$/, '') || 'https://opendart.fss.or.kr',
+    openDartTimeoutMs: boundedNumberFromEnv(env.OPENDART_TIMEOUT_MS, 7_000, 1_000, 60_000),
+    openDartArchiveTimeoutMs: boundedNumberFromEnv(env.OPENDART_ARCHIVE_TIMEOUT_MS, 15_000, 2_000, 120_000),
+    openDartIndexCacheDir: env.OPENDART_INDEX_CACHE_DIR?.trim()
+      || fileURLToPath(new URL('../.runtime-cache/opendart/', import.meta.url)),
     logLevel,
   };
 }
+import { fileURLToPath } from 'node:url';

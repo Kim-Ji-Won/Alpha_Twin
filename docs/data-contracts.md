@@ -1,12 +1,12 @@
 # ALPHA TWIN Data Contracts
 
-## 1. P3-B through P3-C-3C-B Scope
+## 1. P3-B through P3-C-3C-C Scope
 
 P3-B establishes the backend boundary for market data and completes one vertical slice: Company Twin quote and daily candles. It does not connect AI, ML/DL, OpenDART, news, accounts, orders, or a database.
 
 P3-C-1 adds the Financial Services Commission public stock price API as the first real provider. P3-C-2 removes the two-symbol allowlist, adds bounded pagination, KST date-only handling, cache isolation, request coalescing, and safe operational status. Values remain confirmed daily prices rather than real-time quotes. The source generally updates on the following business day.
 
-P3-C-3B adds a separate OpenDART domain for six-digit symbol resolution, company profiles, and disclosure lists. P3-C-3C-B adds one explicit OpenDART financial report as a lossless transport DTO. It does not add account normalization, latest-report inference, mobile OpenDART screens, analysis scores, or an operational Mock fallback.
+P3-C-3B adds a separate OpenDART domain for six-digit symbol resolution, company profiles, and disclosure lists. P3-C-3C-B adds one explicit OpenDART financial report as a lossless transport DTO. P3-C-3C-C adds deterministic account normalization for exactly eight canonical metrics. It does not add latest-report inference, mobile OpenDART screens, ratios, analysis scores, or an operational Mock fallback.
 
 ## 2. Mobile API Boundary
 
@@ -40,6 +40,7 @@ For Android Emulator use `http://10.0.2.2:4000`. This variable is an address, no
 | GET | `/api/v1/companies/:symbol/profile` | Normalized OpenDART company profile |
 | GET | `/api/v1/companies/:symbol/disclosures` | One normalized OpenDART disclosure page |
 | GET | `/api/v1/companies/:symbol/financials` | One specific OpenDART financial report |
+| GET | `/api/v1/companies/:symbol/financials/normalized` | Canonical summary for one specific report |
 
 Symbols are trimmed and must then contain exactly six digits. Malformed symbols return HTTP 400 before a provider call, symbols with no public rows return HTTP 404, and unavailable providers without usable stale or Mock data return HTTP 503. Candle ranges remain `1m`, `3m`, `6m`, and `1y`.
 
@@ -184,6 +185,18 @@ All financial amounts are normalized integer strings or null. Proper comma group
 
 The transport layer does not reinterpret statement semantics. BS values remain point-in-time. Interim IS/CIS quarter and cumulative values remain separate. CF remains a period flow, and SCE remains dimensioned. It does not select revenue, operating income, assets, or other canonical metrics.
 
+`GET /api/v1/companies/:symbol/financials/normalized` reuses the same specific-report validator and transforms the existing transport DTO without another provider call or cache. Its `metrics` object always has exactly eight keys: `totalAssets`, `totalLiabilities`, `totalEquity`, `cashAndCashEquivalents`, `revenue`, `operatingIncome`, `netIncome`, and `operatingCashFlow`. Each value is a discriminated union with `status=resolved|unresolved|conflict`. Normalization domain states return HTTP 200; transport, provider, mapping, or missing-report failures retain their existing HTTP errors.
+
+Allowed statements are BS only for assets, liabilities, equity, and cash; IS or CIS for revenue, operating income, and net income; and CF only for operating cash flow. SCE is excluded. Candidate ranking is exact standard account ID, explicitly approved account ID alias, then exact approved account-name alias. Account-name fallback is accepted only for missing or standard-code-unused IDs. No substring, fuzzy, regex, translation, or LLM match is used.
+
+At the highest match rank, equivalent rows are deduplicated deterministically, with IS before CIS only when candidates are otherwise equivalent. Different values or currencies are `value-conflict`; different account dimensions are `dimension-conflict`. No arbitrary first row is selected. Candidate diagnostics are bounded and omit amounts. Production ID aliases remain empty until validated by official or multiple live samples.
+
+BS metrics select `currentAmount` with `current-point-in-time` basis. Q1, H1, and Q3 income metrics select `currentCumulativeAmount` with `current-cumulative` basis; FY income selects annual `currentAmount` with `current-period` basis. Interim CF uses OpenDART's `currentAmount` source with semantic `current-cumulative` basis, while FY CF uses `currentAmount` with `current-period` basis. Missing required amounts are unresolved and never replaced, summed, converted to numbers, rounded, or treated as zero.
+
+Resolved values remain integer strings and preserve nullable currency. Missing currency can resolve with `MISSING_METRIC_CURRENCY`; differing currencies conflict. Evidence contains receipt number, statement type, account ID and kind, account name/detail, selected source field, basis, match method, and currency. Summary warnings aggregate unresolved, conflict, missing-currency, and equivalent-duplicate metrics.
+
+Report metadata preserves requested/resolved CFS or OFS and any CFS-to-OFS resolution. OpenDART source, retrieval time, stale flag/reasons, fallback flag, and request ID are inherited without mutation. This layer does not calculate ratios, growth, scores, forecasts, unit conversions, or Company Health.
+
 For a requested CFS report, only OpenDART status `013` permits one OFS request. A second `013` returns `FINANCIAL_REPORT_NOT_FOUND`; direct OFS requests never try CFS. Authentication, rate limit, timeout, transport, malformed response, consistency, and amount errors never trigger OFS resolution. Status `013` is authoritative and cannot return stale data.
 
 Financial cache keys include provider operation, corp code, business year, report code, and requested division. The fresh TTL is 12 hours and stale maximum age is seven days. Same-key misses share the entire CFS/OFS resolution promise. Stale financial data is returned only after rate-limit, unavailable, or timeout errors and is marked with `financial-statements-cache`; corp-index stale state remains separately ordered.
@@ -194,7 +207,7 @@ Disclosure queries default to 90 KST calendar days, `finalOnly=false`, page 1, a
 
 OpenDART authentication, rate-limit, maintenance, malformed response, timeout, and provider request-mapping failures use stable ALPHA TWIN error codes. External messages, full URLs, query strings, and credentials are not returned or logged. The server can start without the key; only OpenDART routes return `OPENDART_NOT_CONFIGURED`.
 
-P3-C-3C-C will add account normalization, and P3-C-3C-D will design latest-report resolution. Mobile integration remains separate. DB, Redis, distributed locking, Prometheus, financial analysis scores, and actual AI remain outside P3-C-3C-B.
+P3-C-3C-D will design latest-report resolution. Mobile integration remains separate. DB, Redis, distributed locking, Prometheus, financial ratios and analysis scores, Company Health, and actual AI remain outside P3-C-3C-C.
 
 Before adding real-time coverage, contract with a provider licensed for KRX display and redistribution. Remaining work also includes a licensed adjusted-price policy, official exchange calendar, production distributed cache/metrics, and versioned DTO migration rules. News, AI/RAG, user data, and portfolio account integrations remain separate future work.
 

@@ -7,6 +7,7 @@ import { isMarketDataError } from './marketDataErrors.js';
 import { MarketDataService } from './marketDataService.js';
 import { isOpenDartError, OpenDartError } from './openDart/errors.js';
 import { parseFinancialStatementsQuery } from './openDart/financialQuery.js';
+import { FinancialAccountNormalizer } from './openDart/normalization/accountNormalizer.js';
 import { OpenDartFinancialService } from './openDart/openDartFinancialService.js';
 import { OpenDartService } from './openDart/openDartService.js';
 import { parseDisclosureQuery } from './openDart/query.js';
@@ -36,6 +37,7 @@ function errorBody(code: string, message: string, requestId?: string): ApiErrorD
 export interface AppDependencies {
   openDart?: OpenDartService;
   openDartFinancial?: OpenDartFinancialService;
+  openDartFinancialNormalizer?: FinancialAccountNormalizer;
 }
 
 export async function buildApp(
@@ -211,6 +213,37 @@ export async function buildApp(
         query,
         request.id,
       );
+    } catch (error) {
+      const response = openDartErrorResponse(error, request.id, 'financial-statements');
+      return reply.code(response.status).send(response.body);
+    }
+  });
+
+  app.get<{
+    Params: { symbol: string };
+    Querystring: {
+      businessYear?: string;
+      reportCode?: string;
+      fsDiv?: string;
+    };
+  }>('/api/v1/companies/:symbol/financials/normalized', async (request, reply) => {
+    const normalized = normalizeSymbol(request.params.symbol);
+    if (!normalized.symbol) {
+      return reply.code(400).send(
+        errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol', request.id),
+      );
+    }
+    try {
+      const query = parseFinancialStatementsQuery(request.query);
+      if (!dependencies.openDartFinancial || !dependencies.openDartFinancialNormalizer) {
+        throw new OpenDartError('OPENDART_NOT_CONFIGURED', 'financial-statements', false);
+      }
+      const financial = await dependencies.openDartFinancial.getFinancialStatements(
+        normalized.symbol,
+        query,
+        request.id,
+      );
+      return dependencies.openDartFinancialNormalizer.normalize(financial);
     } catch (error) {
       const response = openDartErrorResponse(error, request.id, 'financial-statements');
       return reply.code(response.status).send(response.body);

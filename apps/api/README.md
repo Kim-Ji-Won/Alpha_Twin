@@ -2,7 +2,7 @@
 
 Fastify backend for normalized market data. The mobile app calls this API only; provider credentials remain in the ignored `apps/api/.env` file.
 
-P3-C-3B also provides normalized OpenDART company profiles and disclosure lists. P3-C-3C-B adds lossless transport for one explicitly requested OpenDART financial report. OpenDART credentials remain server-only and are never passed to the mobile application.
+P3-C-3B also provides normalized OpenDART company profiles and disclosure lists. P3-C-3C-B adds lossless transport for one explicitly requested OpenDART financial report. P3-C-3C-C adds a deterministic canonical summary over that transport DTO. OpenDART credentials remain server-only and are never passed to the mobile application.
 
 ## Setup
 
@@ -69,6 +69,7 @@ The server starts without `OPENDART_API_KEY`. Market-data routes and `/health` c
 | GET | `/api/v1/companies/:symbol/profile` | Allowlisted company profile fields |
 | GET | `/api/v1/companies/:symbol/disclosures` | One bounded disclosure page |
 | GET | `/api/v1/companies/:symbol/financials` | One specific financial report |
+| GET | `/api/v1/companies/:symbol/financials/normalized` | Eight canonical metrics for one specific report |
 
 Disclosure query parameters are `from`, `to`, `finalOnly`, `category`, `detailCategory`, `page`, and `pageSize`. Dates use `YYYY-MM-DD`; the default is the latest 90 calendar days in KST. The inclusive range is limited to 366 days, pages start at 1, and `pageSize` is limited to 100. A request retrieves one page only and never crawls all history.
 
@@ -80,6 +81,14 @@ Financial lines preserve statement type, account identity, account detail, recei
 
 Specific financial reports use a 12-hour fresh cache and may use the same exact query stale for up to seven days only after an availability failure. Cache keys isolate corp code, year, report code, and requested division. CFS-to-OFS resolution remains distinct from provider fallback, so OpenDART response metadata keeps `fallback=false`.
 
+The normalized financial route uses the same required `businessYear`, `reportCode`, and `fsDiv` query and leaves the existing flat financial route unchanged. It always returns object keys for `totalAssets`, `totalLiabilities`, `totalEquity`, `cashAndCashEquivalents`, `revenue`, `operatingIncome`, `netIncome`, and `operatingCashFlow`. Each metric is `resolved`, `unresolved`, or `conflict`; a normal transport response with an unresolved or conflicting metric remains HTTP 200.
+
+The account normalizer checks the metric's allowed statement first, then ranks an exact standard account ID over an explicitly approved ID alias and an exact approved account-name alias. Name fallback is available only when the account ID is missing or marked standard-code-unused. It does not use partial strings, fuzzy matching, broad whitespace removal, regular expressions, translations, or AI. Equivalent IS/CIS rows are deduplicated deterministically with IS preferred only at equal match rank and value; different values, currencies, or dimensions produce a conflict rather than a selected value.
+
+BS metrics use `currentAmount` as a point-in-time value. Q1, H1, and Q3 income metrics use `currentCumulativeAmount`; FY income uses annual `currentAmount`. Interim operating cash flow is semantically cumulative but uses OpenDART's `currentAmount` source field, and FY cash flow uses annual `currentAmount`. Missing required fields are not substituted or calculated. Values remain integer strings, currencies remain nullable, and resolved evidence retains receipt, statement, account identity, dimension, source field, basis, match method, and currency.
+
+Normalized summaries inherit report resolution and OpenDART stale metadata from the cached transport DTO. They add no second cache. The normalizer is an account-selection layer, not a financial-ratio, scoring, forecasting, or display-formatting engine.
+
 The corp-code resolver downloads a bounded ZIP only when needed, rejects encrypted or ambiguous archives, rejects XML containing DOCTYPE or ENTITY declarations, validates records, and creates a deterministic SHA-256 checked JSON snapshot. It keeps a process-local Map plus an atomic local snapshot under `apps/api/.runtime-cache/opendart/` by default. The index is fresh for 24 hours and may be reused stale for 30 days. Profile cache is 7/30 days fresh/stale; disclosure cache is 30 minutes/1 day. OpenDART has no operational Mock fallback.
 
 Runtime cache files, downloaded archives, extracted XML, complete request URLs, query strings, credentials, and raw provider bodies must not be logged or committed. The profile mapper intentionally excludes corporate registration number, business registration number, full address, phone, and fax. Local snapshots are process-local acceleration only: ephemeral deployments can redownload after restart, and multiple instances do not share a lock or cache.
@@ -90,4 +99,4 @@ Fixture tests need no API key. Optional live verification should be run only whe
 
 `npm run dev` and `npm run start` both load `.env` only when it exists. Watch mode can hit the macOS `EMFILE` limit in a heavily loaded development session; use `npm run start` for one-shot verification instead of changing system limits.
 
-This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, canonical financial metric extraction, latest-report resolution, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Account normalization is P3-C-3C-C, latest-report resolution is P3-C-3C-D, and mobile OpenDART integration remains separate. Real-time or redistributed KRX data requires a separate licensed provider agreement.
+This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, latest-report resolution, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Latest-report resolution remains P3-C-3C-D, and mobile OpenDART integration, Company Health, ratios, and analysis scores remain separate. Real-time or redistributed KRX data requires a separate licensed provider agreement.

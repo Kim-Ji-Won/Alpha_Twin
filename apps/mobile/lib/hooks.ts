@@ -8,8 +8,12 @@ import {
   stockService,
   thesisService,
 } from '@/src/services';
-import { alphaTwinApi, AlphaTwinApiError } from '@/src/services/alphaTwinApi';
-import { AsyncState, useAsync } from '@/lib/useAsync';
+import {
+  alphaTwinApi,
+  AlphaTwinApiError,
+  StockQuoteDto,
+} from '@/src/services/alphaTwinApi';
+import { AsyncState, AsyncStatus, useAsync } from '@/lib/useAsync';
 import {
   AnomalySignal,
   CompanyEvent,
@@ -331,20 +335,133 @@ export function useNotifications(): AsyncState<AppNotification[]> {
 }
 
 export interface WatchlistEntry {
-  stock: Stock;
-  thesis: InvestmentThesis | null;
+  symbol: string;
+  name: string;
+  sector: string;
+  savedOrder: number;
+  thesisExists: boolean;
+  market: {
+    status: 'loading' | 'success' | 'error';
+    quote: StockQuoteDto | null;
+  };
 }
 
-export function useWatchlist(): AsyncState<WatchlistEntry[]> {
-  return useAsync(
-    async () => {
-      const stocks = await watchlistService.list();
-      const theses = await Promise.all(stocks.map(s => thesisService.getBySymbol(s.symbol)));
-      return stocks.map((stock, i) => ({ stock, thesis: theses[i] }));
-    },
-    [],
-    { isEmpty: list => list.length === 0, reloadOnFocus: true },
+export interface WatchlistState {
+  status: AsyncStatus;
+  data: WatchlistEntry[] | null;
+  error: string | null;
+  refreshing: boolean;
+  reload: () => void;
+}
+
+export function useWatchlist(): WatchlistState {
+  const [status, setStatus] = useState<AsyncStatus>('loading');
+  const [data, setData] = useState<WatchlistEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const requestGeneration = useRef(0);
+  const inFlight = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const generation = requestGeneration.current + 1;
+      requestGeneration.current = generation;
+      const controller = new AbortController();
+      const active = () =>
+        !controller.signal.aborted && requestGeneration.current === generation;
+
+      setStatus('loading');
+      setData(null);
+      setError(null);
+      setRefreshing(true);
+      inFlight.current = true;
+
+      void (async () => {
+        try {
+          const savedStocks = await watchlistService.list();
+          if (!active()) return;
+
+          const uniqueStocks = Array.from(
+            new Map(savedStocks.map(stock => [stock.symbol, stock])).values(),
+          );
+          const storedTheses = await Promise.all(
+            uniqueStocks.map(stock => thesisService.getStoredBySymbol(stock.symbol)),
+          );
+          if (!active()) return;
+
+          const initialEntries: WatchlistEntry[] = uniqueStocks.map((stock, index) => ({
+            symbol: stock.symbol,
+            name: stock.name,
+            sector: stock.sector,
+            savedOrder: index,
+            thesisExists: storedTheses[index] != null,
+            market: { status: 'loading', quote: null },
+          }));
+
+          setData(initialEntries);
+          setStatus(initialEntries.length === 0 ? 'empty' : 'success');
+
+          await Promise.allSettled(
+            initialEntries.map(async entry => {
+              try {
+                const summary = await alphaTwinApi.getStockSummary(
+                  entry.symbol,
+                  controller.signal,
+                );
+                if (!active()) return;
+                setData(current =>
+                  current?.map(item =>
+                    item.symbol === entry.symbol
+                      ? {
+                          ...item,
+                          name: summary.quote.name || item.name,
+                          market: { status: 'success', quote: summary.quote },
+                        }
+                      : item,
+                  ) ?? null,
+                );
+              } catch {
+                if (!active()) return;
+                setData(current =>
+                  current?.map(item =>
+                    item.symbol === entry.symbol
+                      ? { ...item, market: { status: 'error', quote: null } }
+                      : item,
+                  ) ?? null,
+                );
+              }
+            }),
+          );
+        } catch (loadError) {
+          if (!active()) return;
+          setStatus('error');
+          setData(null);
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : '저장한 트윈을 불러오지 못했습니다.',
+          );
+        } finally {
+          if (!active()) return;
+          setRefreshing(false);
+          inFlight.current = false;
+        }
+      })();
+
+      return () => {
+        controller.abort();
+        if (requestGeneration.current === generation) inFlight.current = false;
+      };
+    }, [refreshKey]),
   );
+
+  const reload = useCallback(() => {
+    if (inFlight.current) return;
+    setRefreshKey(key => key + 1);
+  }, []);
+
+  return { status, data, error, refreshing, reload };
 }
 
 export function useManagement(symbol: string): AsyncState<ManagementRecord> {

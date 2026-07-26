@@ -7,7 +7,7 @@ import {
   OpenDartResponseMetadata,
 } from '@/src/types/companyTwin';
 
-interface StockQuoteDto {
+export interface StockQuoteDto {
   symbol: string;
   name: string;
   market: string;
@@ -103,13 +103,21 @@ function isStockSummary(value: unknown): value is StockSummaryDto {
     && Array.isArray(summary.candles)
     && typeof quote.symbol === 'string'
     && typeof quote.name === 'string'
+    && typeof quote.market === 'string'
+    && typeof quote.currency === 'string'
     && typeof quote.price === 'number'
+    && typeof quote.change === 'number'
     && typeof quote.changePercent === 'number'
     && typeof quote.asOf === 'string'
+    && typeof quote.source === 'string'
+    && typeof quote.stale === 'boolean'
+    && typeof quote.fallback === 'boolean'
+    && (quote.dataMode == null || oneOf(quote.dataMode, ['eod', 'realtime', 'mock']))
     && typeof metadata.asOf === 'string'
     && typeof metadata.source === 'string'
     && typeof metadata.stale === 'boolean'
-    && typeof metadata.fallback === 'boolean';
+    && typeof metadata.fallback === 'boolean'
+    && (metadata.dataMode == null || oneOf(metadata.dataMode, ['eod', 'realtime', 'mock']));
 }
 
 function isCompanyProfile(value: unknown): value is CompanyProfileResponseDto {

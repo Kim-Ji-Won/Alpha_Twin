@@ -29,6 +29,11 @@ export const thesisService = {
     await delay();
     return (await readStored(symbol)) ?? mockTheses.find(t => t.symbol === symbol) ?? null;
   },
+  // Saved Twin 목록은 실제 사용자 저장 여부만 사용하고 Mock 논제를 분석 결과처럼 노출하지 않는다.
+  async getStoredBySymbol(symbol: string): Promise<InvestmentThesis | null> {
+    await delay();
+    return readStored(symbol);
+  },
   async listForUser(): Promise<InvestmentThesis[]> { await delay(); return mockTheses; },
   // 자연어 → 구조화: 실제 구현 시 LLM API. 미리보기 UI는 이 반환 형태를 그대로 렌더.
   async structureFromText(rawText: string): Promise<Pick<InvestmentThesis, 'hypotheses' | 'signals' | 'killCriteria'>> {

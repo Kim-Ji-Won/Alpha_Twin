@@ -15,22 +15,27 @@ import { WatchlistEntry, useWatchlist } from '@/lib/hooks';
 import { alpha, colors } from '@/src/theme';
 import { watchlistService } from '@/src/services';
 
-const FILTERS = ['전체', '논제 있음', '변화 큼', '반도체'] as const;
-type Filter = (typeof FILTERS)[number];
+const FILTERS = [
+  { label: '전체', enabled: true },
+  { label: '논제 있음', enabled: true },
+  { label: '변화 큼', enabled: false },
+  { label: '반도체', enabled: false },
+] as const;
+type Filter = (typeof FILTERS)[number]['label'];
 
-const SORTS = ['등락률', '기업 상태', '논제 건강도', '위험 수준', '추가순'] as const;
-type Sort = (typeof SORTS)[number];
+const SORTS = [
+  { label: '등락률', enabled: true },
+  { label: '기업 상태', enabled: false },
+  { label: '논제 건강도', enabled: false },
+  { label: '위험 수준', enabled: false },
+  { label: '추가순', enabled: true },
+] as const;
+type Sort = (typeof SORTS)[number]['label'];
 
 function applyFilter(entries: WatchlistEntry[], filter: Filter): WatchlistEntry[] {
   switch (filter) {
     case '논제 있음':
-      return entries.filter(e => e.thesis != null);
-    case '변화 큼':
-      return entries.filter(
-        e => Math.abs(e.stock.changePct) >= 2 || (e.thesis && Math.abs(e.thesis.healthTrend.delta) >= 4),
-      );
-    case '반도체':
-      return entries.filter(e => e.stock.sector.includes('반도체'));
+      return entries.filter(e => e.thesisExists);
     default:
       return entries;
   }
@@ -40,16 +45,16 @@ function applySort(entries: WatchlistEntry[], sort: Sort): WatchlistEntry[] {
   const list = [...entries];
   switch (sort) {
     case '등락률':
-      return list.sort((a, b) => b.stock.changePct - a.stock.changePct);
-    case '기업 상태':
-      return list.sort((a, b) => b.stock.healthScore - a.stock.healthScore);
-    case '논제 건강도':
-      return list.sort((a, b) => (b.thesis?.healthScore ?? -1) - (a.thesis?.healthScore ?? -1));
-    case '위험 수준':
-      // 상태 점수가 낮을수록 위험 — 위험 높은 순
-      return list.sort((a, b) => a.stock.healthScore - b.stock.healthScore);
+      return list.sort((a, b) => {
+        const aChange = a.market.quote?.changePercent;
+        const bChange = b.market.quote?.changePercent;
+        if (aChange == null && bChange == null) return a.savedOrder - b.savedOrder;
+        if (aChange == null) return 1;
+        if (bChange == null) return -1;
+        return bChange - aChange;
+      });
     default:
-      return list; // 추가순 (저장 순서)
+      return list.sort((a, b) => a.savedOrder - b.savedOrder);
   }
 }
 
@@ -65,7 +70,7 @@ export default function TwinTab() {
     [data, filter, sort],
   );
 
-  const thesisCount = data?.filter(e => e.thesis != null).length ?? 0;
+  const thesisCount = data?.filter(e => e.thesisExists).length ?? 0;
 
   const header = (
     <AppHeader
@@ -122,42 +127,54 @@ export default function TwinTab() {
 
       {/* 필터 칩 (디자인 .tk) */}
       <View style={styles.chips}>
-        {FILTERS.map(f => (
+        {FILTERS.map(({ label, enabled }) => (
           <Pressable
-            key={f}
-            onPress={() => setFilter(f)}
+            key={label}
+            disabled={!enabled}
+            onPress={() => setFilter(label)}
             accessibilityRole="button"
-            accessibilityLabel={`필터: ${f}`}
-            accessibilityState={{ selected: filter === f }}
-            style={({ pressed }) => [styles.chip, filter === f && styles.chipOn, { opacity: pressed ? 0.7 : 1 }]}>
+            accessibilityLabel={`필터: ${label}${enabled ? '' : ', 준비 중'}`}
+            accessibilityState={{ selected: filter === label, disabled: !enabled }}
+            style={({ pressed }) => [
+              styles.chip,
+              filter === label && styles.chipOn,
+              !enabled && styles.chipDisabled,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}>
             <Text
               style={[
                 styles.chipText,
-                filter === f && { color: colors.accent },
+                filter === label && { color: colors.accent },
                 { fontFamily: font('body', '600') },
               ]}>
-              {f}
+              {label}
             </Text>
           </Pressable>
         ))}
       </View>
       {/* 정렬 칩 */}
       <View style={styles.chips}>
-        {SORTS.map(s => (
+        {SORTS.map(({ label, enabled }) => (
           <Pressable
-            key={s}
-            onPress={() => setSort(s)}
+            key={label}
+            disabled={!enabled}
+            onPress={() => setSort(label)}
             accessibilityRole="button"
-            accessibilityLabel={`정렬: ${s}`}
-            accessibilityState={{ selected: sort === s }}
-            style={({ pressed }) => [styles.sortChip, sort === s && styles.chipOn, { opacity: pressed ? 0.7 : 1 }]}>
+            accessibilityLabel={`정렬: ${label}${enabled ? '' : ', 준비 중'}`}
+            accessibilityState={{ selected: sort === label, disabled: !enabled }}
+            style={({ pressed }) => [
+              styles.sortChip,
+              sort === label && styles.chipOn,
+              !enabled && styles.chipDisabled,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}>
             <Text
               style={[
                 styles.sortText,
-                sort === s && { color: colors.accent },
+                sort === label && { color: colors.accent },
                 { fontFamily: font('body', '600') },
               ]}>
-              {s}
+              {label}
             </Text>
           </Pressable>
         ))}
@@ -165,7 +182,7 @@ export default function TwinTab() {
 
       <FlatList
         data={entries}
-        keyExtractor={e => e.stock.symbol}
+        keyExtractor={e => e.symbol}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
@@ -175,17 +192,20 @@ export default function TwinTab() {
         }
         ListFooterComponent={
           <DataMetadata
-            items={['상태 = 기업 상태 점수 · 논제 = 투자 논제 건강도 · 바는 상태 점수', '길게 누르면 관심 해제']}
+            items={[
+              '최근 확정 시세 · 실시간 아님',
+              '분석 기반 필터와 점수는 준비 중',
+              '길게 누르면 관심 해제',
+            ]}
             style={styles.meta}
           />
         }
         renderItem={({ item, index }) => (
           <WatchlistRow
-            stock={item.stock}
-            thesis={item.thesis}
+            entry={item}
             first={index === 0}
             onPress={() =>
-              router.push({ pathname: '/company/[symbol]', params: { symbol: item.stock.symbol } })
+              router.push({ pathname: '/company/[symbol]', params: { symbol: item.symbol } })
             }
             onLongPress={() => setPendingRemove(item)}
           />
@@ -195,13 +215,13 @@ export default function TwinTab() {
       <ConfirmationModal
         visible={pendingRemove != null}
         title="관심 종목 해제"
-        message={pendingRemove ? `${pendingRemove.stock.name}을(를) 관심 목록에서 제거할까요?` : ''}
+        message={pendingRemove ? `${pendingRemove.name}을(를) 관심 목록에서 제거할까요?` : ''}
         confirmLabel="제거"
         destructive
         onCancel={() => setPendingRemove(null)}
         onConfirm={async () => {
           if (pendingRemove) {
-            await watchlistService.remove(pendingRemove.stock.symbol);
+            await watchlistService.remove(pendingRemove.symbol);
             setPendingRemove(null);
             reload();
           }
@@ -244,6 +264,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipOn: { borderColor: alpha.accentBorder, backgroundColor: alpha.accent08 },
+  chipDisabled: { opacity: 0.42 },
   chipText: { fontSize: 13, color: '#d2dcec', fontWeight: '600' },
   sortText: { fontSize: 11.5, color: colors.mut, fontWeight: '600' },
   listContent: { paddingBottom: 24 },

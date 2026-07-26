@@ -1,80 +1,100 @@
-// 프레임 24 — 관심 종목 행 (.wrow): 로고 + 이름/가격/상태바 + 상태 점수/논제 상태.
-// narrative_gap 플래그 종목은 괴리 하이라이트 (amber 틴트).
+// 프레임 24 — 관심 종목 행: 저장 identity + 실제 최근 확정 시세 + 분석 준비 상태.
 import React from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { colors } from '@/src/theme';
-import { InvestmentThesis, Stock } from '@/src/types';
 import { font } from '@/lib/fonts';
 import { formatKRW, formatPct } from '@/lib/format';
 import { StatusBadge } from '@/components/StatusBadge';
+import type { WatchlistEntry } from '@/lib/hooks';
 
 export interface WatchlistRowProps {
-  stock: Stock;
-  thesis: InvestmentThesis | null;
+  entry: WatchlistEntry;
   onPress?: () => void;
   onLongPress?: () => void;
   first?: boolean;
   style?: ViewStyle;
 }
 
-export function WatchlistRow({ stock, thesis, onPress, onLongPress, first, style }: WatchlistRowProps) {
-  const gap = stock.flags?.includes('narrative_gap') ?? false;
-  const changeColor = stock.changePct > 0 ? colors.pos : stock.changePct < 0 ? colors.neg : colors.mut;
-  const scoreColor = gap ? colors.warn : colors.ink;
-  const barColor = gap ? colors.warn : colors.accent;
+function marketDate(asOf: string): string {
+  const date = asOf.match(/^\d{4}-(\d{2})-(\d{2})/);
+  return date ? `${date[1]}/${date[2]}` : asOf;
+}
 
-  const thesisText = gap
-    ? '확인 필요'
-    : thesis
-      ? `논제 ${thesis.healthScore} ${thesis.healthTrend.delta >= 0 ? '▲' : '▼'}${Math.abs(thesis.healthTrend.delta)}`
-      : '논제 없음';
-  const thesisColor = gap
-    ? colors.warn
-    : thesis
-      ? thesis.healthTrend.delta >= 0
-        ? colors.pos
-        : colors.neg
-      : colors.dim;
+function signedPriceChange(change: number, currency: string): string {
+  const sign = change > 0 ? '+' : change < 0 ? '−' : '';
+  const absolute = Math.abs(change);
+  const amount = currency === 'KRW'
+    ? formatKRW(absolute)
+    : `${absolute.toLocaleString('ko-KR')} ${currency}`;
+  return `${sign}${amount}`;
+}
+
+export function WatchlistRow({ entry, onPress, onLongPress, first, style }: WatchlistRowProps) {
+  const quote = entry.market.quote;
+  const changeColor = quote
+    ? quote.changePercent > 0
+      ? colors.pos
+      : quote.changePercent < 0
+        ? colors.neg
+        : colors.mut
+    : colors.dim;
+  const priceText = quote
+    ? quote.currency === 'KRW'
+      ? formatKRW(quote.price)
+      : `${quote.price.toLocaleString('ko-KR')} ${quote.currency}`
+    : null;
+  const thesisText = entry.thesisExists ? '논제 있음' : '논제 없음';
+  const marketDescription = quote
+    ? `${priceText}, ${signedPriceChange(quote.change, quote.currency)}, ${formatPct(quote.changePercent)}, 최근 확정 시세 기준 ${marketDate(quote.asOf)}`
+    : entry.market.status === 'loading'
+      ? '최근 시세 불러오는 중'
+      : '시세 확인 불가';
 
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${stock.name}, ${formatKRW(stock.price)}, ${formatPct(stock.changePct)}, 기업 상태 ${stock.healthScore}점, ${thesisText}${gap ? ', 괴리 주의' : ''}`}
+      accessibilityLabel={`${entry.name}, ${marketDescription}, 분석 준비 중, ${thesisText}`}
       style={({ pressed }) => [
         styles.row,
         first ? null : styles.divider,
-        gap && styles.gapRow,
         { opacity: pressed ? 0.75 : 1 },
         style,
       ]}>
       <View style={styles.logo}>
         <Text style={[styles.logoText, { fontFamily: font('mono', '700') }]}>
-          {stock.name.slice(0, 2)}
+          {entry.name.slice(0, 2)}
         </Text>
       </View>
       <View style={styles.body}>
         <View style={styles.nameRow}>
-          <Text style={[styles.name, { fontFamily: font('body', '700') }]}>{stock.name}</Text>
-          {gap ? <StatusBadge label="◆ 괴리" tone="warn" size="sm" /> : null}
+          <Text style={[styles.name, { fontFamily: font('body', '700') }]}>{entry.name}</Text>
+          {quote?.fallback ? <StatusBadge label="대체 시세" tone="neutral" size="sm" /> : null}
+          {quote?.stale && !quote.fallback ? (
+            <StatusBadge label="이전 시세" tone="warn" size="sm" />
+          ) : null}
         </View>
-        <Text style={[styles.price, { fontFamily: font('mono', '500') }]}>
-          {formatKRW(stock.price)} ·{' '}
-          <Text style={{ color: changeColor }}>{formatPct(stock.changePct)}</Text>
-        </Text>
-        <View style={styles.bar}>
-          <View
-            style={[styles.barFill, { width: `${stock.healthScore}%`, backgroundColor: barColor }]}
-          />
-        </View>
+        {quote && priceText ? (
+          <>
+            <Text style={[styles.price, { fontFamily: font('mono', '600') }]}>{priceText}</Text>
+            <Text style={[styles.marketMeta, { color: changeColor, fontFamily: font('mono', '500') }]}>
+              {signedPriceChange(quote.change, quote.currency)} · {formatPct(quote.changePercent)}
+              <Text style={styles.asOf}> · 최근 확정 {marketDate(quote.asOf)}</Text>
+            </Text>
+          </>
+        ) : (
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[styles.marketState, { fontFamily: font('body', '500') }]}>
+            {entry.market.status === 'loading' ? '최근 시세 불러오는 중' : '시세 확인 불가'}
+          </Text>
+        )}
       </View>
       <View style={styles.score}>
-        <Text style={[styles.scoreValue, { color: scoreColor, fontFamily: font('mono', '700') }]}>
-          {stock.healthScore}
-        </Text>
-        <Text style={[styles.scoreLabel, { fontFamily: font('body', '500') }]}>상태</Text>
-        <Text style={[styles.thesis, { color: thesisColor, fontFamily: font('mono', '600') }]}>
+        <Text style={[styles.pending, { fontFamily: font('body', '600') }]}>분석</Text>
+        <Text style={[styles.scoreLabel, { fontFamily: font('body', '500') }]}>준비 중</Text>
+        <Text style={[styles.thesis, { fontFamily: font('body', '600') }]}>
           {thesisText}
         </Text>
       </View>
@@ -92,13 +112,6 @@ const styles = StyleSheet.create({
     minHeight: 68,
   },
   divider: { borderTopWidth: 1, borderTopColor: colors.line },
-  gapRow: {
-    backgroundColor: 'rgba(251,191,36,0.05)',
-    marginHorizontal: -8,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderTopColor: 'transparent',
-  },
   logo: {
     width: 40,
     height: 40,
@@ -113,18 +126,12 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { fontSize: 14.5, fontWeight: '700', color: colors.ink },
-  price: { fontSize: 11, color: colors.dim, marginTop: 3 },
-  bar: {
-    width: 56,
-    height: 5,
-    borderRadius: 99,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    overflow: 'hidden',
-    marginTop: 5,
-  },
-  barFill: { height: '100%', borderRadius: 99 },
+  price: { fontSize: 12, color: colors.ink, marginTop: 3 },
+  marketMeta: { fontSize: 10.5, marginTop: 2 },
+  asOf: { color: colors.dim },
+  marketState: { fontSize: 11.5, color: colors.dim, marginTop: 7 },
   score: { alignItems: 'flex-end' },
-  scoreValue: { fontSize: 16, fontWeight: '700' },
+  pending: { fontSize: 11.5, color: colors.mut },
   scoreLabel: { fontSize: 10.5, color: colors.dim, marginTop: 2 },
-  thesis: { fontSize: 10.5, marginTop: 2 },
+  thesis: { fontSize: 10.5, color: colors.dim, marginTop: 4 },
 });

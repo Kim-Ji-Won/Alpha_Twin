@@ -1,8 +1,13 @@
-export type OpenDartOperation = 'corp-code' | 'company-profile' | 'disclosures';
+export type OpenDartOperation =
+  | 'corp-code'
+  | 'company-profile'
+  | 'disclosures'
+  | 'financial-statements';
 
 export type OpenDartErrorCode =
   | 'INVALID_SYMBOL'
   | 'INVALID_DISCLOSURE_QUERY'
+  | 'INVALID_FINANCIAL_QUERY'
   | 'CORP_CODE_NOT_FOUND'
   | 'CORP_CODE_CONFLICT'
   | 'CORP_CODE_INDEX_UNAVAILABLE'
@@ -14,11 +19,15 @@ export type OpenDartErrorCode =
   | 'OPENDART_UNAVAILABLE'
   | 'OPENDART_BAD_REQUEST_MAPPING'
   | 'OPENDART_BAD_RESPONSE'
-  | 'OPENDART_TIMEOUT';
+  | 'OPENDART_TIMEOUT'
+  | 'FINANCIAL_REPORT_NOT_FOUND'
+  | 'FINANCIAL_RESPONSE_INCONSISTENT'
+  | 'FINANCIAL_ACCOUNT_VALUE_INVALID';
 
 const SAFE_MESSAGES: Record<OpenDartErrorCode, string> = {
   INVALID_SYMBOL: 'symbol must contain exactly six digits',
   INVALID_DISCLOSURE_QUERY: 'Disclosure query is invalid',
+  INVALID_FINANCIAL_QUERY: 'Financial statement query is invalid',
   CORP_CODE_NOT_FOUND: 'Company identifier was not found',
   CORP_CODE_CONFLICT: 'Company identifier index is inconsistent',
   CORP_CODE_INDEX_UNAVAILABLE: 'Company identifier index is temporarily unavailable',
@@ -31,16 +40,23 @@ const SAFE_MESSAGES: Record<OpenDartErrorCode, string> = {
   OPENDART_BAD_REQUEST_MAPPING: 'Company disclosure request could not be processed',
   OPENDART_BAD_RESPONSE: 'Company disclosure provider returned an invalid response',
   OPENDART_TIMEOUT: 'Company disclosure provider timed out',
+  FINANCIAL_REPORT_NOT_FOUND: 'Financial statement report was not found',
+  FINANCIAL_RESPONSE_INCONSISTENT: 'Financial statement response is inconsistent',
+  FINANCIAL_ACCOUNT_VALUE_INVALID: 'Financial statement amount is invalid',
 };
 
 const HTTP_STATUS: Record<OpenDartErrorCode, number> = {
   INVALID_SYMBOL: 400,
   INVALID_DISCLOSURE_QUERY: 400,
+  INVALID_FINANCIAL_QUERY: 400,
   CORP_CODE_NOT_FOUND: 404,
   COMPANY_PROFILE_NOT_FOUND: 404,
   CORP_CODE_CONFLICT: 502,
   OPENDART_BAD_REQUEST_MAPPING: 502,
   OPENDART_BAD_RESPONSE: 502,
+  FINANCIAL_RESPONSE_INCONSISTENT: 502,
+  FINANCIAL_ACCOUNT_VALUE_INVALID: 502,
+  FINANCIAL_REPORT_NOT_FOUND: 404,
   CORP_CODE_INDEX_UNAVAILABLE: 503,
   CORP_CODE_ARCHIVE_INVALID: 503,
   OPENDART_NOT_CONFIGURED: 503,

@@ -6,6 +6,8 @@ import { ApiErrorDto, CandleRange } from './contracts.js';
 import { isMarketDataError } from './marketDataErrors.js';
 import { MarketDataService } from './marketDataService.js';
 import { isOpenDartError, OpenDartError } from './openDart/errors.js';
+import { parseFinancialStatementsQuery } from './openDart/financialQuery.js';
+import { OpenDartFinancialService } from './openDart/openDartFinancialService.js';
 import { OpenDartService } from './openDart/openDartService.js';
 import { parseDisclosureQuery } from './openDart/query.js';
 
@@ -33,6 +35,7 @@ function errorBody(code: string, message: string, requestId?: string): ApiErrorD
 
 export interface AppDependencies {
   openDart?: OpenDartService;
+  openDartFinancial?: OpenDartFinancialService;
 }
 
 export async function buildApp(
@@ -53,6 +56,7 @@ export async function buildApp(
   });
   marketData.setLogger(app.log);
   dependencies.openDart?.setLogger(app.log);
+  dependencies.openDartFinancial?.setLogger(app.log);
   const requestWindows = new Map<string, { count: number; resetsAt: number }>();
   await app.register(cors, {
     origin(origin, callback) {
@@ -82,6 +86,9 @@ export async function buildApp(
     asOf: new Date().toISOString(),
     marketData: marketData.status,
     ...(dependencies.openDart ? { openDart: dependencies.openDart.status } : {}),
+    ...(dependencies.openDartFinancial
+      ? { openDartFinancial: dependencies.openDartFinancial.status }
+      : {}),
   }));
 
   app.setNotFoundHandler((_request, reply) => {
@@ -131,10 +138,14 @@ export async function buildApp(
     }
   });
 
-  const openDartErrorResponse = (error: unknown, requestId: string) => {
+  const openDartErrorResponse = (
+    error: unknown,
+    requestId: string,
+    operation: 'company-profile' | 'disclosures' | 'financial-statements',
+  ) => {
     const safe = isOpenDartError(error)
       ? error
-      : new OpenDartError('OPENDART_UNAVAILABLE', 'company-profile', true);
+      : new OpenDartError('OPENDART_UNAVAILABLE', operation, true);
     return {
       status: safe.httpStatus,
       body: errorBody(safe.code, safe.safeMessage, requestId),
@@ -150,7 +161,7 @@ export async function buildApp(
       if (!dependencies.openDart) throw new OpenDartError('OPENDART_NOT_CONFIGURED', 'company-profile', false);
       return await dependencies.openDart.getCompanyProfile(normalized.symbol, request.id);
     } catch (error) {
-      const response = openDartErrorResponse(error, request.id);
+      const response = openDartErrorResponse(error, request.id, 'company-profile');
       return reply.code(response.status).send(response.body);
     }
   });
@@ -171,7 +182,37 @@ export async function buildApp(
       if (!dependencies.openDart) throw new OpenDartError('OPENDART_NOT_CONFIGURED', 'disclosures', false);
       return await dependencies.openDart.getDisclosures(normalized.symbol, query, request.id);
     } catch (error) {
-      const response = openDartErrorResponse(error, request.id);
+      const response = openDartErrorResponse(error, request.id, 'disclosures');
+      return reply.code(response.status).send(response.body);
+    }
+  });
+
+  app.get<{
+    Params: { symbol: string };
+    Querystring: {
+      businessYear?: string;
+      reportCode?: string;
+      fsDiv?: string;
+    };
+  }>('/api/v1/companies/:symbol/financials', async (request, reply) => {
+    const normalized = normalizeSymbol(request.params.symbol);
+    if (!normalized.symbol) {
+      return reply.code(400).send(
+        errorBody('INVALID_SYMBOL', normalized.error ?? 'Invalid symbol', request.id),
+      );
+    }
+    try {
+      const query = parseFinancialStatementsQuery(request.query);
+      if (!dependencies.openDartFinancial) {
+        throw new OpenDartError('OPENDART_NOT_CONFIGURED', 'financial-statements', false);
+      }
+      return await dependencies.openDartFinancial.getFinancialStatements(
+        normalized.symbol,
+        query,
+        request.id,
+      );
+    } catch (error) {
+      const response = openDartErrorResponse(error, request.id, 'financial-statements');
       return reply.code(response.status).send(response.body);
     }
   });

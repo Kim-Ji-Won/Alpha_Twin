@@ -1,12 +1,12 @@
 # ALPHA TWIN Data Contracts
 
-## 1. P3-B through P3-C-3B Scope
+## 1. P3-B through P3-C-3C-B Scope
 
 P3-B establishes the backend boundary for market data and completes one vertical slice: Company Twin quote and daily candles. It does not connect AI, ML/DL, OpenDART, news, accounts, orders, or a database.
 
 P3-C-1 adds the Financial Services Commission public stock price API as the first real provider. P3-C-2 removes the two-symbol allowlist, adds bounded pagination, KST date-only handling, cache isolation, request coalescing, and safe operational status. Values remain confirmed daily prices rather than real-time quotes. The source generally updates on the following business day.
 
-P3-C-3B adds a separate OpenDART domain for six-digit symbol resolution, company profiles, and disclosure lists. It does not add financial statements, mobile OpenDART screens, analysis scores, or an operational Mock fallback.
+P3-C-3B adds a separate OpenDART domain for six-digit symbol resolution, company profiles, and disclosure lists. P3-C-3C-B adds one explicit OpenDART financial report as a lossless transport DTO. It does not add account normalization, latest-report inference, mobile OpenDART screens, analysis scores, or an operational Mock fallback.
 
 ## 2. Mobile API Boundary
 
@@ -39,6 +39,7 @@ For Android Emulator use `http://10.0.2.2:4000`. This variable is an address, no
 | GET | `/api/v1/stocks/:symbol/summary?range=1m` | Quote and candles for Company Twin |
 | GET | `/api/v1/companies/:symbol/profile` | Normalized OpenDART company profile |
 | GET | `/api/v1/companies/:symbol/disclosures` | One normalized OpenDART disclosure page |
+| GET | `/api/v1/companies/:symbol/financials` | One specific OpenDART financial report |
 
 Symbols are trimmed and must then contain exactly six digits. Malformed symbols return HTTP 400 before a provider call, symbols with no public rows return HTTP 404, and unavailable providers without usable stale or Mock data return HTTP 503. Candle ranges remain `1m`, `3m`, `6m`, and `1y`.
 
@@ -175,13 +176,25 @@ The current `PlaceholderLiveMarketDataProvider` returns a controlled error until
 
 OpenDART metadata uses `source=opendart-fss`, `retrievedAt`, `stale`, ordered `staleReasons`, `fallback=false`, and an optional request ID. Corp index stale state, profile cache stale state, and disclosure cache stale state remain distinguishable. No other company's Mock data is substituted.
 
+`GET /api/v1/companies/:symbol/financials` requires `businessYear`, `reportCode`, and `fsDiv`. `businessYear` is an exact four-digit year from 2015 through the current KST year. Report code mappings are `11013=Q1`, `11012=H1`, `11014=Q3`, and `11011=FY`. `fsDiv` accepts only exact uppercase `CFS` or `OFS`; lowercase values and latest-report inference are rejected before provider access.
+
+`FinancialStatementsResponseDto` contains the symbol, resolved corp code, report metadata, flat financial lines, distinct sorted currencies, aggregated warning counts, and OpenDART metadata. Report metadata preserves requested and resolved division, any CFS-to-OFS resolution, period kind, and the one receipt number shared by every line. Each line preserves receipt, statement type/name, account ID and kind, account name/detail, all six distinct amount source fields and period names, order, and currency.
+
+All financial amounts are normalized integer strings or null. Proper comma grouping and a leading minus are accepted; JavaScript number conversion, decimal truncation, malformed-comma repair, and missing-to-zero conversion are forbidden. Blank and dash values map to null with separate warning counts. The standard-code-unused marker maps to `accountId=null` and `accountIdKind=standard-code-unused`; SCE dimensions remain in `accountDetail`.
+
+The transport layer does not reinterpret statement semantics. BS values remain point-in-time. Interim IS/CIS quarter and cumulative values remain separate. CF remains a period flow, and SCE remains dimensioned. It does not select revenue, operating income, assets, or other canonical metrics.
+
+For a requested CFS report, only OpenDART status `013` permits one OFS request. A second `013` returns `FINANCIAL_REPORT_NOT_FOUND`; direct OFS requests never try CFS. Authentication, rate limit, timeout, transport, malformed response, consistency, and amount errors never trigger OFS resolution. Status `013` is authoritative and cannot return stale data.
+
+Financial cache keys include provider operation, corp code, business year, report code, and requested division. The fresh TTL is 12 hours and stale maximum age is seven days. Same-key misses share the entire CFS/OFS resolution promise. Stale financial data is returned only after rate-limit, unavailable, or timeout errors and is marked with `financial-statements-cache`; corp-index stale state remains separately ordered.
+
 The corp-code archive is limited to 20 MiB compressed, 8 entries, 64 MiB for the single XML entry, and 200,000 listed records. DOCTYPE and ENTITY declarations are rejected. Listed records are sorted by stock code and stored as a schema-versioned, SHA-256 checked JSON snapshot using a temporary file plus atomic rename. The default runtime directory is Git-ignored. Fresh/stale windows are 24 hours/30 days for the index, 7/30 days for profiles, and 30 minutes/1 day for disclosures.
 
 Disclosure queries default to 90 KST calendar days, `finalOnly=false`, page 1, and page size 20. Dates must be real `YYYY-MM-DD` values, the inclusive range cannot exceed 366 days, and page size cannot exceed 100. Only the requested page is fetched.
 
 OpenDART authentication, rate-limit, maintenance, malformed response, timeout, and provider request-mapping failures use stable ALPHA TWIN error codes. External messages, full URLs, query strings, and credentials are not returned or logged. The server can start without the key; only OpenDART routes return `OPENDART_NOT_CONFIGURED`.
 
-P3-C-3C will add financial statements and account normalization. P3-C-3D will connect the normalized company and disclosure data to mobile. DB, Redis, distributed locking, Prometheus, financial analysis scores, and actual AI remain outside P3-C-3B.
+P3-C-3C-C will add account normalization, and P3-C-3C-D will design latest-report resolution. Mobile integration remains separate. DB, Redis, distributed locking, Prometheus, financial analysis scores, and actual AI remain outside P3-C-3C-B.
 
 Before adding real-time coverage, contract with a provider licensed for KRX display and redistribution. Remaining work also includes a licensed adjusted-price policy, official exchange calendar, production distributed cache/metrics, and versioned DTO migration rules. News, AI/RAG, user data, and portfolio account integrations remain separate future work.
 

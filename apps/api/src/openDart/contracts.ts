@@ -1,7 +1,8 @@
 export type OpenDartStaleReason =
   | 'corp-code-index'
   | 'company-profile-cache'
-  | 'disclosures-cache';
+  | 'disclosures-cache'
+  | 'financial-statements-cache';
 
 export interface OpenDartResponseMetadata {
   source: 'opendart-fss';
@@ -102,6 +103,81 @@ export interface DisclosurePageDto {
   metadata: OpenDartResponseMetadata;
 }
 
+export type FinancialReportCode = '11011' | '11012' | '11013' | '11014';
+export type FinancialStatementDivision = 'CFS' | 'OFS';
+export type FinancialPeriodKind = 'Q1' | 'H1' | 'Q3' | 'FY';
+export type FinancialStatementType = 'BS' | 'IS' | 'CIS' | 'CF' | 'SCE';
+export type FinancialAccountIdKind =
+  | 'standard'
+  | 'extension'
+  | 'standard-code-unused'
+  | 'missing'
+  | 'unknown';
+export type FinancialWarningCode =
+  | 'BLANK_AMOUNT'
+  | 'DASH_AMOUNT'
+  | 'INVALID_ORDER'
+  | 'MULTIPLE_CURRENCIES'
+  | 'UNEXPECTED_ACCOUNT_DETAIL';
+
+export interface FinancialStatementsQuery {
+  businessYear: string;
+  reportCode: FinancialReportCode;
+  fsDiv: FinancialStatementDivision;
+}
+
+export interface FinancialWarningDto {
+  code: FinancialWarningCode;
+  count: number;
+}
+
+export interface FinancialStatementLineDto {
+  receiptNumber: string;
+  symbol: string;
+  corpCode: string;
+  businessYear: string;
+  reportCode: FinancialReportCode;
+  fsDiv: FinancialStatementDivision;
+  statementType: FinancialStatementType;
+  statementName: string;
+  accountId: string | null;
+  accountIdKind: FinancialAccountIdKind;
+  accountName: string;
+  accountDetail: string | null;
+  currentPeriodName: string | null;
+  currentAmount: string | null;
+  currentCumulativeAmount: string | null;
+  previousPeriodName: string | null;
+  previousAmount: string | null;
+  previousComparableQuarterPeriodName: string | null;
+  previousComparableQuarterAmount: string | null;
+  previousCumulativeAmount: string | null;
+  priorPeriodName: string | null;
+  priorPeriodAmount: string | null;
+  order: number | null;
+  currency: string | null;
+}
+
+export interface FinancialReportMetadata {
+  businessYear: string;
+  reportCode: FinancialReportCode;
+  periodKind: FinancialPeriodKind;
+  requestedFsDiv: FinancialStatementDivision;
+  resolvedFsDiv: FinancialStatementDivision;
+  fallbackFromFsDiv: FinancialStatementDivision | null;
+  receiptNumber: string;
+}
+
+export interface FinancialStatementsResponseDto {
+  symbol: string;
+  corpCode: string;
+  report: FinancialReportMetadata;
+  lines: FinancialStatementLineDto[];
+  currencies: string[];
+  warnings: FinancialWarningDto[];
+  metadata: OpenDartResponseMetadata;
+}
+
 export type OpenDartCompanyProfileRaw = Record<string, unknown>;
 export interface OpenDartDisclosurePageRaw {
   status: string;
@@ -109,5 +185,11 @@ export interface OpenDartDisclosurePageRaw {
   page_count?: unknown;
   total_count?: unknown;
   total_page?: unknown;
+  list?: unknown;
+}
+
+export interface OpenDartFinancialRawResponse extends Record<string, unknown> {
+  status: string;
+  message?: unknown;
   list?: unknown;
 }

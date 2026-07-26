@@ -2,7 +2,7 @@
 
 Fastify backend for normalized market data. The mobile app calls this API only; provider credentials remain in the ignored `apps/api/.env` file.
 
-P3-C-3B also provides normalized OpenDART company profiles and disclosure lists. OpenDART credentials remain server-only and are never passed to the mobile application.
+P3-C-3B also provides normalized OpenDART company profiles and disclosure lists. P3-C-3C-B adds lossless transport for one explicitly requested OpenDART financial report. OpenDART credentials remain server-only and are never passed to the mobile application.
 
 ## Setup
 
@@ -68,19 +68,26 @@ The server starts without `OPENDART_API_KEY`. Market-data routes and `/health` c
 | --- | --- | --- |
 | GET | `/api/v1/companies/:symbol/profile` | Allowlisted company profile fields |
 | GET | `/api/v1/companies/:symbol/disclosures` | One bounded disclosure page |
+| GET | `/api/v1/companies/:symbol/financials` | One specific financial report |
 
 Disclosure query parameters are `from`, `to`, `finalOnly`, `category`, `detailCategory`, `page`, and `pageSize`. Dates use `YYYY-MM-DD`; the default is the latest 90 calendar days in KST. The inclusive range is limited to 366 days, pages start at 1, and `pageSize` is limited to 100. A request retrieves one page only and never crawls all history.
 
 OpenDART status `013` means profile-not-found for the profile operation but a successful empty page for disclosures. Report-name prefixes determine `correctionType`. The `rm` flag `정` means that a subsequent correction exists, not that the current item is itself a correction; `철` marks withdrawal and `연` marks consolidated content.
 
+Financial queries require `businessYear`, `reportCode`, and `fsDiv`. Years must be four digits from 2015 through the current KST year. Report codes are `11013` (Q1), `11012` (H1), `11014` (Q3), and `11011` (FY); divisions are exact uppercase `CFS` or `OFS`. There is no `latest` query. A CFS request falls back to OFS only when CFS returns status `013`. OFS `013` returns `404 FINANCIAL_REPORT_NOT_FOUND`; provider failures, malformed rows, and invalid amounts never trigger OFS resolution.
+
+Financial lines preserve statement type, account identity, account detail, receipt number, period names, source amount fields, order, and currency. Amounts are integer `string | null`: valid comma grouping is removed without JavaScript number conversion, while blank and dash mean missing, not zero. Malformed values fail with a safe 502 response. BS remains point-in-time; interim IS/CIS keeps quarter and cumulative fields separate; CF remains a period flow; SCE dimensions remain in `accountDetail`. The official standard-code-unused marker maps to a null account ID with an explicit kind.
+
+Specific financial reports use a 12-hour fresh cache and may use the same exact query stale for up to seven days only after an availability failure. Cache keys isolate corp code, year, report code, and requested division. CFS-to-OFS resolution remains distinct from provider fallback, so OpenDART response metadata keeps `fallback=false`.
+
 The corp-code resolver downloads a bounded ZIP only when needed, rejects encrypted or ambiguous archives, rejects XML containing DOCTYPE or ENTITY declarations, validates records, and creates a deterministic SHA-256 checked JSON snapshot. It keeps a process-local Map plus an atomic local snapshot under `apps/api/.runtime-cache/opendart/` by default. The index is fresh for 24 hours and may be reused stale for 30 days. Profile cache is 7/30 days fresh/stale; disclosure cache is 30 minutes/1 day. OpenDART has no operational Mock fallback.
 
 Runtime cache files, downloaded archives, extracted XML, complete request URLs, query strings, credentials, and raw provider bodies must not be logged or committed. The profile mapper intentionally excludes corporate registration number, business registration number, full address, phone, and fax. Local snapshots are process-local acceleration only: ephemeral deployments can redownload after restart, and multiple instances do not share a lock or cache.
 
-Fixture tests need no API key. Optional live verification should be run only when an ignored `.env` already contains `OPENDART_API_KEY`; it must keep request URLs and credentials out of output. OpenDART usage limits are provider-controlled and are not hard-coded in this project.
+Fixture tests need no API key. Optional live verification should be run only when an ignored `.env` already contains `OPENDART_API_KEY`; it must keep request URLs and credentials out of output. P3-C-3C-B live validation covers specific Samsung Electronics Q1/FY and SK hynix Q1 reports, plus a direct OFS request, without storing provider responses. OpenDART usage limits are provider-controlled and are not hard-coded in this project.
 
 ## Development notes
 
 `npm run dev` and `npm run start` both load `.env` only when it exists. Watch mode can hit the macOS `EMFILE` limit in a heavily loaded development session; use `npm run start` for one-shot verification instead of changing system limits.
 
-This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, OpenDART financial statements, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Financial statements are P3-C-3C and mobile OpenDART integration is P3-C-3D. Real-time or redistributed KRX data requires a separate licensed provider agreement.
+This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, canonical financial metric extraction, latest-report resolution, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Account normalization is P3-C-3C-C, latest-report resolution is P3-C-3C-D, and mobile OpenDART integration remains separate. Real-time or redistributed KRX data requires a separate licensed provider agreement.

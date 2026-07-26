@@ -11,8 +11,10 @@ import { HttpCorpCodeArchiveSource } from './openDart/corpCode/corpCodeArchiveSo
 import { FileCorpCodeIndexStore } from './openDart/corpCode/corpCodeIndexStore.js';
 import { CorpCodeResolver } from './openDart/corpCode/corpCodeResolver.js';
 import { OpenDartHttpClient } from './openDart/openDartHttpClient.js';
+import { OpenDartFinancialService } from './openDart/openDartFinancialService.js';
 import { OpenDartService } from './openDart/openDartService.js';
 import { OpenDartObservability } from './openDart/observability.js';
+import { OpenDartFinancialStatementProvider } from './openDart/providers/financialStatementProvider.js';
 import { OpenDartProvider } from './openDart/providers/openDartProvider.js';
 
 const config = loadConfig();
@@ -54,7 +56,14 @@ const openDart = new OpenDartService(
   () => new Date(),
   openDartObservability,
 );
-const app = await buildApp(config, marketData, { openDart });
+const openDartFinancial = new OpenDartFinancialService(
+  corpCodeResolver,
+  new OpenDartFinancialStatementProvider(openDartClient),
+  new MemoryCache(Date.now, config.cacheMaxEntries),
+  () => new Date(),
+  new OpenDartObservability(),
+);
+const app = await buildApp(config, marketData, { openDart, openDartFinancial });
 
 try {
   await app.listen({ port: config.port, host: config.host });

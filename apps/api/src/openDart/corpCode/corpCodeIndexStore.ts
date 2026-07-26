@@ -27,7 +27,7 @@ function validRecord(value: unknown): value is CorpCodeRecord {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const record = value as CorpCodeRecord;
   return /^\d{8}$/.test(record.corpCode)
-    && /^\d{6}$/.test(record.stockCode)
+    && /^[A-Z0-9]{6}$/.test(record.stockCode)
     && Boolean(record.corpName)
     && (record.corpEngName == null || typeof record.corpEngName === 'string')
     && /^\d{4}-\d{2}-\d{2}$/.test(record.companyInfoModifiedDate);

@@ -34,6 +34,12 @@ test('corp code XML normalizes listed records and excludes empty stock codes', a
   assert.deepEqual(result.map(record => record.stockCode), ['000660', '005930']);
   assert.equal(result[0]?.corpCode, '00164779');
   assert.equal(result[1]?.companyInfoModifiedDate, '2026-07-01');
+
+  const alphanumeric = Buffer.from(
+    '<result><list><corp_code>00126380</corp_code><corp_name>A</corp_name>'
+    + '<stock_code>1234A0</stock_code><modify_date>20260701</modify_date></list></result>',
+  );
+  assert.equal(parseCorpCodeXml(alphanumeric)[0]?.stockCode, '1234A0');
 });
 
 test('corp code XML rejects invalid fields, duplicate symbols, entities, controls, and row limits', () => {
@@ -42,6 +48,9 @@ test('corp code XML rejects invalid fields, duplicate symbols, entities, control
     `<list><corp_code>${corp}</corp_code><corp_name>A</corp_name><corp_eng_name></corp_eng_name><stock_code>${stock}</stock_code><modify_date>${date}</modify_date></list>`;
   for (const payload of [
     xml(row('123', '00126380')),
+    xml(row('1234567', '00126380')),
+    xml(row('1234a0', '00126380')),
+    xml(row('12-345', '00126380')),
     xml(row('005930', '123')),
     xml(row('005930', '00126380', '20260230')),
     xml(`${row('005930')}${row('005930', '00126381')}`),
@@ -82,9 +91,16 @@ test('snapshot store atomically saves, validates checksum, and rejects damaged s
   const directory = await import('node:fs/promises').then(fs => fs.mkdtemp(join(tmpdir(), 'alpha-twin-opendart-')));
   t.after(() => import('node:fs/promises').then(fs => fs.rm(directory, { recursive: true, force: true })));
   const store = new FileCorpCodeIndexStore(directory);
-  const snapshot = createCorpCodeSnapshot(records, '2026-07-20T00:00:00.000Z');
+  const alphanumericRecord: CorpCodeRecord = {
+    ...records[0]!,
+    corpCode: '00126381',
+    corpName: '영숫자 테스트',
+    stockCode: '1234A0',
+  };
+  const snapshot = createCorpCodeSnapshot([...records, alphanumericRecord], '2026-07-20T00:00:00.000Z');
   await store.save(snapshot);
   assert.deepEqual(await store.load(), snapshot);
+  assert.equal((await store.load())?.records[1]?.stockCode, '1234A0');
   assert.equal((await readdir(directory)).some(name => name.endsWith('.tmp')), false);
 
   const path = join(directory, 'corp-code-index.json');
@@ -92,6 +108,11 @@ test('snapshot store atomically saves, validates checksum, and rejects damaged s
   await assert.rejects(store.load(), OpenDartError);
   await writeFile(path, '{bad json');
   await assert.rejects(store.load(), OpenDartError);
+
+  for (const stockCode of ['1234a0', '12-345', '123', '1234567', '']) {
+    const invalid = createCorpCodeSnapshot([{ ...alphanumericRecord, stockCode }], '2026-07-20T00:00:00.000Z');
+    await assert.rejects(store.save(invalid), OpenDartError);
+  }
 });
 
 class MemoryIndexStore {
@@ -120,6 +141,7 @@ test('resolver loads fresh snapshots, returns stale on refresh failure, and reje
     new CorpCodeResolver(source, parser, new MemoryIndexStore(expired), () => now).resolveByStockCode('005930'),
   );
   await assert.rejects(resolver.resolveByStockCode('bad'), (error: OpenDartError) => error.code === 'INVALID_SYMBOL');
+  await assert.rejects(resolver.resolveByStockCode('A12345'), (error: OpenDartError) => error.code === 'INVALID_SYMBOL');
 });
 
 test('resolver coalesces concurrent refreshes and clears failed in-flight work', async () => {

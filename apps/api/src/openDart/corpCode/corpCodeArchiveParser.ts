@@ -68,7 +68,7 @@ function recordFromRaw(raw: unknown): CorpCodeRecord | null {
   const stockCode = typeof value.stock_code === 'string' ? value.stock_code.trim() : '';
   const modified = typeof value.modify_date === 'string' ? dateOnly(value.modify_date.trim()) : null;
   if (!stockCode) return null;
-  if (!/^\d{8}$/.test(corpCode) || !corpName || !/^\d{6}$/.test(stockCode) || !modified) {
+  if (!/^\d{8}$/.test(corpCode) || !corpName || !/^[A-Z0-9]{6}$/.test(stockCode) || !modified) {
     throw new OpenDartError('CORP_CODE_ARCHIVE_INVALID', 'corp-code', false);
   }
   return { corpCode, corpName, corpEngName, stockCode, companyInfoModifiedDate: modified };

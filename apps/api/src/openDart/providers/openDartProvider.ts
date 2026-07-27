@@ -4,6 +4,7 @@ import {
   OpenDartDisclosurePageRaw,
 } from '../contracts.js';
 import { OpenDartError } from '../errors.js';
+import { DisclosureDocumentProvider } from '../document/documentContracts.js';
 import { OpenDartHttpClient } from '../openDartHttpClient.js';
 import { compactDate } from '../query.js';
 
@@ -12,7 +13,7 @@ export interface CompanyDisclosureProvider {
   getDisclosures(corpCode: string, query: DisclosureQueryDto): Promise<OpenDartDisclosurePageRaw>;
 }
 
-export class OpenDartProvider implements CompanyDisclosureProvider {
+export class OpenDartProvider implements CompanyDisclosureProvider, DisclosureDocumentProvider {
   readonly id = 'opendart-fss';
 
   constructor(private readonly client: OpenDartHttpClient) {}
@@ -47,5 +48,9 @@ export class OpenDartProvider implements CompanyDisclosureProvider {
         page_count: String(query.pageSize),
       },
     );
+  }
+
+  fetchDocumentArchive(receiptNumber: string, signal?: AbortSignal): Promise<Buffer> {
+    return this.client.getDocumentArchive(receiptNumber, signal);
   }
 }

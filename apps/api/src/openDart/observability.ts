@@ -19,6 +19,10 @@ export interface OpenDartLogEvent {
   periodKind?: string;
   detailType?: string;
   receiptDate?: string;
+  receiptNumber?: string;
+  compressedBytes?: number;
+  entryCount?: number;
+  totalUncompressedBytes?: number;
   indexRecordCount?: number;
   indexRefreshedAt?: string;
   retryable?: boolean;

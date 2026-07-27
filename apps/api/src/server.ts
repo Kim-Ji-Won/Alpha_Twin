@@ -43,6 +43,7 @@ const openDartClient = new OpenDartHttpClient({
   apiKey: config.openDartApiKey,
   baseUrl: config.openDartBaseUrl,
   timeoutMs: config.openDartTimeoutMs,
+  documentTimeoutMs: config.openDartArchiveTimeoutMs,
 });
 const corpCodeResolver = new CorpCodeResolver(
   new HttpCorpCodeArchiveSource({

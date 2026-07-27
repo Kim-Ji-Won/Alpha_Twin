@@ -168,12 +168,20 @@ test('AI-specific 5 per 10 minute rate limit does not affect ordinary routes', a
   const config = loadConfig({
     LOG_LEVEL: 'silent',
     RATE_LIMIT_MAX: '100',
-    AI_RATE_LIMIT_MAX: '2',
-    AI_RATE_LIMIT_WINDOW_MS: '600000',
   });
-  const app = await buildApp(config, marketData(), { aiAnalyst: aiService() });
+  const provider = new FakeAiProvider();
+  const service = aiService(provider);
+  const analyze = service.analyze.bind(service);
+  let serviceCalls = 0;
+  service.analyze = (...args) => {
+    serviceCalls += 1;
+    return analyze(...args);
+  };
+  const app = await buildApp(config, marketData(), { aiAnalyst: service });
   t.after(() => app.close());
-  for (let index = 0; index < 2; index += 1) {
+  assert.equal(config.aiRateLimitMax, 5);
+  assert.equal(config.aiRateLimitWindowMs, 600_000);
+  for (let index = 0; index < 5; index += 1) {
     assert.equal((await app.inject({
       method: 'POST',
       url: '/api/v1/ai/analyst',
@@ -187,6 +195,8 @@ test('AI-specific 5 per 10 minute rate limit does not affect ordinary routes', a
   });
   assert.equal(limited.statusCode, 429);
   assert.equal(limited.json().error.code, 'AI_RATE_LIMITED');
+  assert.equal(serviceCalls, 5);
+  assert.equal(provider.calls.length, 5);
   assert.equal((await app.inject({ method: 'GET', url: '/health' })).statusCode, 200);
 });
 

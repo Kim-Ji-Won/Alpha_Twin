@@ -549,6 +549,13 @@ export default function CompanyTwinRoute() {
         </Text>
       </Panel>
 
+      <SecondaryButton
+        label="AI Analyst에서 이 기업 분석"
+        onPress={() =>
+          router.navigate({ pathname: '/(tabs)/ai', params: { symbol } })
+        }
+        style={styles.aiAction}
+      />
       <View style={styles.actions}>
         <SecondaryButton
           label="Scenario Lab 준비 중"
@@ -661,6 +668,7 @@ const styles = StyleSheet.create({
   refreshLabel: { flex: 1, color: colors.dim, fontSize: 10.5, lineHeight: 16 },
   refreshButton: { minHeight: 38, paddingVertical: 8, paddingHorizontal: 12 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  aiAction: { marginTop: 8 },
   action: { flex: 1 },
   footerMetadata: { marginTop: 14 },
 });

@@ -1,6 +1,8 @@
 // ALPHA TWIN — domain types. Every screen renders exactly these shapes.
 export type Direction = 'positive' | 'negative' | 'mixed' | 'neutral';
 
+export * from './ai';
+
 // P3-A — 문장 내 키워드 강조 스팬 (실서비스: LLM이 스팬을 함께 반환)
 export type HighlightTone = 'strong' | 'accent' | 'positive' | 'negative' | 'warning';
 export interface Highlight { text: string; tone: HighlightTone; }
@@ -278,26 +280,6 @@ export interface EvidenceSource {
   url?: string;
   caveat?: string;           // '확정 실적 아님'
 }
-export interface Evidence {
-  sources: EvidenceSource[];
-  asOf: string;
-  confidence: Confidence;
-  unverifiedAreas: string[];
-  modelAttribution: { label: string; weight: number }[]; // ML/DL/sentiment
-}
-export interface AIAnalysis {
-  id: string;
-  question: string;
-  symbol?: string;           // 관련 종목 — Company Twin/Thesis 이동용
-  conclusion: string;        // bold 핵심 결론
-  conclusionHighlights?: Highlight[];
-  keyReasons: string;
-  counterCase: string;       // 반대 가능성 — 필수 섹션
-  dataPoints: { label: string; value: string; direction: Direction }[];
-  evidence: Evidence;
-  followUps: string[];
-}
-
 export interface AppNotification {
   id: string;
   // P2 확장: risk(위험 경고) · data(데이터 업데이트) 추가 — 알림 설정 6종과 1:1

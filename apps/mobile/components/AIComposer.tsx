@@ -14,6 +14,8 @@ export interface AIComposerProps {
   /** 'AI가 조건을 인식하는 중' 등 — busy=true일 때 펄스 점과 함께 표시 */
   statusLabel: string;
   busy?: boolean;
+  editable?: boolean;
+  maxLength?: number;
   onSend: () => void;
   sendDisabled?: boolean;
   sendAccessibilityLabel?: string;
@@ -31,6 +33,8 @@ export function AIComposer({
   placeholder,
   statusLabel,
   busy = false,
+  editable = true,
+  maxLength,
   onSend,
   sendDisabled = false,
   sendAccessibilityLabel = '분석 요청 보내기',
@@ -44,7 +48,8 @@ export function AIComposer({
         placeholder={placeholder}
         placeholderTextColor={colors.dim}
         multiline
-        editable={!busy}
+        editable={editable && !busy}
+        maxLength={maxLength}
         accessibilityLabel={placeholder ?? '자연어 입력'}
         style={[styles.inputText, { fontFamily: font('body', '500') }]}
       />

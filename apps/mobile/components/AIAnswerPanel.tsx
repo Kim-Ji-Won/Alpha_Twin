@@ -1,125 +1,207 @@
-// 프레임 07 — AI 답변 말풍선 (.bub .buba + .ansec):
-// 핵심 결론(굵게) + 핵심 근거 + 반대 가능성 + 데이터 근거 + 근거 확인 칩 행.
 import React from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { colors } from '@/src/theme';
-import { AIAnalysis } from '@/src/types';
-import { directionColor, directionSymbol } from '@/lib/direction';
-import { font } from '@/lib/fonts';
-import { StatusBadge } from '@/components/StatusBadge';
-import { RichText } from '@/components/RichText';
 
-const CONFIDENCE_TEXT: Record<'high' | 'medium' | 'low', string> = {
-  high: '신뢰도 높음',
-  medium: '신뢰도 보통',
-  low: '신뢰도 낮음',
+import { DataMetadata, formatAsOf } from '@/components/DataMetadata';
+import { StatusBadge } from '@/components/StatusBadge';
+import { font } from '@/lib/fonts';
+import { colors } from '@/src/theme';
+import {
+  AiAnalysisPointDto,
+  AiAnalysisStatus,
+  AiAnalystResponseDto,
+  AiContextSource,
+} from '@/src/types/ai';
+
+const STATUS_META: Record<
+  AiAnalysisStatus,
+  { label: string; tone: 'accent' | 'warn' | 'neutral' }
+> = {
+  answered: { label: '분석 완료', tone: 'accent' },
+  partial: { label: '일부 데이터 기준 분석', tone: 'warn' },
+  insufficient_context: { label: '현재 데이터 범위 안내', tone: 'neutral' },
+  boundary: { label: 'AI 분석 범위 안내', tone: 'neutral' },
+};
+
+const SOURCE_LABEL: Record<AiContextSource, string> = {
+  market: '시세',
+  profile: '기업개황',
+  financial: '재무',
+  disclosures: '공시',
 };
 
 export interface AIAnswerPanelProps {
-  analysis: AIAnalysis;
-  /** '근거 N건' 칩 → 근거 상세 화면 */
-  onOpenEvidence: () => void;
+  response: AiAnalystResponseDto;
+  onOpenEvidence?: () => void;
+  onApplyFollowUp?: (question: string) => void;
   style?: ViewStyle;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function PointSection({
+  title,
+  points,
+}: {
+  title: string;
+  points: AiAnalysisPointDto[];
+}) {
+  if (points.length === 0) return null;
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { fontFamily: font('body', '700') }]}>{title}</Text>
-      {children}
+      <View style={styles.pointList}>
+        {points.map((point, index) => (
+          <View key={`${point.text}-${index}`} style={styles.pointRow}>
+            <View style={styles.bullet} />
+            <View style={styles.pointBody}>
+              <Text style={[styles.body, { fontFamily: font('body', '500') }]}>
+                {point.text}
+              </Text>
+              {point.evidenceRefs.length > 0 ? (
+                <Text style={[styles.refCount, { fontFamily: font('mono', '500') }]}>
+                  참조 {point.evidenceRefs.length}개
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
 
-export function AIAnswerPanel({ analysis, onOpenEvidence, style }: AIAnswerPanelProps) {
-  const ev = analysis.evidence;
-  const counterCount = analysis.dataPoints.filter(d => d.direction === 'negative').length || 1;
-  const asOfShort = ev.asOf.slice(5, 10).replace('-', '/');
-  const sourceLine = ev.sources.map(s => s.title.split('·')[0].trim()).join(' · ');
+export function AIAnswerPanel({
+  response,
+  onOpenEvidence,
+  onApplyFollowUp,
+  style,
+}: AIAnswerPanelProps) {
+  const status = STATUS_META[response.status];
+  const missing = response.metadata.missingSources.map(source => SOURCE_LABEL[source]);
+  const freshness = [
+    response.metadata.dataAsOf.market
+      ? `최근 확정 시세 ${formatAsOf(response.metadata.dataAsOf.market)}`
+      : null,
+    response.metadata.dataAsOf.financialPeriod
+      ? `재무 ${response.metadata.dataAsOf.financialPeriod}`
+      : null,
+    response.metadata.dataAsOf.latestDisclosureDate
+      ? `최근 공시 ${response.metadata.dataAsOf.latestDisclosureDate}`
+      : null,
+  ].filter((item): item is string => item != null);
 
   return (
-    <View style={[styles.bubble, style]} accessibilityLabel={`AI 답변: ${analysis.conclusion}`}>
-      <RichText
-        text={analysis.conclusion}
-        highlights={analysis.conclusionHighlights}
-        style={[styles.conclusion, { fontFamily: font('body', '800') }]}
-      />
+    <View style={[styles.bubble, style]} accessibilityLabel={`AI 답변: ${response.answer}`}>
+      <View style={styles.statusRow}>
+        <StatusBadge label={status.label} tone={status.tone} size="sm" />
+        {response.metadata.stale ? (
+          <StatusBadge label="이전 캐시 포함" tone="warn" size="sm" />
+        ) : null}
+      </View>
 
-      <Section title="핵심 근거">
-        <Text style={[styles.body, { fontFamily: font('body', '500') }]}>{analysis.keyReasons}</Text>
-      </Section>
+      <Text style={[styles.answer, { fontFamily: font('body', '700') }]}>
+        {response.answer}
+      </Text>
 
-      <Section title="반대 가능성">
-        <Text style={[styles.body, { fontFamily: font('body', '500') }]}>{analysis.counterCase}</Text>
-      </Section>
+      <PointSection title="확인되는 요인" points={response.supportingFactors} />
+      <PointSection title="위험 요인" points={response.riskFactors} />
+      <PointSection title="불확실성 · 추가 확인 필요" points={response.uncertainties} />
 
-      <Section title="데이터 근거">
-        {analysis.dataPoints.map(d => (
-          <View key={d.label} style={styles.kv} accessibilityLabel={`${d.label} ${d.value}`}>
-            <Text style={[styles.kvLabel, { fontFamily: font('body', '600') }]}>{d.label}</Text>
-            <Text
-              style={[
-                styles.kvValue,
-                { color: directionColor(d.direction), fontFamily: font('mono', '600') },
-              ]}>
-              {d.value}
-              {directionSymbol(d.direction) ? ` ${directionSymbol(d.direction)}` : ''}
-            </Text>
-          </View>
-        ))}
-      </Section>
-
-      <Section title="근거 확인 · Evidence">
-        <View style={styles.chips}>
-          <Pressable
-            onPress={onOpenEvidence}
-            accessibilityRole="button"
-            accessibilityLabel={`근거 ${ev.sources.length}건 상세 보기`}
-            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-            <StatusBadge label={`근거 ${ev.sources.length}건 ↗`} tone="accent" />
-          </Pressable>
-          <StatusBadge label={`데이터 기준 ${asOfShort}`} tone="neutral" />
-          <StatusBadge label={`반대 근거 ${counterCount}건`} tone="neg" />
-          <StatusBadge label={CONFIDENCE_TEXT[ev.confidence.level]} tone={ev.confidence.level === 'high' ? 'pos' : 'warn'} />
+      {missing.length > 0 ? (
+        <View style={styles.notice}>
+          <Text style={[styles.noticeText, { fontFamily: font('body', '500') }]}>
+            현재 확인되지 않은 데이터: {missing.join(', ')}
+          </Text>
         </View>
-        <Text style={[styles.sources, { fontFamily: font('mono', '500') }]}>{sourceLine}</Text>
-      </Section>
+      ) : null}
+
+      {response.dataReferences.length > 0 && onOpenEvidence ? (
+        <Pressable
+          onPress={onOpenEvidence}
+          accessibilityRole="button"
+          accessibilityLabel={`참조 데이터 ${response.dataReferences.length}개 보기`}
+          style={({ pressed }) => [styles.referenceButton, { opacity: pressed ? 0.7 : 1 }]}>
+          <Text style={[styles.referenceText, { fontFamily: font('body', '700') }]}>
+            참조 데이터 {response.dataReferences.length}개 보기
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {response.followUpQuestion && onApplyFollowUp ? (
+        <Pressable
+          onPress={() => onApplyFollowUp(response.followUpQuestion!)}
+          accessibilityRole="button"
+          accessibilityLabel={`후속 질문 입력: ${response.followUpQuestion}`}
+          style={({ pressed }) => [styles.followUp, { opacity: pressed ? 0.7 : 1 }]}>
+          <Text style={[styles.followUpLabel, { fontFamily: font('body', '700') }]}>
+            이어서 확인
+          </Text>
+          <Text style={[styles.followUpText, { fontFamily: font('body', '500') }]}>
+            {response.followUpQuestion}
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {freshness.length > 0 ? <DataMetadata items={freshness} style={styles.metadata} /> : null}
+      {response.metadata.stale ? (
+        <Text style={[styles.staleText, { fontFamily: font('body', '500') }]}>
+          일부 데이터는 이전 캐시 기준입니다.
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bubble: {
-    alignSelf: 'flex-start',
-    maxWidth: '94%',
-    borderRadius: 18,
-    borderBottomLeftRadius: 6,
+    alignSelf: 'stretch',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.panel,
-    paddingVertical: 13,
+    paddingVertical: 14,
     paddingHorizontal: 15,
   },
-  conclusion: { fontSize: 13.5, lineHeight: 20, fontWeight: '800', color: colors.ink },
-  section: { borderTopWidth: 1, borderTopColor: colors.line, marginTop: 11, paddingTop: 10 },
-  sectionTitle: {
-    fontSize: 10.5,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.dim,
-    fontWeight: '700',
-    marginBottom: 6,
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  answer: { fontSize: 14, lineHeight: 22, color: colors.ink, marginTop: 11 },
+  section: { borderTopWidth: 1, borderTopColor: colors.line, marginTop: 13, paddingTop: 11 },
+  sectionTitle: { fontSize: 11.5, color: colors.mut, marginBottom: 8 },
+  pointList: { gap: 9 },
+  pointRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
+  bullet: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+    marginTop: 8,
   },
+  pointBody: { flex: 1, minWidth: 0 },
   body: { fontSize: 13, lineHeight: 20, color: '#cdd7e8' },
-  kv: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    paddingVertical: 4,
+  refCount: { fontSize: 10, color: colors.dim, marginTop: 3 },
+  notice: {
+    marginTop: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.warn,
+    paddingLeft: 9,
   },
-  kvLabel: { fontSize: 12.5, color: colors.mut, fontWeight: '600' },
-  kvValue: { fontSize: 12.5, fontWeight: '600' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  sources: { fontSize: 11, lineHeight: 18, color: colors.dim, marginTop: 9 },
+  noticeText: { fontSize: 11.5, lineHeight: 18, color: colors.mut },
+  referenceButton: {
+    alignSelf: 'flex-start',
+    minHeight: 40,
+    justifyContent: 'center',
+    marginTop: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(34,211,238,0.3)',
+    borderRadius: 7,
+    paddingHorizontal: 12,
+  },
+  referenceText: { fontSize: 12.5, color: colors.accent },
+  followUp: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 11,
+  },
+  followUpLabel: { fontSize: 10.5, color: colors.accent, marginBottom: 4 },
+  followUpText: { fontSize: 12.5, lineHeight: 19, color: colors.mut },
+  metadata: { marginTop: 12, paddingHorizontal: 0 },
+  staleText: { color: colors.warn, fontSize: 10.5, lineHeight: 16, marginTop: 4 },
 });

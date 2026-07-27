@@ -6,6 +6,13 @@ import {
   LatestNormalizedFinancialSummaryResponseDto,
   OpenDartResponseMetadata,
 } from '@/src/types/companyTwin';
+import {
+  AiAnalysisPointDto,
+  AiAnalystRequestDto,
+  AiAnalystResponseDto,
+  AiContextSource,
+  AiDataReferenceDto,
+} from '@/src/types/ai';
 
 export interface StockQuoteDto {
   symbol: string;
@@ -51,6 +58,7 @@ export class AlphaTwinApiError extends Error {
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_ALPHA_TWIN_API_BASE_URL?.replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = 12_000;
+const AI_REQUEST_TIMEOUT_MS = 50_000;
 const FINANCIAL_KEYS: CanonicalFinancialMetric[] = [
   'totalAssets',
   'totalLiabilities',
@@ -73,6 +81,82 @@ function nullableString(value: unknown): boolean {
 
 function oneOf(value: unknown, options: readonly string[]): boolean {
   return typeof value === 'string' && options.includes(value);
+}
+
+function isAiPoint(value: unknown): value is AiAnalysisPointDto {
+  const point = record(value);
+  return !!point
+    && typeof point.text === 'string'
+    && point.text.trim().length > 0
+    && point.text.length <= 400
+    && Array.isArray(point.evidenceRefs)
+    && point.evidenceRefs.length <= 5
+    && point.evidenceRefs.every(ref => typeof ref === 'string' && ref.trim().length > 0);
+}
+
+function isAiReference(value: unknown): value is AiDataReferenceDto {
+  const reference = record(value);
+  if (
+    !reference
+    || typeof reference.id !== 'string'
+    || typeof reference.label !== 'string'
+    || !nullableString(reference.asOf)
+  ) return false;
+  if (reference.sourceType === 'market' || reference.sourceType === 'profile') return true;
+  if (reference.sourceType === 'financial') {
+    return oneOf(reference.metric, FINANCIAL_KEYS) && typeof reference.period === 'string';
+  }
+  return reference.sourceType === 'disclosure'
+    && typeof reference.receiptNumber === 'string'
+    && typeof reference.reportName === 'string'
+    && typeof reference.receiptDate === 'string';
+}
+
+function isAiSourceArray(value: unknown): value is AiContextSource[] {
+  return Array.isArray(value)
+    && value.every(source => oneOf(source, ['market', 'profile', 'financial', 'disclosures']));
+}
+
+function isAiAnalystResponse(value: unknown): value is AiAnalystResponseDto {
+  const response = record(value);
+  const metadata = record(response?.metadata);
+  const dataAsOf = record(metadata?.dataAsOf);
+  if (
+    !response
+    || response.schemaVersion !== '1'
+    || !oneOf(response.status, ['answered', 'partial', 'insufficient_context', 'boundary'])
+    || typeof response.answer !== 'string'
+    || response.answer.trim().length === 0
+    || response.answer.length > 1_200
+    || !Array.isArray(response.supportingFactors)
+    || !response.supportingFactors.every(isAiPoint)
+    || !Array.isArray(response.riskFactors)
+    || !response.riskFactors.every(isAiPoint)
+    || !Array.isArray(response.uncertainties)
+    || !response.uncertainties.every(isAiPoint)
+    || !nullableString(response.followUpQuestion)
+    || !Array.isArray(response.dataReferences)
+    || !response.dataReferences.every(isAiReference)
+    || !metadata
+    || typeof metadata.symbol !== 'string'
+    || typeof metadata.generatedAt !== 'string'
+    || !dataAsOf
+    || !nullableString(dataAsOf.market)
+    || !nullableString(dataAsOf.financialPeriod)
+    || !nullableString(dataAsOf.latestDisclosureDate)
+    || !isAiSourceArray(metadata.availableSources)
+    || !isAiSourceArray(metadata.missingSources)
+    || typeof metadata.stale !== 'boolean'
+    || !isAiSourceArray(metadata.staleSources)
+  ) return false;
+
+  const referenceIds = new Set(response.dataReferences.map(reference => reference.id));
+  const points = [
+    ...response.supportingFactors,
+    ...response.riskFactors,
+    ...response.uncertainties,
+  ];
+  return points.every(point => point.evidenceRefs.every(ref => referenceIds.has(ref)));
 }
 
 function isOpenDartMetadata(value: unknown): value is OpenDartResponseMetadata {
@@ -269,6 +353,12 @@ async function requestJson<T>(
   path: string,
   validate: (value: unknown) => value is T,
   signal?: AbortSignal,
+  options?: {
+    method?: 'GET' | 'POST';
+    body?: unknown;
+    timeoutMs?: number;
+    timeoutErrorCode?: string;
+  },
 ): Promise<T> {
   if (!API_BASE_URL) {
     throw new AlphaTwinApiError('API_NOT_CONFIGURED', 0);
@@ -277,10 +367,19 @@ async function requestJson<T>(
   const abort = () => controller.abort();
   if (signal?.aborted) controller.abort();
   else signal?.addEventListener('abort', abort, { once: true });
-  const timeout = setTimeout(abort, REQUEST_TIMEOUT_MS);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    abort();
+  }, options?.timeoutMs ?? REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: { Accept: 'application/json' },
+      method: options?.method ?? 'GET',
+      headers: {
+        Accept: 'application/json',
+        ...(options?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      ...(options?.body === undefined ? {} : { body: JSON.stringify(options.body) }),
       signal: controller.signal,
     });
     const body: unknown = await response.json().catch(() => null);
@@ -289,7 +388,14 @@ async function requestJson<T>(
     return body;
   } catch (error) {
     if (error instanceof AlphaTwinApiError) throw error;
-    if (controller.signal.aborted) throw new AlphaTwinApiError('REQUEST_ABORTED', 0);
+    if (controller.signal.aborted) {
+      throw new AlphaTwinApiError(
+        timedOut && !signal?.aborted
+          ? options?.timeoutErrorCode ?? 'REQUEST_TIMEOUT'
+          : 'REQUEST_ABORTED',
+        0,
+      );
+    }
     throw new AlphaTwinApiError('NETWORK_UNAVAILABLE', 0);
   } finally {
     clearTimeout(timeout);
@@ -303,6 +409,34 @@ function symbolPath(symbol: string): string {
 }
 
 export const alphaTwinApi = {
+  async askAiAnalyst(
+    request: AiAnalystRequestDto,
+    signal?: AbortSignal,
+  ): Promise<AiAnalystResponseDto> {
+    if (!/^\d{6}$/.test(request.symbol)) {
+      throw new AlphaTwinApiError('INVALID_SYMBOL', 400);
+    }
+    const question = request.question.trim();
+    if (question.length === 0 || question.length > 2_000) {
+      throw new AlphaTwinApiError('INVALID_AI_REQUEST', 400);
+    }
+    const response = await requestJson(
+      '/api/v1/ai/analyst',
+      isAiAnalystResponse,
+      signal,
+      {
+        method: 'POST',
+        body: { ...request, question },
+        timeoutMs: AI_REQUEST_TIMEOUT_MS,
+        timeoutErrorCode: 'AI_TIMEOUT',
+      },
+    );
+    if (response.metadata.symbol !== request.symbol) {
+      throw new AlphaTwinApiError('INVALID_API_RESPONSE', 502);
+    }
+    return response;
+  },
+
   async getStockSummary(symbol: string, signal?: AbortSignal): Promise<StockSummaryDto> {
     const response = await requestJson(
       `/api/v1/stocks/${symbolPath(symbol)}/summary?range=1m`,

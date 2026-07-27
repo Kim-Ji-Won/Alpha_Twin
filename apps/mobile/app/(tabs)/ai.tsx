@@ -1,7 +1,5 @@
-// Frame 07 — AI Analyst: 근거 기반 Q&A 채팅.
-// 상태: 입력 대기 → 전송/분석 중 → 답변 완료 | 오류. 빈 질문·중복 전송 방지.
-import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,72 +7,153 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
 import { AIAnswerPanel } from '@/components/AIAnswerPanel';
+import { AIComposer } from '@/components/AIComposer';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
 import { ChatBubble } from '@/components/ChatBubble';
 import { DataMetadata } from '@/components/DataMetadata';
 import { Panel } from '@/components/Panel';
+import { Pulse } from '@/components/Pulse';
+import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionHeader } from '@/components/SectionHeader';
+import { EmptyState } from '@/components/States';
+import { StatusBadge } from '@/components/StatusBadge';
 import { font } from '@/lib/fonts';
-import { aiService } from '@/src/services';
+import { useWatchlist } from '@/lib/hooks';
+import { useAiAnalyst } from '@/lib/useAiAnalyst';
+import { AI_QUESTION_MAX_CHARS } from '@/src/services/aiService';
 import { colors } from '@/src/theme';
-import { AIAnalysis } from '@/src/types';
 
-type ChatItem =
-  | { kind: 'question'; id: string; text: string }
-  | { kind: 'answer'; id: string; analysis: AIAnalysis }
-  | { kind: 'error'; id: string; question: string };
-
-const EXAMPLE_QUESTION = 'SK하이닉스 최근 주가 상승은 실적 개선 때문이야, 기대감 때문이야?';
-const DEFAULT_FOLLOW_UPS = [
-  '내 논제에 반대되는 근거는?',
-  '경쟁사 대비 약점은?',
-  '현재 위험 구간은?',
-  '실적과 기대감 비중은?',
+const SUGGESTED_PROMPTS = [
+  '최근 재무 데이터에서 핵심 포인트를 정리해줘.',
+  '현재 데이터에서 긍정 요인과 위험 요인을 균형 있게 보여줘.',
+  '최근 제출된 공시 흐름을 설명해줘.',
+  '현재 데이터만 기준으로 추가 확인이 필요한 부분은 뭐야?',
 ];
+
+function normalizeSymbol(value: string | string[] | undefined): string | undefined {
+  const symbol = Array.isArray(value) ? value[0] : value;
+  return symbol && /^\d{6}$/.test(symbol) ? symbol : undefined;
+}
 
 export default function AiTab() {
   const router = useRouter();
-  const [items, setItems] = useState<ChatItem[]>([]);
+  const params = useLocalSearchParams<{ symbol?: string | string[] }>();
+  const routeSymbol = normalizeSymbol(params.symbol);
+  const watchlist = useWatchlist();
+  const [selectedSymbol, setSelectedSymbol] = useState<string | undefined>(routeSymbol);
   const [input, setInput] = useState('');
-  const [busy, setBusy] = useState(false); // 전송·분석 중 — 중복 전송 방지
   const scrollRef = useRef<ScrollView>(null);
-  const alive = useRef(true);
-  React.useEffect(() => () => { alive.current = false; }, []);
+  const companyNamesRef = useRef(new Map<string, string>());
+  const savedCompanies = watchlist.data ?? [];
+  savedCompanies.forEach(company => {
+    companyNamesRef.current.set(company.symbol, company.name);
+  });
+  const selectedCompany = useMemo(
+    () => savedCompanies.find(company => company.symbol === selectedSymbol),
+    [savedCompanies, selectedSymbol],
+  );
+  const companyName = selectedCompany?.name
+    ?? (selectedSymbol ? companyNamesRef.current.get(selectedSymbol) : undefined)
+    ?? selectedSymbol
+    ?? '';
+  const analyst = useAiAnalyst(selectedSymbol, companyName);
 
-  const lastAnswer = [...items].reverse().find((i): i is Extract<ChatItem, { kind: 'answer' }> => i.kind === 'answer');
-  const followUps = lastAnswer?.analysis.followUps ?? DEFAULT_FOLLOW_UPS;
-
-  const send = async (question: string) => {
-    const q = question.trim();
-    if (!q || busy) return; // 빈 질문·중복 전송 방지
+  useEffect(() => {
+    if (!routeSymbol || routeSymbol === selectedSymbol) return;
+    analyst.clearConversation();
     setInput('');
-    setBusy(true);
-    setItems(prev => [...prev, { kind: 'question', id: `q-${Date.now()}`, text: q }]);
+    setSelectedSymbol(routeSymbol);
+  }, [analyst.clearConversation, routeSymbol, selectedSymbol]);
+
+  useEffect(() => {
+    if (analyst.messages.length === 0 && !analyst.isGenerating && !analyst.error) return;
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
-    try {
-      const analysis = await aiService.ask(q);
-      if (!alive.current) return;
-      setItems(prev => [...prev, { kind: 'answer', id: analysis.id, analysis }]);
-    } catch {
-      if (!alive.current) return;
-      setItems(prev => [...prev, { kind: 'error', id: `e-${Date.now()}`, question: q }]);
-    } finally {
-      if (alive.current) {
-        setBusy(false);
-        requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
-      }
-    }
+  }, [analyst.error, analyst.isGenerating, analyst.messages.length]);
+
+  const selectCompany = (symbol: string) => {
+    if (symbol === selectedSymbol) return;
+    analyst.clearConversation();
+    setInput('');
+    setSelectedSymbol(symbol);
+    router.setParams({ symbol });
   };
 
-  const openEvidence = (analysisId: string) =>
+  const send = () => {
+    if (!analyst.sendQuestion(input)) return;
+    setInput('');
+  };
+
+  const openEvidence = (analysisId: string) => {
     router.push({ pathname: '/ai/evidence/[analysisId]', params: { analysisId } });
+  };
+
+  const selector = (
+    <Panel style={styles.selectorPanel}>
+      <View style={styles.selectorHeader}>
+        <View style={styles.selectorTitle}>
+          <Text style={[styles.selectorLabel, { fontFamily: font('body', '600') }]}>
+            현재 분석 기업
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={[styles.currentCompany, { fontFamily: font('body', '700') }]}>
+            {selectedSymbol ? `${companyName} · ${selectedSymbol}` : '기업을 선택하세요'}
+          </Text>
+        </View>
+        {analyst.messages.length > 0 ? (
+          <Pressable
+            onPress={analyst.clearConversation}
+            accessibilityRole="button"
+            accessibilityLabel="현재 대화 지우기"
+            style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}>
+            <Text style={[styles.clearText, { fontFamily: font('body', '700') }]}>대화 지우기</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {savedCompanies.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.companyChips}>
+          {savedCompanies.map(company => {
+            const selected = company.symbol === selectedSymbol;
+            return (
+              <Pressable
+                key={company.symbol}
+                onPress={() => selectCompany(company.symbol)}
+                disabled={analyst.isGenerating}
+                accessibilityRole="button"
+                accessibilityLabel={`${company.name} ${company.symbol} 분석 기업으로 선택`}
+                accessibilityState={{ selected, disabled: analyst.isGenerating }}
+                style={({ pressed }) => [
+                  styles.companyChip,
+                  selected && styles.companyChipSelected,
+                  { opacity: analyst.isGenerating ? 0.5 : pressed ? 0.7 : 1 },
+                ]}>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.companyChipName,
+                    selected && styles.companyChipNameSelected,
+                    { fontFamily: font('body', '700') },
+                  ]}>
+                  {company.name}
+                </Text>
+                <Text style={[styles.companyChipSymbol, { fontFamily: font('mono', '500') }]}>
+                  {company.symbol}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+    </Panel>
+  );
 
   return (
     <AppScreen scroll={false} padded={false} edges={['top', 'left', 'right']}>
@@ -82,7 +161,7 @@ export default function AiTab() {
         style={styles.fill}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.header}>
-          <AppHeader subtitle="금융 전문 AI · 근거 기반" title="AI Analyst" live />
+          <AppHeader subtitle="기업 데이터 기반 분석" title="AI Analyst" />
         </View>
 
         <ScrollView
@@ -91,117 +170,185 @@ export default function AiTab() {
           contentContainerStyle={styles.chat}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          {items.length === 0 ? (
-            <Panel>
-              <SectionHeader label="근거 기반 Q&A" style={styles.panelHeader} />
-              <Text style={[styles.intro, { fontFamily: font('body', '500') }]}>
-                종목·시장·포트폴리오에 대해 질문하면 결론과 근거, 반대 가능성까지 함께 답합니다.
-                모든 수치는 분석 결과 인용이며, 답변마다 출처를 확인할 수 있습니다.
+          {selector}
+
+          {watchlist.status === 'loading' && !selectedSymbol ? (
+            <Panel style={styles.statePanel}>
+              <Text style={[styles.stateText, { fontFamily: font('body', '500') }]}>
+                저장한 트윈을 불러오는 중입니다.
               </Text>
-              <Pressable
-                onPress={() => send(EXAMPLE_QUESTION)}
-                accessibilityRole="button"
-                accessibilityLabel={`예시 질문: ${EXAMPLE_QUESTION}`}
-                style={({ pressed }) => [styles.exampleChip, { opacity: pressed ? 0.7 : 1 }]}>
-                <Text style={[styles.exampleText, { fontFamily: font('body', '600') }]}>
-                  {EXAMPLE_QUESTION}
-                </Text>
-              </Pressable>
             </Panel>
-          ) : (
-            items.map(item => {
-              if (item.kind === 'question') {
-                return <ChatBubble key={item.id} text={item.text} style={styles.gap} />;
-              }
-              if (item.kind === 'answer') {
-                return (
-                  <AIAnswerPanel
-                    key={item.id}
-                    analysis={item.analysis}
-                    onOpenEvidence={() => openEvidence(item.analysis.id)}
-                    style={styles.gap}
-                  />
-                );
-              }
-              return (
-                <View key={item.id} style={[styles.errorBubble, styles.gap]}>
-                  <Text style={[styles.errorText, { fontFamily: font('body', '600') }]}>
-                    답변 생성에 실패했어요.
-                  </Text>
-                  <Pressable
-                    onPress={() => send(item.question)}
-                    accessibilityRole="button"
-                    accessibilityLabel="다시 시도">
-                    <Text style={[styles.retry, { fontFamily: font('body', '700') }]}>다시 시도</Text>
-                  </Pressable>
-                </View>
-              );
-            })
+          ) : null}
+
+          {watchlist.status === 'empty' && !selectedSymbol ? (
+            <Panel style={styles.statePanel}>
+              <EmptyState
+                title="분석할 기업을 먼저 선택하세요"
+                message="저장한 트윈이 없습니다. Twin 화면에서 기업을 저장한 뒤 AI 분석을 시작할 수 있습니다."
+                actionLabel="Twin으로 이동"
+                onAction={() => router.navigate('/(tabs)/twin')}
+                style={styles.emptyState}
+              />
+            </Panel>
+          ) : null}
+
+          {watchlist.status === 'error' && !selectedSymbol ? (
+            <Panel style={styles.statePanel}>
+              <Text style={[styles.stateTitle, { fontFamily: font('body', '700') }]}>
+                저장한 트윈을 불러오지 못했습니다
+              </Text>
+              <Text style={[styles.stateText, { fontFamily: font('body', '500') }]}>
+                기업 목록을 다시 불러온 뒤 분석할 기업을 선택해주세요.
+              </Text>
+              <SecondaryButton
+                label="기업 목록 다시 불러오기"
+                onPress={watchlist.reload}
+                style={styles.retryButton}
+              />
+            </Panel>
+          ) : null}
+
+          {!selectedSymbol && savedCompanies.length > 0 ? (
+            <Panel style={styles.statePanel}>
+              <Text style={[styles.stateTitle, { fontFamily: font('body', '700') }]}>
+                분석할 기업을 선택하세요
+              </Text>
+              <Text style={[styles.stateText, { fontFamily: font('body', '500') }]}>
+                위 저장한 트윈 목록에서 기업을 선택하면 질문을 입력할 수 있습니다.
+              </Text>
+            </Panel>
+          ) : null}
+
+          {selectedSymbol && analyst.messages.length === 0 ? (
+            <Panel>
+              <SectionHeader label="기업 데이터 기반 Q&A" style={styles.panelHeader} />
+              <Text style={[styles.intro, { fontFamily: font('body', '500') }]}>
+                최근 확정 시세와 기업개황, 재무, 공시 구조화 데이터를 기준으로 답합니다.
+                질문을 선택해 입력창에서 확인한 뒤 전송하세요.
+              </Text>
+            </Panel>
+          ) : null}
+
+          {analyst.messages.map(message =>
+            message.role === 'user' ? (
+              <ChatBubble key={message.id} text={message.content} style={styles.messageGap} />
+            ) : (
+              <AIAnswerPanel
+                key={message.id}
+                response={message.response}
+                onOpenEvidence={
+                  message.response.dataReferences.length > 0
+                    ? () => openEvidence(message.analysisId)
+                    : undefined
+                }
+                onApplyFollowUp={question => setInput(question)}
+                style={styles.messageGap}
+              />
+            ),
           )}
 
-          {busy ? (
-            <View style={[styles.thinking, styles.gap]} accessibilityLabel="AI 분석 중">
-              <View style={styles.thinkingDot} />
-              <Text style={[styles.thinkingText, { fontFamily: font('mono', '500') }]}>
-                근거를 수집하고 분석 중… (Mock)
+          {analyst.isGenerating ? (
+            <Panel style={styles.generating}>
+              <View style={styles.generatingRow} accessibilityLabel="기업 데이터를 분석하고 있습니다">
+                <Pulse minOpacity={0.35}>
+                  <View style={styles.thinkingDot} />
+                </Pulse>
+                <Text style={[styles.thinkingText, { fontFamily: font('body', '600') }]}>
+                  기업 데이터를 확인하고 분석하고 있습니다.
+                </Text>
+              </View>
+              <SecondaryButton
+                label="분석 취소"
+                onPress={analyst.cancel}
+                accessibilityLabel="AI 분석 요청 취소"
+                style={styles.cancelButton}
+              />
+            </Panel>
+          ) : null}
+
+          {analyst.error ? (
+            <View style={styles.errorCard} accessibilityLiveRegion="polite">
+              <Text style={[styles.errorTitle, { fontFamily: font('body', '700') }]}>
+                분석을 완료하지 못했습니다
+              </Text>
+              <Text style={[styles.errorText, { fontFamily: font('body', '500') }]}>
+                {analyst.error.message}
+              </Text>
+              {analyst.canRetry ? (
+                <SecondaryButton
+                  label="같은 질문 다시 시도"
+                  onPress={analyst.retry}
+                  style={styles.retryButton}
+                />
+              ) : null}
+            </View>
+          ) : null}
+
+          {analyst.cancelled ? (
+            <View style={styles.cancelledNotice} accessibilityLiveRegion="polite">
+              <StatusBadge label="분석 취소됨" tone="neutral" size="sm" />
+              <Text style={[styles.cancelledText, { fontFamily: font('body', '500') }]}>
+                질문은 대화에 남아 있으며 자동으로 다시 요청하지 않습니다.
               </Text>
             </View>
           ) : null}
 
-          <SectionHeader label="이어서 질문 · Follow-up" />
-          <View style={styles.followUps}>
-            {followUps.map(f => (
-              <Pressable
-                key={f}
-                onPress={() => send(f)}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel={`후속 질문: ${f}`}
-                style={({ pressed }) => [styles.chip, { opacity: busy ? 0.5 : pressed ? 0.7 : 1 }]}>
-                <Text style={[styles.chipText, { fontFamily: font('body', '600') }]}>{f}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {selectedSymbol ? (
+            <>
+              <SectionHeader label="질문 제안 · Suggested" />
+              <View style={styles.prompts}>
+                {SUGGESTED_PROMPTS.map(prompt => (
+                  <Pressable
+                    key={prompt}
+                    onPress={() => setInput(prompt)}
+                    disabled={analyst.isGenerating}
+                    accessibilityRole="button"
+                    accessibilityLabel={`질문 입력: ${prompt}`}
+                    style={({ pressed }) => [
+                      styles.prompt,
+                      { opacity: analyst.isGenerating ? 0.5 : pressed ? 0.7 : 1 },
+                    ]}>
+                    <Text style={[styles.promptText, { fontFamily: font('body', '600') }]}>
+                      {prompt}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
 
           <DataMetadata
-            items={['Mock AI · 실제 LLM 연동은 P3', '분석 보조 도구이며 투자 자문이 아닙니다']}
+            items={[
+              'AI 분석은 투자 권유나 수익 보장이 아닙니다',
+              '답변과 데이터 기준일을 함께 확인하세요',
+            ]}
             style={styles.meta}
           />
         </ScrollView>
 
-        {/* 질문 입력 — 디자인 .input 행 */}
         <View style={styles.inputBar}>
-          <TextInput
+          <AIComposer
             value={input}
             onChangeText={setInput}
-            placeholder="종목·시장·포트폴리오에 대해 질문하세요"
-            placeholderTextColor={colors.dim}
-            editable={!busy}
-            onSubmitEditing={() => send(input)}
-            returnKeyType="send"
-            accessibilityLabel="AI에게 질문 입력"
-            style={[styles.input, { fontFamily: font('body', '500') }]}
+            placeholder={
+              selectedSymbol
+                ? `${companyName}에 대해 질문하세요`
+                : '먼저 분석할 기업을 선택하세요'
+            }
+            statusLabel={
+              analyst.isGenerating
+                ? '기업 데이터 분석 중'
+                : selectedSymbol
+                  ? `${input.length}/${AI_QUESTION_MAX_CHARS}`
+                  : '기업 선택 필요'
+            }
+            busy={analyst.isGenerating}
+            editable={!!selectedSymbol}
+            maxLength={AI_QUESTION_MAX_CHARS}
+            onSend={send}
+            sendDisabled={!selectedSymbol || !input.trim() || analyst.isGenerating}
+            sendAccessibilityLabel="AI Analyst에게 질문 전송"
           />
-          <Pressable
-            onPress={() => send(input)}
-            disabled={busy || !input.trim()}
-            accessibilityRole="button"
-            accessibilityLabel="질문 전송"
-            style={({ pressed }) => [
-              styles.send,
-              { opacity: busy || !input.trim() ? 0.4 : pressed ? 0.8 : 1 },
-            ]}>
-            <Svg width={15} height={15} viewBox="0 0 16 16">
-              <Path
-                d="M3 8h9M8 4l4 4-4 4"
-                stroke="#03121b"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </Svg>
-          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </AppScreen>
@@ -211,74 +358,81 @@ export default function AiTab() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { paddingHorizontal: 18 },
-  chat: { paddingHorizontal: 18, paddingBottom: 16 },
-  panelHeader: { marginTop: 0, marginBottom: 0 },
-  intro: { fontSize: 13.5, lineHeight: 21, color: '#b8c4da', marginTop: 9 },
-  exampleChip: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(34,211,238,0.3)',
-    backgroundColor: 'rgba(34,211,238,0.08)',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    minHeight: 44,
+  chat: { paddingHorizontal: 18, paddingBottom: 18 },
+  selectorPanel: { marginBottom: 12 },
+  selectorHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  selectorTitle: { flex: 1, minWidth: 0 },
+  selectorLabel: { color: colors.dim, fontSize: 10.5 },
+  currentCompany: { color: colors.ink, fontSize: 14, marginTop: 4 },
+  clearText: { color: colors.accent, fontSize: 11.5 },
+  companyChips: { gap: 8, paddingTop: 12 },
+  companyChip: {
+    minWidth: 112,
+    maxWidth: 168,
+    minHeight: 52,
     justifyContent: 'center',
-  },
-  exampleText: { fontSize: 13, lineHeight: 19, color: colors.accent, fontWeight: '600' },
-  gap: { marginBottom: 12 },
-  errorBubble: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 18,
-    borderBottomLeftRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(248,113,113,0.3)',
-    backgroundColor: 'rgba(248,113,113,0.08)',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-  },
-  errorText: { fontSize: 13, color: colors.neg, fontWeight: '600' },
-  retry: { fontSize: 13, color: colors.accent, fontWeight: '700' },
-  thinking: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  thinkingDot: { width: 7, height: 7, borderRadius: 99, backgroundColor: colors.accent },
-  thinkingText: { fontSize: 11, color: colors.accent },
-  followUps: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  chip: {
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 99,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    minHeight: 38,
-    justifyContent: 'center',
+    borderRadius: 7,
+    paddingHorizontal: 11,
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
-  chipText: { fontSize: 12.5, color: '#cdd7e8', fontWeight: '600' },
-  meta: { marginTop: 12 },
-  inputBar: {
+  companyChipSelected: {
+    borderColor: 'rgba(34,211,238,0.45)',
+    backgroundColor: 'rgba(34,211,238,0.08)',
+  },
+  companyChipName: { color: colors.mut, fontSize: 12.5 },
+  companyChipNameSelected: { color: colors.ink },
+  companyChipSymbol: { color: colors.dim, fontSize: 10, marginTop: 3 },
+  statePanel: { marginBottom: 12 },
+  emptyState: { paddingVertical: 24, paddingHorizontal: 12 },
+  stateTitle: { color: colors.ink, fontSize: 14 },
+  stateText: { color: colors.mut, fontSize: 12.5, lineHeight: 19, marginTop: 5 },
+  panelHeader: { marginTop: 0, marginBottom: 0 },
+  intro: { fontSize: 13.5, lineHeight: 21, color: colors.mut, marginTop: 9 },
+  messageGap: { marginBottom: 12 },
+  generating: { marginBottom: 12 },
+  generatingRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  thinkingDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent },
+  thinkingText: { flex: 1, fontSize: 12.5, color: colors.mut },
+  cancelButton: { minHeight: 40, marginTop: 12, paddingVertical: 9 },
+  errorCard: {
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.3)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(248,113,113,0.06)',
+    padding: 14,
+    marginBottom: 12,
+  },
+  errorTitle: { color: colors.neg, fontSize: 13.5 },
+  errorText: { color: colors.mut, fontSize: 12.5, lineHeight: 19, marginTop: 5 },
+  retryButton: { minHeight: 40, marginTop: 12, paddingVertical: 9 },
+  cancelledNotice: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 18,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(34,211,238,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 18,
-    paddingVertical: 8,
-    paddingLeft: 15,
-    paddingRight: 8,
+    gap: 9,
+    marginBottom: 12,
   },
-  input: { flex: 1, fontSize: 13.5, color: colors.ink, paddingVertical: 6, padding: 0 },
-  send: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
+  cancelledText: { flex: 1, color: colors.dim, fontSize: 11.5, lineHeight: 17 },
+  prompts: { gap: 8, marginBottom: 4 },
+  prompt: {
+    minHeight: 42,
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 7,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  promptText: { color: '#cdd7e8', fontSize: 12.5, lineHeight: 18 },
+  meta: { marginTop: 14 },
+  inputBar: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 10,
   },
 });

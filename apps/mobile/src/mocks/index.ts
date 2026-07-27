@@ -5,7 +5,6 @@ export * from './company';
 export * from './thesis';
 export * from './scenario';
 export * from './portfolio';
-export * from './ai';
 export * from './notifications';
 export * from './management';
 export * from './discover';

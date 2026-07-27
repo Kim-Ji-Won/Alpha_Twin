@@ -255,7 +255,6 @@ export function useQuote(symbol: string): AsyncState<Stock | null> {
 
 // ── P2 훅 ─────────────────────────────────────────────────────────────────
 import {
-  aiService,
   discoverService,
   managementService,
   notificationService,
@@ -264,7 +263,6 @@ import {
   watchlistService,
 } from '@/src/services';
 import {
-  AIAnalysis,
   AppNotification,
   DiscoverSignal,
   IndustryTwin,
@@ -466,12 +464,6 @@ export function useWatchlist(): WatchlistState {
 
 export function useManagement(symbol: string): AsyncState<ManagementRecord> {
   return useAsync(() => managementService.get(symbol), [symbol], { isEmpty: () => false });
-}
-
-export function useAnalysis(analysisId: string): AsyncState<AIAnalysis> {
-  return useAsync(() => aiService.getAnalysis(analysisId), [analysisId], {
-    isEmpty: () => false,
-  });
 }
 
 export interface ProfileStats {

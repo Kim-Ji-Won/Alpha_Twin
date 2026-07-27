@@ -1,6 +1,8 @@
 import cors from '@fastify/cors';
 import Fastify, { FastifyInstance } from 'fastify';
 
+import { AiAnalystService } from './ai/aiAnalystService.js';
+import { registerAiRoutes } from './ai/routes.js';
 import { AppConfig } from './config.js';
 import { ApiErrorDto, CandleRange } from './contracts.js';
 import { isMarketDataError } from './marketDataErrors.js';
@@ -41,6 +43,7 @@ export interface AppDependencies {
   openDartFinancial?: OpenDartFinancialService;
   openDartFinancialNormalizer?: FinancialAccountNormalizer;
   latestFinancial?: LatestFinancialService;
+  aiAnalyst?: AiAnalystService;
 }
 
 export async function buildApp(
@@ -63,6 +66,7 @@ export async function buildApp(
   dependencies.openDart?.setLogger(app.log);
   dependencies.openDartFinancial?.setLogger(app.log);
   dependencies.latestFinancial?.setLogger(app.log);
+  dependencies.aiAnalyst?.setLogger(app.log);
   const requestWindows = new Map<string, { count: number; resetsAt: number }>();
   await app.register(cors, {
     origin(origin, callback) {
@@ -98,6 +102,7 @@ export async function buildApp(
     ...(dependencies.latestFinancial
       ? { latestFinancial: dependencies.latestFinancial.status }
       : {}),
+    ...(dependencies.aiAnalyst ? { aiAnalyst: dependencies.aiAnalyst.status } : {}),
   }));
 
   app.setNotFoundHandler((_request, reply) => {
@@ -328,6 +333,8 @@ export async function buildApp(
       return reply.code(response.status).send(response.body);
     }
   });
+
+  registerAiRoutes(app, config, dependencies.aiAnalyst);
 
   return app;
 }

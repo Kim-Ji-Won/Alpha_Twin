@@ -1,4 +1,7 @@
 import { buildApp } from './app.js';
+import { AiAnalystService } from './ai/aiAnalystService.js';
+import { createCompanyAnalysisContextBuilder } from './ai/contextBuilder.js';
+import { OpenAiResponsesProvider } from './ai/openAiResponsesProvider.js';
 import { MemoryCache } from './cache.js';
 import { loadConfig } from './config.js';
 import { MarketDataService } from './marketDataService.js';
@@ -80,11 +83,24 @@ const latestFinancial = new LatestFinancialService(
   openDartFinancial,
   financialNormalizer,
 );
+const aiProvider = new OpenAiResponsesProvider({
+  apiKey: config.openAiApiKey,
+  model: config.openAiModel,
+  reasoningEffort: config.openAiReasoningEffort,
+  timeoutMs: config.openAiTimeoutMs,
+  maxOutputTokens: config.openAiMaxOutputTokens,
+});
+const aiAnalyst = new AiAnalystService(
+  createCompanyAnalysisContextBuilder(marketData, openDart, latestFinancial),
+  aiProvider,
+  config.openAiTimeoutMs,
+);
 const app = await buildApp(config, marketData, {
   openDart,
   openDartFinancial,
   openDartFinancialNormalizer: financialNormalizer,
   latestFinancial,
+  aiAnalyst,
 });
 
 try {

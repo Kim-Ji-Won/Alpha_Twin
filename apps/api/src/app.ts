@@ -7,6 +7,7 @@ import { AppConfig } from './config.js';
 import { ApiErrorDto, CandleRange } from './contracts.js';
 import { isMarketDataError } from './marketDataErrors.js';
 import { MarketDataService } from './marketDataService.js';
+import { DatabaseRuntime } from './infrastructure/database/runtime.js';
 import { isOpenDartError, OpenDartError } from './openDart/errors.js';
 import { parseFinancialStatementsQuery } from './openDart/financialQuery.js';
 import { parseLatestFinancialQuery } from './openDart/latestFinancial/latestFinancialParser.js';
@@ -44,6 +45,7 @@ export interface AppDependencies {
   openDartFinancialNormalizer?: FinancialAccountNormalizer;
   latestFinancial?: LatestFinancialService;
   aiAnalyst?: AiAnalystService;
+  database?: DatabaseRuntime;
 }
 
 export async function buildApp(
@@ -67,6 +69,10 @@ export async function buildApp(
   dependencies.openDartFinancial?.setLogger(app.log);
   dependencies.latestFinancial?.setLogger(app.log);
   dependencies.aiAnalyst?.setLogger(app.log);
+  dependencies.database?.setLogger(app.log);
+  app.addHook('onClose', async () => {
+    await dependencies.database?.close();
+  });
   const requestWindows = new Map<string, { count: number; resetsAt: number }>();
   await app.register(cors, {
     origin(origin, callback) {

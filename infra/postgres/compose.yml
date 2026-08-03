@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16.13-alpine
+    environment:
+      POSTGRES_DB: alpha_twin_development
+      POSTGRES_USER: alpha_twin_local
+      POSTGRES_PASSWORD: alpha_twin_local_only
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alpha_twin_local -d alpha_twin_development"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - alpha_twin_postgres_data:/var/lib/postgresql/data
+      - ./init/01-create-test-database.sql:/docker-entrypoint-initdb.d/01-create-test-database.sql:ro
+
+volumes:
+  alpha_twin_postgres_data:

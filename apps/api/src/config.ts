@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 export interface AppConfig {
   port: number;
   host: string;
@@ -24,6 +26,13 @@ export interface AppConfig {
   openAiMaxOutputTokens: number;
   aiRateLimitMax: number;
   aiRateLimitWindowMs: number;
+  filingPersistenceEnabled: boolean;
+  databaseUrl?: string;
+  databasePoolMax: number;
+  databaseConnectionTimeoutMs: number;
+  databaseIdleTimeoutMs: number;
+  databaseStatementTimeoutMs: number;
+  databaseSslMode: 'disable' | 'verify-full';
   logLevel: 'silent' | 'error' | 'warn' | 'info';
 }
 
@@ -59,6 +68,17 @@ function enumFromEnv<T extends string>(
   return normalized as T;
 }
 
+function booleanFromEnv(
+  name: string,
+  value: string | undefined,
+  fallback: boolean,
+): boolean {
+  if (value == null || !value.trim()) return fallback;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`${name} must be true or false`);
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const provider = env.MARKET_DATA_PROVIDER === 'public-data'
     ? 'public-data'
@@ -68,6 +88,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const logLevel = ['silent', 'error', 'warn', 'info'].includes(env.LOG_LEVEL ?? '')
     ? env.LOG_LEVEL as AppConfig['logLevel']
     : 'info';
+  const filingPersistenceEnabled = booleanFromEnv(
+    'FILING_PERSISTENCE_ENABLED',
+    env.FILING_PERSISTENCE_ENABLED,
+    false,
+  );
+  const databaseUrl = env.DATABASE_URL?.trim() || undefined;
+  if (filingPersistenceEnabled && !databaseUrl) {
+    throw new Error(
+      'DATABASE_URL is required when FILING_PERSISTENCE_ENABLED is true',
+    );
+  }
   return {
     port: numberFromEnv(env.PORT, 4000),
     host: env.HOST?.trim() || '127.0.0.1',
@@ -118,7 +149,33 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       1_000,
       24 * 60 * 60_000,
     ),
+    filingPersistenceEnabled,
+    databaseUrl,
+    databasePoolMax: boundedNumberFromEnv(env.DATABASE_POOL_MAX, 4, 1, 20),
+    databaseConnectionTimeoutMs: boundedNumberFromEnv(
+      env.DATABASE_CONNECTION_TIMEOUT_MS,
+      5_000,
+      250,
+      60_000,
+    ),
+    databaseIdleTimeoutMs: boundedNumberFromEnv(
+      env.DATABASE_IDLE_TIMEOUT_MS,
+      30_000,
+      1_000,
+      10 * 60_000,
+    ),
+    databaseStatementTimeoutMs: boundedNumberFromEnv(
+      env.DATABASE_STATEMENT_TIMEOUT_MS,
+      60_000,
+      1_000,
+      10 * 60_000,
+    ),
+    databaseSslMode: enumFromEnv(
+      'DATABASE_SSL_MODE',
+      env.DATABASE_SSL_MODE,
+      ['disable', 'verify-full'] as const,
+      'disable',
+    ),
     logLevel,
   };
 }
-import { fileURLToPath } from 'node:url';

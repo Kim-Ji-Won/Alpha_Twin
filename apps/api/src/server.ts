@@ -6,6 +6,7 @@ import { MemoryCache } from './cache.js';
 import { loadConfig } from './config.js';
 import { MarketDataService } from './marketDataService.js';
 import { MarketDataObservability } from './observability.js';
+import { DatabaseRuntime } from './infrastructure/database/runtime.js';
 import { MockMarketDataProvider } from './providers/mockMarketDataProvider.js';
 import { PlaceholderLiveMarketDataProvider } from './providers/placeholderLiveMarketDataProvider.js';
 import { PublicDataMarketDataProvider } from './providers/publicDataMarketDataProvider.js';
@@ -24,6 +25,7 @@ import { OpenDartFinancialStatementProvider } from './openDart/providers/financi
 import { OpenDartProvider } from './openDart/providers/openDartProvider.js';
 
 const config = loadConfig();
+const database = new DatabaseRuntime(config);
 const observability = new MarketDataObservability();
 const mockProvider = new MockMarketDataProvider();
 const provider = config.provider === 'public-data'
@@ -102,6 +104,27 @@ const app = await buildApp(config, marketData, {
   openDartFinancialNormalizer: financialNormalizer,
   latestFinancial,
   aiAnalyst,
+  database,
+});
+
+let shuttingDown = false;
+async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  app.log.info({ signal }, 'Shutting down ALPHA TWIN API');
+  try {
+    await app.close();
+  } catch (error) {
+    app.log.error({ operation: 'server-shutdown' }, 'API shutdown failed');
+    process.exitCode = 1;
+  }
+}
+
+process.once('SIGINT', () => {
+  void shutdown('SIGINT');
+});
+process.once('SIGTERM', () => {
+  void shutdown('SIGTERM');
 });
 
 try {
@@ -109,5 +132,6 @@ try {
   console.log(`ALPHA TWIN API listening on http://${config.host}:${config.port}`);
 } catch (error) {
   app.log.error(error);
-  process.exit(1);
+  await app.close().catch(() => undefined);
+  process.exitCode = 1;
 }

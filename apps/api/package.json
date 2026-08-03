@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
     "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
+    "worker:filing": "node --env-file-if-exists=.env --import tsx src/filingIntelligence/ingestion/workerMain.ts",
+    "build": "tsc",
+    "worker:filing:start": "node --env-file-if-exists=.env dist/src/filingIntelligence/ingestion/workerMain.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "tsx --test test/**/*.test.ts",
     "db:migrate": "node-pg-migrate up --migrations-dir migrations --migrations-schema public --migrations-table pgmigrations --single-transaction",
     "db:migrate:down": "node-pg-migrate down 1 --migrations-dir migrations --migrations-schema public --migrations-table pgmigrations --single-transaction",
     "db:migrate:create": "node-pg-migrate create --migration-file-language sql --migration-filename-format timestamp --migrations-dir migrations",
-    "test:db": "tsx --test integration-test/**/*.test.ts"
+    "test:db": "tsx --test --test-concurrency=1 integration-test/**/*.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

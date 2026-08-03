@@ -44,5 +44,7 @@ export async function runMigrations(
 }
 
 export async function clearPersistence(pool: Pool): Promise<void> {
-  await pool.query('TRUNCATE filing_intelligence.filing_document CASCADE');
+  await pool.query(
+    'TRUNCATE filing_intelligence.filing_ingestion_job, filing_intelligence.filing_document CASCADE',
+  );
 }

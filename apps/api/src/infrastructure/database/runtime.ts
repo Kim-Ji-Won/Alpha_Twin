@@ -26,13 +26,21 @@ const CORE_RELATIONS = [
   'public.pgmigrations',
 ] as const;
 const CURRENT_MIGRATION_NAME = '1753650000000_canonical-filing-persistence';
+const INGESTION_RELATIONS = [
+  'filing_intelligence.filing_ingestion_job',
+  'filing_intelligence.filing_ingestion_attempt',
+] as const;
+const INGESTION_MIGRATION_NAME = '1753822800000_filing-ingestion-queue';
 
 export class DatabaseRuntime {
   private pool: Pool | undefined;
   private closePromise: Promise<void> | undefined;
   private logger: DatabaseRuntimeLogger | undefined;
 
-  constructor(private readonly config: AppConfig) {}
+  constructor(
+    private readonly config: AppConfig,
+    private readonly applicationName = 'alpha-twin-api',
+  ) {}
 
   setLogger(logger: DatabaseRuntimeLogger): void {
     this.logger = logger;
@@ -53,7 +61,7 @@ export class DatabaseRuntime {
         connectionTimeoutMillis: this.config.databaseConnectionTimeoutMs,
         idleTimeoutMillis: this.config.databaseIdleTimeoutMs,
         statement_timeout: this.config.databaseStatementTimeoutMs,
-        application_name: 'alpha-twin-api',
+        application_name: this.applicationName,
         ssl: this.config.databaseSslMode === 'verify-full'
           ? { rejectUnauthorized: true }
           : false,
@@ -102,6 +110,27 @@ export class DatabaseRuntime {
         status: 'unavailable',
         code: 'DATABASE_UNAVAILABLE',
       };
+    }
+  }
+
+  async probeIngestionReadiness(): Promise<DatabaseReadiness> {
+    const core = await this.probeReadiness();
+    if (core.status !== 'ready') return core;
+    try {
+      const relations = await this.getPool().query<{ relations: Array<string | null> }>(
+        'SELECT ARRAY[to_regclass($1)::text, to_regclass($2)::text] AS relations',
+        [...INGESTION_RELATIONS],
+      );
+      const migration = await this.getPool().query<{ applied: boolean }>(
+        'SELECT EXISTS (SELECT 1 FROM public.pgmigrations WHERE name = $1) AS applied',
+        [INGESTION_MIGRATION_NAME],
+      );
+      return relations.rows[0]?.relations.every(relation => relation != null)
+        && migration.rows[0]?.applied
+        ? { status: 'ready' }
+        : { status: 'unavailable', code: 'DATABASE_SCHEMA_INCOMPATIBLE' };
+    } catch {
+      return { status: 'unavailable', code: 'DATABASE_UNAVAILABLE' };
     }
   }
 

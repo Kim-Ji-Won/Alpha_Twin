@@ -16,9 +16,10 @@ function sha256(value: Buffer): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-export function syntheticPersistenceInput(
+export function syntheticArchive(
   paragraphCount = 5,
-): PersistCanonicalFilingInput {
+  receiptNumber = SYNTHETIC_RECEIPT,
+): ValidatedDisclosureDocumentArchive {
   const paragraphs = Array.from(
     { length: paragraphCount },
     (_, index) => `<P>합성 문단 ${index + 1}의 검증 데이터입니다.</P>`,
@@ -52,7 +53,7 @@ export function syntheticPersistenceInput(
       </BODY>
     </DOCUMENT>`);
   const entry: ValidatedDisclosureDocumentEntry = {
-    entryName: `${SYNTHETIC_RECEIPT}.xml`,
+    entryName: `${receiptNumber}.xml`,
     format: 'xml',
     mediaType: 'application/xml',
     compressedSize: content.length,
@@ -60,9 +61,9 @@ export function syntheticPersistenceInput(
     sha256: sha256(content),
     content,
   };
-  const archive: ValidatedDisclosureDocumentArchive = {
+  return {
     provider: 'opendart-fss',
-    receiptNumber: SYNTHETIC_RECEIPT,
+    receiptNumber,
     archiveByteLength: content.length,
     archiveSha256: entry.sha256,
     archiveEntryCount: 1,
@@ -70,6 +71,12 @@ export function syntheticPersistenceInput(
     extractedTotalUncompressedBytes: content.length,
     entries: [entry],
   };
+}
+
+export function syntheticPersistenceInput(
+  paragraphCount = 5,
+): PersistCanonicalFilingInput {
+  const archive = syntheticArchive(paragraphCount);
   const document = parseFilingDocument(archive, {
     upstreamReportName: '합성 사업보고서',
   });

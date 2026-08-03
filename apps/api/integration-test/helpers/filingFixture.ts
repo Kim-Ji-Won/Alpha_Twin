@@ -19,11 +19,12 @@ function sha256(value: Buffer): string {
 export function syntheticArchive(
   paragraphCount = 5,
   receiptNumber = SYNTHETIC_RECEIPT,
+  paragraphTexts?: readonly string[],
 ): ValidatedDisclosureDocumentArchive {
-  const paragraphs = Array.from(
+  const paragraphs = (paragraphTexts ?? Array.from(
     { length: paragraphCount },
-    (_, index) => `<P>합성 문단 ${index + 1}의 검증 데이터입니다.</P>`,
-  ).join('');
+    (_, index) => `합성 문단 ${index + 1}의 검증 데이터입니다.`,
+  )).map(value => `<P>${value}</P>`).join('');
   const content = Buffer.from(`<?xml version="1.0" encoding="utf-8"?>
     <DOCUMENT>
       <DOCUMENT-NAME>ALPHA TWIN TEST REPORT</DOCUMENT-NAME>
@@ -76,15 +77,32 @@ export function syntheticArchive(
 export function syntheticPersistenceInput(
   paragraphCount = 5,
 ): PersistCanonicalFilingInput {
-  const archive = syntheticArchive(paragraphCount);
+  return syntheticPersistenceInputFor({ paragraphCount });
+}
+
+export interface SyntheticPersistenceOptions {
+  readonly paragraphCount?: number;
+  readonly receiptNumber?: string;
+  readonly corpCode?: string;
+  readonly symbol?: string;
+  readonly companyName?: string;
+  readonly paragraphTexts?: readonly string[];
+}
+
+export function syntheticPersistenceInputFor(
+  options: SyntheticPersistenceOptions,
+): PersistCanonicalFilingInput {
+  const receiptNumber = options.receiptNumber ?? SYNTHETIC_RECEIPT;
+  const paragraphCount = options.paragraphCount ?? options.paragraphTexts?.length ?? 5;
+  const archive = syntheticArchive(paragraphCount, receiptNumber, options.paragraphTexts);
   const document = parseFilingDocument(archive, {
     upstreamReportName: '합성 사업보고서',
   });
   return {
     metadata: {
-      corpCode: '99999999',
-      symbol: '999999',
-      companyName: 'ALPHA TWIN TEST COMPANY',
+      corpCode: options.corpCode ?? '99999999',
+      symbol: options.symbol ?? '999999',
+      companyName: options.companyName ?? 'ALPHA TWIN TEST COMPANY',
       reportName: '합성 사업보고서',
       reportCode: '11011',
       filingDate: '2099-01-01',

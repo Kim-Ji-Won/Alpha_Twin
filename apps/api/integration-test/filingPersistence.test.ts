@@ -59,6 +59,8 @@ test('canonical filing PostgreSQL integration', async t => {
       'filing_intelligence.filing_chunk',
       'filing_intelligence.filing_ingestion_job',
       'filing_intelligence.filing_ingestion_attempt',
+      'filing_intelligence.filing_lexical_generation',
+      'filing_intelligence.filing_chunk_lexical',
       'public.pgmigrations',
     ]) {
       assert.equal(await relationExists(pool, table), true);
@@ -125,6 +127,15 @@ test('canonical filing PostgreSQL integration', async t => {
     }
 
     await runMigrations('up', databaseUrl);
+    await runMigrations('down', databaseUrl);
+    assert.equal(
+      await relationExists(pool, 'filing_intelligence.filing_lexical_generation'),
+      false,
+    );
+    assert.equal(
+      await relationExists(pool, 'filing_intelligence.filing_ingestion_job'),
+      true,
+    );
     await runMigrations('down', databaseUrl);
     assert.equal(
       await relationExists(pool, 'filing_intelligence.filing_ingestion_job'),

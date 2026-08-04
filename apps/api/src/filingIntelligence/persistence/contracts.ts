@@ -2,6 +2,8 @@ import {
   CanonicalFilingDocument,
   FilingChunk,
 } from '../../openDart/document/canonicalFilingContracts.js';
+import { DisclosureCorrectionType } from '../../openDart/contracts.js';
+import { FilingLegalStatus } from '../lineage/contracts.js';
 
 export interface VerifiedFilingMetadata {
   readonly corpCode: string;
@@ -10,6 +12,16 @@ export interface VerifiedFilingMetadata {
   readonly reportName?: string;
   readonly reportCode?: string;
   readonly filingDate?: string;
+  readonly filerName?: string;
+  readonly disclosureCategory?: string;
+  readonly disclosureDetailType?: string;
+  readonly correctionType?: DisclosureCorrectionType;
+  readonly hasSubsequentCorrection?: boolean;
+  readonly isWithdrawn?: boolean;
+  readonly legalStatus?: FilingLegalStatus;
+  readonly metadataSource?: string;
+  readonly metadataObservedAt?: string;
+  readonly providerFinalObservedAt?: string;
 }
 
 export interface PersistCanonicalFilingInput {
@@ -31,6 +43,7 @@ export interface FilingPersistenceResult {
 export interface FilingPersistenceSnapshot {
   readonly document: {
     readonly id: string;
+    readonly receiptId: string;
     readonly provider: string;
     readonly receiptNumber: string;
     readonly corpCode: string;
@@ -45,6 +58,8 @@ export interface FilingPersistenceSnapshot {
     readonly blockCount: number;
     readonly chunkCount: number;
     readonly isRetrievalReady: boolean;
+    readonly isCurrentEffective: boolean;
+    readonly activatedAt: Date | null;
     readonly createdAt: Date;
   };
   readonly sections: readonly {

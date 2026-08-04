@@ -1,0 +1,26 @@
+export type FilingLineageErrorCode =
+  | 'FILING_RECEIPT_INVALID_INPUT'
+  | 'FILING_RECEIPT_IDENTITY_CONFLICT'
+  | 'FILING_RECEIPT_OBSERVATION_CONFLICT'
+  | 'FILING_FAMILY_INVALID_INPUT'
+  | 'FILING_FAMILY_IDENTITY_CONFLICT'
+  | 'FILING_FAMILY_ROOT_UNVERIFIED'
+  | 'FILING_CORRECTION_RELATION_INVALID'
+  | 'FILING_CORRECTION_SELF_REFERENCE'
+  | 'FILING_CORRECTION_CROSS_COMPANY'
+  | 'FILING_CORRECTION_CYCLE'
+  | 'FILING_CORRECTION_RELATION_CONFLICT'
+  | 'FILING_CORRECTION_RECEIPT_NOT_FOUND'
+  | 'FILING_LINEAGE_INTEGRITY_FAILURE'
+  | 'FILING_LINEAGE_TRANSACTION_FAILED';
+
+export class FilingLineageError extends Error {
+  constructor(
+    readonly code: FilingLineageErrorCode,
+    readonly retryable: boolean,
+    options?: ErrorOptions,
+  ) {
+    super(code, options);
+    this.name = 'FilingLineageError';
+  }
+}

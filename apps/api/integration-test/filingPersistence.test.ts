@@ -18,6 +18,7 @@ import {
 } from './helpers/database.js';
 import {
   syntheticPersistenceInput,
+  syntheticPersistenceInputFor,
 } from './helpers/filingFixture.js';
 
 function persistenceError(code: FilingPersistenceError['code']) {
@@ -61,6 +62,10 @@ test('canonical filing PostgreSQL integration', async t => {
       'filing_intelligence.filing_ingestion_attempt',
       'filing_intelligence.filing_lexical_generation',
       'filing_intelligence.filing_chunk_lexical',
+      'filing_intelligence.filing_receipt',
+      'filing_intelligence.filing_report_family',
+      'filing_intelligence.filing_report_family_member',
+      'filing_intelligence.filing_correction_relation',
       'public.pgmigrations',
     ]) {
       assert.equal(await relationExists(pool, table), true);
@@ -79,6 +84,9 @@ test('canonical filing PostgreSQL integration', async t => {
       'filing_chunk_section_fk',
       'filing_block_table_data_check',
       'filing_chunk_block_types_check',
+      'filing_document_receipt_fk',
+      'filing_report_family_root_fk',
+      'filing_correction_relation_self_check',
     ]) {
       assert.equal(constraintNames.has(name), true, name);
     }
@@ -108,6 +116,8 @@ test('canonical filing PostgreSQL integration', async t => {
     assert.equal(columnTypes.get('filing_block.table_data'), 'jsonb:jsonb');
     assert.equal(columnTypes.get('filing_chunk.source_block_ids'), 'ARRAY:_text');
     assert.equal(columnTypes.get('filing_chunk.locator'), 'jsonb:jsonb');
+    assert.equal(columnTypes.get('filing_document.receipt_id'), 'bigint:int8');
+    assert.equal(columnTypes.get('filing_receipt.id'), 'bigint:int8');
 
     const indexes = await pool.query<{ indexname: string }>(
       `SELECT indexname
@@ -122,11 +132,83 @@ test('canonical filing PostgreSQL integration', async t => {
       'filing_block_section_ordinal_idx',
       'filing_chunk_section_ordinal_idx',
       'filing_chunk_content_hash_idx',
+      'filing_document_receipt_id_idx',
+      'filing_receipt_corp_date_idx',
     ]) {
       assert.equal(indexNames.has(name), true, name);
     }
 
     await runMigrations('up', databaseUrl);
+    await runMigrations('down', databaseUrl);
+    assert.equal(
+      await relationExists(pool, 'filing_intelligence.filing_receipt'),
+      false,
+    );
+    assert.equal(
+      await relationExists(pool, 'filing_intelligence.filing_lexical_generation'),
+      true,
+    );
+
+    await pool.query(
+      `INSERT INTO filing_intelligence.filing_document (
+         provider, receipt_number, corp_code, symbol, company_name, report_name,
+         report_code, filing_date, source_entry_name, source_entry_hash,
+         source_entry_byte_length, canonical_schema_name, canonical_schema_version,
+         parser_version, chunk_schema_version, chunker_version,
+         canonical_fingerprint, chunk_fingerprint, section_count, block_count, chunk_count
+       ) VALUES
+       ('opendart-fss', '20990101990001', '11111111', '111111', 'MIGRATION COMPANY',
+        '합성 사업보고서', '11011', '2099-01-01', 'first.xml', repeat('a', 64), 1,
+        'alpha-twin-filing', '1', '1.0.1', '1', '1.0.1', repeat('b', 64),
+        repeat('c', 64), 0, 0, 0),
+       ('opendart-fss', '20990101990001', '11111111', '111111', 'MIGRATION COMPANY',
+        '합성 사업보고서', '11011', '2099-01-01', 'second.xml', repeat('d', 64), 1,
+        'alpha-twin-filing', '1', '1.0.1', '1', '1.0.1', repeat('e', 64),
+        repeat('f', 64), 0, 0, 0)`,
+    );
+    await runMigrations('up', databaseUrl);
+    const backfill = await pool.query<{
+      receipts: number; documents: number; linked_receipts: number;
+      lineage_status: string; families: number; relations: number;
+    }>(`SELECT
+      (SELECT count(*)::integer FROM filing_intelligence.filing_receipt
+        WHERE receipt_number = '20990101990001') AS receipts,
+      count(*)::integer AS documents,
+      count(DISTINCT receipt_id)::integer AS linked_receipts,
+      min(receipt.lineage_status) AS lineage_status,
+      (SELECT count(*)::integer FROM filing_intelligence.filing_report_family) AS families,
+      (SELECT count(*)::integer FROM filing_intelligence.filing_correction_relation) AS relations
+      FROM filing_intelligence.filing_document document
+      JOIN filing_intelligence.filing_receipt receipt ON receipt.id = document.receipt_id
+      WHERE document.receipt_number = '20990101990001'`);
+    assert.deepEqual(backfill.rows[0], {
+      receipts: 1, documents: 2, linked_receipts: 1,
+      lineage_status: 'unresolved', families: 0, relations: 0,
+    });
+
+    await runMigrations('down', databaseUrl);
+    await pool.query(
+      `UPDATE filing_intelligence.filing_document SET corp_code = '22222222'
+       WHERE source_entry_name = 'second.xml'`,
+    );
+    await assert.rejects(runMigrations('up', databaseUrl));
+    assert.equal(await relationExists(pool, 'filing_intelligence.filing_receipt'), false);
+    await pool.query(
+      `UPDATE filing_intelligence.filing_document SET corp_code = '11111111'
+       WHERE source_entry_name = 'second.xml'`,
+    );
+    await pool.query(
+      `UPDATE filing_intelligence.filing_document SET company_name = NULL
+       WHERE source_entry_name = 'second.xml'`,
+    );
+    await assert.rejects(runMigrations('up', databaseUrl));
+    assert.equal(await relationExists(pool, 'filing_intelligence.filing_receipt'), false);
+    await pool.query(
+      `UPDATE filing_intelligence.filing_document SET company_name = 'MIGRATION COMPANY'
+       WHERE source_entry_name = 'second.xml'`,
+    );
+    await runMigrations('up', databaseUrl);
+    await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     assert.equal(
       await relationExists(pool, 'filing_intelligence.filing_lexical_generation'),
@@ -340,26 +422,17 @@ test('canonical filing PostgreSQL integration', async t => {
     const repository = new FilingDocumentRepository(pool);
     const first = await repository.persistCanonicalFiling(input);
     const firstSectionId = input.document.sections[0]!.sectionId;
-    const second = await pool.query<{ id: string }>(
-      `INSERT INTO filing_intelligence.filing_document (
-         provider, receipt_number, corp_code, symbol, source_entry_name,
-         source_entry_hash, source_entry_byte_length, canonical_schema_name,
-         canonical_schema_version, parser_version, chunk_schema_version,
-         chunker_version, canonical_fingerprint, chunk_fingerprint,
-         section_count, block_count, chunk_count
-       ) VALUES (
-         'opendart-fss', '20990101000002', '99999998', '999998', 'second.xml',
-         repeat('a', 64), 1, 'canonical-filing-document', '1', '1.0.1', '1',
-         '1.0.1', repeat('b', 64), repeat('c', 64), 0, 0, 0
-       ) RETURNING id::text`,
-    );
-    const secondId = second.rows[0]!.id;
+    const second = await repository.persistCanonicalFiling(syntheticPersistenceInputFor({
+      receiptNumber: '20990101000002', corpCode: '99999998', symbol: '999998',
+      companyName: 'SECOND SYNTHETIC COMPANY',
+    }));
+    const secondId = second.documentId;
     await assert.rejects(
       pool.query(
         `INSERT INTO filing_intelligence.filing_section (
            document_id, section_id, parent_section_id, title, depth, ordinal,
            path, block_ids
-         ) VALUES ($1, 'sec_second', $2, 'invalid parent', 1, 0, ARRAY['x'], ARRAY[]::text[])`,
+         ) VALUES ($1, 'sec_second', $2, 'invalid parent', 1, 999, ARRAY['x'], ARRAY[]::text[])`,
         [secondId, firstSectionId],
       ),
       (error: unknown) =>
@@ -372,7 +445,7 @@ test('canonical filing PostgreSQL integration', async t => {
            document_id, section_id, block_id, block_type, ordinal, section_path,
            source_text, retrieval_text, content_hash, locator, table_data
          ) VALUES (
-           $1, $2, 'blk_second', 'paragraph', 0, ARRAY['x'], 'x', 'x',
+           $1, $2, 'blk_second', 'paragraph', 999, ARRAY['x'], 'x', 'x',
            repeat('d', 64), '{}'::jsonb, NULL
          )`,
         [secondId, firstSectionId],
@@ -389,7 +462,7 @@ test('canonical filing PostgreSQL integration', async t => {
            source_block_types, source_text, retrieval_text, content_hash,
            source_char_count, retrieval_char_count, locator
          ) VALUES (
-           $1, 'chk_second', '1', '1.0.1', '1.0.1', 0, $2, ARRAY['x'],
+           $1, 'chk_second', '1', '1.0.1', '1.0.1', 999, $2, ARRAY['x'],
            ARRAY['blk_second'], ARRAY['paragraph'], 'x', 'x', repeat('e', 64),
            1, 1, '{}'::jsonb
          )`,

@@ -59,6 +59,9 @@ test('Korean lexical PostgreSQL integration', async t => {
     assert.match(indexes.rows.find(row => row.indexname === 'filing_chunk_lexical_search_vector_gin_idx')?.indexdef ?? '', /USING gin/iu);
     await runMigrations('up', databaseUrl);
     await runMigrations('down', databaseUrl);
+    assert.equal(await relationExists(pool, 'filing_intelligence.filing_receipt'), false);
+    assert.equal(await relationExists(pool, 'filing_intelligence.filing_chunk_lexical'), true);
+    await runMigrations('down', databaseUrl);
     assert.equal(await relationExists(pool, 'filing_intelligence.filing_chunk_lexical'), false);
     for (const table of ['filing_document', 'filing_chunk', 'filing_ingestion_job', 'filing_ingestion_attempt']) {
       assert.equal(await relationExists(pool, `filing_intelligence.${table}`), true);

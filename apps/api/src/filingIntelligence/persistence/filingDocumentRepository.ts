@@ -5,6 +5,8 @@ import {
   FILING_CHUNK_SCHEMA_VERSION,
 } from '../../openDart/document/canonicalFilingContracts.js';
 import { withTransaction } from '../../infrastructure/database/transaction.js';
+import { FilingLineageError } from '../lineage/errors.js';
+import { persistReceiptWithClient } from '../lineage/filingLineageRepository.js';
 import {
   FilingPersistenceResult,
   FilingPersistenceSnapshot,
@@ -23,6 +25,7 @@ const DEFAULT_STATEMENT_TIMEOUT_MS = 60_000;
 
 interface ExistingDocumentRow {
   id: string;
+  receipt_id: string;
   canonical_fingerprint: string;
   chunk_fingerprint: string;
   chunk_schema_version: string;
@@ -73,6 +76,15 @@ function postgresCode(error: unknown): string | undefined {
 
 function mapPersistenceError(error: unknown): FilingPersistenceError {
   if (error instanceof FilingPersistenceError) return error;
+  if (error instanceof FilingLineageError) {
+    const conflict = error.code === 'FILING_RECEIPT_IDENTITY_CONFLICT'
+      || error.code === 'FILING_RECEIPT_OBSERVATION_CONFLICT';
+    return new FilingPersistenceError(
+      conflict ? 'FILING_PERSISTENCE_CONFLICT' : 'FILING_PERSISTENCE_INTEGRITY_FAILURE',
+      error.retryable,
+      { cause: error },
+    );
+  }
   const code = postgresCode(error);
   if (code === '23505') {
     return new FilingPersistenceError('FILING_PERSISTENCE_CONFLICT', false, {
@@ -186,9 +198,33 @@ export class FilingDocumentRepository {
           "SELECT set_config('statement_timeout', $1, true)",
           [`${this.statementTimeoutMs}ms`],
         );
+        const observedAt = input.metadata.metadataObservedAt
+          ?? (input.metadata.filingDate == null
+            ? '1970-01-01T00:00:00.000Z'
+            : `${input.metadata.filingDate}T00:00:00.000Z`);
+        const receipt = await persistReceiptWithClient(client, {
+          provider: input.document.provider,
+          receiptNumber: input.document.receiptNumber,
+          corpCode: input.metadata.corpCode,
+          symbol: input.metadata.symbol,
+          companyName: input.metadata.companyName,
+          reportName: input.metadata.reportName,
+          reportCode: input.metadata.reportCode,
+          filingDate: input.metadata.filingDate,
+          filerName: input.metadata.filerName,
+          disclosureCategory: input.metadata.disclosureCategory,
+          disclosureDetailType: input.metadata.disclosureDetailType,
+          correctionType: input.metadata.correctionType,
+          hasSubsequentCorrection: input.metadata.hasSubsequentCorrection,
+          isWithdrawn: input.metadata.isWithdrawn,
+          legalStatus: input.metadata.legalStatus,
+          metadataSource: input.metadata.metadataSource ?? 'canonical-persistence',
+          metadataObservedAt: observedAt,
+          providerFinalObservedAt: input.metadata.providerFinalObservedAt,
+        });
         const inserted = await client.query<{ id: string }>(
           `INSERT INTO filing_intelligence.filing_document (
-             provider, receipt_number, corp_code, symbol, company_name,
+             receipt_id, provider, receipt_number, corp_code, symbol, company_name,
              report_name, report_code, filing_date, source_title,
              upstream_report_name, source_entry_name, source_entry_hash,
              source_entry_byte_length, canonical_schema_name,
@@ -197,12 +233,13 @@ export class FilingDocumentRepository {
              section_count, block_count, chunk_count
            ) VALUES (
              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-             $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+             $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
            )
            ON CONFLICT ON CONSTRAINT filing_document_source_identity_unique
            DO NOTHING
            RETURNING id::text`,
           [
+            receipt.receiptId,
             input.document.provider,
             input.document.receiptNumber,
             input.metadata.corpCode,
@@ -230,7 +267,7 @@ export class FilingDocumentRepository {
         );
         const insertedId = inserted.rows[0]?.id;
         if (!insertedId) {
-          return this.resolveExisting(client, input, fingerprints);
+          return this.resolveExisting(client, receipt.receiptId, input, fingerprints);
         }
 
         await insertBatches(
@@ -361,11 +398,12 @@ export class FilingDocumentRepository {
 
   private async resolveExisting(
     client: PoolClient,
+    receiptId: string,
     input: PersistCanonicalFilingInput,
     fingerprints: ReturnType<typeof calculatePersistenceFingerprints>,
   ): Promise<FilingPersistenceResult> {
     const existingResult = await client.query<ExistingDocumentRow>(
-      `SELECT id::text, canonical_fingerprint, chunk_fingerprint,
+      `SELECT id::text, receipt_id::text, canonical_fingerprint, chunk_fingerprint,
               chunk_schema_version, chunker_version,
               section_count, block_count, chunk_count
        FROM filing_intelligence.filing_document
@@ -393,7 +431,8 @@ export class FilingDocumentRepository {
       );
     }
     if (
-      existing.canonical_fingerprint !== fingerprints.canonicalFingerprint
+      existing.receipt_id !== receiptId
+      || existing.canonical_fingerprint !== fingerprints.canonicalFingerprint
       || existing.chunk_fingerprint !== fingerprints.chunkFingerprint
       || existing.chunk_schema_version !== String(FILING_CHUNK_SCHEMA_VERSION)
       || existing.chunker_version !== FILING_CHUNKER_VERSION
@@ -431,6 +470,7 @@ export class FilingDocumentRepository {
     try {
       const documentResult = await this.pool.query<{
         id: string;
+        receipt_id: string;
         provider: string;
         receipt_number: string;
         corp_code: string;
@@ -445,13 +485,15 @@ export class FilingDocumentRepository {
         block_count: number;
         chunk_count: number;
         is_retrieval_ready: boolean;
+        is_current_effective: boolean;
+        activated_at: Date | null;
         created_at: Date;
       }>(
-        `SELECT id::text, provider, receipt_number, corp_code, symbol,
+        `SELECT id::text, receipt_id::text, provider, receipt_number, corp_code, symbol,
                 canonical_schema_version, parser_version, chunk_schema_version,
                 chunker_version, canonical_fingerprint, chunk_fingerprint,
                 section_count, block_count, chunk_count, is_retrieval_ready,
-                created_at
+                is_current_effective, activated_at, created_at
          FROM filing_intelligence.filing_document
          WHERE id = $1`,
         [documentId],
@@ -514,6 +556,7 @@ export class FilingDocumentRepository {
       return {
         document: {
           id: document.id,
+          receiptId: document.receipt_id,
           provider: document.provider,
           receiptNumber: document.receipt_number,
           corpCode: document.corp_code,
@@ -528,6 +571,8 @@ export class FilingDocumentRepository {
           blockCount: document.block_count,
           chunkCount: document.chunk_count,
           isRetrievalReady: document.is_retrieval_ready,
+          isCurrentEffective: document.is_current_effective,
+          activatedAt: document.activated_at,
           createdAt: document.created_at,
         },
         sections: sectionResult.rows.map(row => ({

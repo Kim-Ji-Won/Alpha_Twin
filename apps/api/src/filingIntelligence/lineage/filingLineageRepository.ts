@@ -11,7 +11,11 @@ import {
   VerifiedRelationSource,
 } from './contracts.js';
 import { FilingLineageError, FilingLineageErrorCode } from './errors.js';
-import { lineageFingerprint } from './fingerprints.js';
+import {
+  familyBaseFingerprint,
+  familyGraphFingerprint,
+  lineageFingerprint,
+} from './fingerprints.js';
 import {
   PreparedReceiptMetadata,
   validateFamilyInput,
@@ -215,17 +219,6 @@ export async function persistReceiptWithClient(
   return { status: 'observation_updated', receiptId: existing.id, metadataFingerprint: value.metadataFingerprint };
 }
 
-function familyBaseFingerprint(input: PersistVerifiedReportFamilyInput): string {
-  return lineageFingerprint({
-    provider: input.provider,
-    corpCode: input.corpCode,
-    symbol: input.symbol,
-    rootReceiptNumber: input.lineageRootReceiptNumber,
-    members: [{ receiptNumber: input.lineageRootReceiptNumber, role: 'root' }],
-    edges: [],
-  });
-}
-
 async function requireCompanyReceipt(
   client: PoolClient,
   input: Pick<PersistVerifiedReportFamilyInput, 'provider' | 'corpCode' | 'symbol'>,
@@ -250,7 +243,12 @@ async function createOrGetFamily(
     input.lineageRootReceiptNumber,
     'FILING_FAMILY_ROOT_UNVERIFIED',
   );
-  const fingerprint = familyBaseFingerprint(input);
+  const fingerprint = familyBaseFingerprint({
+    provider: input.provider,
+    corpCode: input.corpCode,
+    symbol: input.symbol,
+    rootReceiptNumber: input.lineageRootReceiptNumber,
+  });
   const inserted = await client.query<{ id: string }>(
     `INSERT INTO filing_intelligence.filing_report_family (
        provider, corp_code, symbol, lineage_root_receipt_id, family_status,
@@ -378,7 +376,7 @@ async function calculateFamilyGraphFingerprint(
               relation.relation_type, relation.relation_fingerprint`,
     [family.id],
   );
-  return lineageFingerprint({
+  return familyGraphFingerprint({
     provider: family.provider,
     corpCode: family.corp_code,
     symbol: family.symbol,

@@ -54,6 +54,11 @@ export interface FilingPersistenceSnapshot {
     readonly chunkerVersion: string;
     readonly canonicalFingerprint: string;
     readonly chunkFingerprint: string;
+    readonly representationManifestVersion: string;
+    readonly sectionManifestFingerprint: string;
+    readonly blockManifestFingerprint: string;
+    readonly chunkManifestFingerprint: string;
+    readonly representationFingerprint: string;
     readonly sectionCount: number;
     readonly blockCount: number;
     readonly chunkCount: number;

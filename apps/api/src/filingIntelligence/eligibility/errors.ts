@@ -1,0 +1,23 @@
+export type FilingEligibilityErrorCode =
+  | 'FILING_ELIGIBILITY_INVALID_INPUT'
+  | 'FILING_ELIGIBILITY_POLICY_UNKNOWN'
+  | 'FILING_ELIGIBILITY_DOCUMENT_NOT_FOUND'
+  | 'FILING_ELIGIBILITY_RECEIPT_MISMATCH'
+  | 'FILING_ELIGIBILITY_REPRESENTATION_NOT_FOUND'
+  | 'FILING_ELIGIBILITY_REPRESENTATION_AMBIGUOUS'
+  | 'FILING_ELIGIBILITY_REPRESENTATION_INTEGRITY_FAILURE'
+  | 'FILING_ELIGIBILITY_GENERATION_INTEGRITY_FAILURE'
+  | 'FILING_ELIGIBILITY_PERSISTED_STATE_INTEGRITY_FAILURE'
+  | 'FILING_ELIGIBILITY_CONFLICT'
+  | 'FILING_ELIGIBILITY_TRANSACTION_FAILED';
+
+export class FilingEligibilityError extends Error {
+  constructor(
+    readonly code: FilingEligibilityErrorCode,
+    readonly retryable: boolean,
+    options?: ErrorOptions,
+  ) {
+    super(code, options);
+    this.name = 'FilingEligibilityError';
+  }
+}

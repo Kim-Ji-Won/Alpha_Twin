@@ -18,6 +18,10 @@ import {
   serializeJson,
 } from './fingerprints.js';
 import { validatePersistenceInput } from './validation.js';
+import {
+  persistRepresentationManifestWithClient,
+  verifyStoredRepresentationManifestWithClient,
+} from './representationManifest.js';
 
 const DEFAULT_BATCH_SIZE = 200;
 const MAX_BATCH_SIZE = 1_000;
@@ -381,6 +385,7 @@ export class FilingDocumentRepository {
             false,
           );
         }
+        await persistRepresentationManifestWithClient(client, insertedId);
         return resultFor(
           'inserted',
           insertedId,
@@ -413,6 +418,8 @@ export class FilingDocumentRepository {
          AND canonical_schema_name = $4
          AND canonical_schema_version = $5
          AND parser_version = $6
+         AND chunk_schema_version = $7
+         AND chunker_version = $8
        FOR UPDATE`,
       [
         input.document.provider,
@@ -421,6 +428,8 @@ export class FilingDocumentRepository {
         input.document.schemaName,
         String(input.document.schemaVersion),
         input.document.parserVersion,
+        String(FILING_CHUNK_SCHEMA_VERSION),
+        FILING_CHUNKER_VERSION,
       ],
     );
     const existing = existingResult.rows[0];
@@ -453,6 +462,7 @@ export class FilingDocumentRepository {
         false,
       );
     }
+    await verifyStoredRepresentationManifestWithClient(client, existing.id);
     return resultFor(
       'already_present',
       existing.id,
@@ -481,6 +491,11 @@ export class FilingDocumentRepository {
         chunker_version: string;
         canonical_fingerprint: string;
         chunk_fingerprint: string;
+        representation_manifest_version: string;
+        section_manifest_fingerprint: string;
+        block_manifest_fingerprint: string;
+        chunk_manifest_fingerprint: string;
+        representation_fingerprint: string;
         section_count: number;
         block_count: number;
         chunk_count: number;
@@ -492,10 +507,17 @@ export class FilingDocumentRepository {
         `SELECT id::text, receipt_id::text, provider, receipt_number, corp_code, symbol,
                 canonical_schema_version, parser_version, chunk_schema_version,
                 chunker_version, canonical_fingerprint, chunk_fingerprint,
+                manifest.representation_manifest_version,
+                manifest.section_manifest_fingerprint,
+                manifest.block_manifest_fingerprint,
+                manifest.chunk_manifest_fingerprint,
+                manifest.representation_fingerprint,
                 section_count, block_count, chunk_count, is_retrieval_ready,
-                is_current_effective, activated_at, created_at
-         FROM filing_intelligence.filing_document
-         WHERE id = $1`,
+                is_current_effective, activated_at, document.created_at
+         FROM filing_intelligence.filing_document AS document
+         JOIN filing_intelligence.filing_document_representation_manifest AS manifest
+           ON manifest.document_id = document.id
+         WHERE document.id = $1`,
         [documentId],
       );
       const document = documentResult.rows[0];
@@ -567,6 +589,11 @@ export class FilingDocumentRepository {
           chunkerVersion: document.chunker_version,
           canonicalFingerprint: document.canonical_fingerprint,
           chunkFingerprint: document.chunk_fingerprint,
+          representationManifestVersion: document.representation_manifest_version,
+          sectionManifestFingerprint: document.section_manifest_fingerprint,
+          blockManifestFingerprint: document.block_manifest_fingerprint,
+          chunkManifestFingerprint: document.chunk_manifest_fingerprint,
+          representationFingerprint: document.representation_fingerprint,
           sectionCount: document.section_count,
           blockCount: document.block_count,
           chunkCount: document.chunk_count,

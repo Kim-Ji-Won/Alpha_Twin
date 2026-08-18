@@ -141,6 +141,15 @@ test('canonical filing PostgreSQL integration', async t => {
     await runMigrations('up', databaseUrl);
     await runMigrations('down', databaseUrl);
     assert.equal(
+      await relationExists(pool, 'filing_intelligence.filing_retrieval_eligibility'),
+      false,
+    );
+    assert.equal(
+      await relationExists(pool, 'filing_intelligence.filing_family_resolution_control'),
+      true,
+    );
+    await runMigrations('down', databaseUrl);
+    assert.equal(
       await relationExists(pool, 'filing_intelligence.filing_family_resolution_control'),
       false,
     );
@@ -197,6 +206,7 @@ test('canonical filing PostgreSQL integration', async t => {
 
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     await pool.query(
       `UPDATE filing_intelligence.filing_document SET corp_code = '22222222'
        WHERE source_entry_name = 'second.xml'`,
@@ -218,6 +228,7 @@ test('canonical filing PostgreSQL integration', async t => {
        WHERE source_entry_name = 'second.xml'`,
     );
     await runMigrations('up', databaseUrl);
+    await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
@@ -351,7 +362,7 @@ test('canonical filing PostgreSQL integration', async t => {
     assert.ok(await repository.getPersistenceSnapshot(first.documentId));
   });
 
-  await t.test('a stored chunk generation is never overwritten by another version', async () => {
+  await t.test('a stored chunk version coexists with a newly persisted exact representation', async () => {
     await clearPersistence(pool);
     const input = syntheticPersistenceInput();
     const repository = new FilingDocumentRepository(pool);
@@ -369,10 +380,9 @@ test('canonical filing PostgreSQL integration', async t => {
       [first.documentId],
     );
 
-    await assert.rejects(
-      repository.persistCanonicalFiling(input),
-      persistenceError('FILING_PERSISTENCE_CONFLICT'),
-    );
+    const second = await repository.persistCanonicalFiling(input);
+    assert.equal(second.status, 'inserted');
+    assert.notEqual(second.documentId, first.documentId);
     const snapshot = await repository.getPersistenceSnapshot(first.documentId);
     assert.equal(snapshot?.document.chunkerVersion, '0.9.0');
     assert.equal(snapshot?.document.chunkFingerprint, 'f'.repeat(64));
@@ -384,6 +394,8 @@ test('canonical filing PostgreSQL integration', async t => {
       [first.documentId],
     );
     assert.deepEqual(versions.rows, [{ chunker_version: '0.9.0' }]);
+    const current = await repository.getPersistenceSnapshot(second.documentId);
+    assert.equal(current?.document.chunkerVersion, '1.0.1');
   });
 
   await t.test('a middle batch failure rolls back document and all child rows', async () => {

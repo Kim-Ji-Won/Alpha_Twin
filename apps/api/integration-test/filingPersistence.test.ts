@@ -140,6 +140,7 @@ test('canonical filing PostgreSQL integration', async t => {
 
     await runMigrations('up', databaseUrl);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     assert.equal(
       await relationExists(pool, 'filing_intelligence.filing_retrieval_eligibility'),
       false,
@@ -207,6 +208,7 @@ test('canonical filing PostgreSQL integration', async t => {
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     await pool.query(
       `UPDATE filing_intelligence.filing_document SET corp_code = '22222222'
        WHERE source_entry_name = 'second.xml'`,
@@ -228,6 +230,7 @@ test('canonical filing PostgreSQL integration', async t => {
        WHERE source_entry_name = 'second.xml'`,
     );
     await runMigrations('up', databaseUrl);
+    await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);

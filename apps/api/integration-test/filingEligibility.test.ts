@@ -100,6 +100,7 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
     async () => {
       await runMigrations('up', databaseUrl);
       await runMigrations('down', databaseUrl);
+      await runMigrations('down', databaseUrl);
       assert.equal(await exists(pool,
         'filing_intelligence.filing_retrieval_eligibility'), false);
       assert.equal(await exists(pool,
@@ -127,6 +128,7 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
       await clearPersistence(pool);
       const persistence = new FilingDocumentRepository(pool);
       const document = await persist(persistence, RECEIPT_A, 'migration manifest backfill');
+      await runMigrations('down', databaseUrl);
       await runMigrations('down', databaseUrl);
       assert.equal(await exists(pool,
         'filing_intelligence.filing_retrieval_eligibility'), false);
@@ -162,6 +164,7 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
       const persistence = new FilingDocumentRepository(pool);
       const document = await persist(persistence, RECEIPT_A, 'unsafe downgrade identity');
       await insertVersionedRepresentation(pool, document.documentId, '1', '2.0.0');
+      await runMigrations('down', databaseUrl);
       await assert.rejects(runMigrations('down', databaseUrl));
       assert.equal(await exists(pool,
         'filing_intelligence.filing_document_representation_manifest'), true);
@@ -558,7 +561,7 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
     ));
   });
 
-  await t.test('policy metadata is persisted without dense, activation, or flag state', async () => {
+  await t.test('policy metadata is persisted without dense or activation pointer state', async () => {
     await clearPersistence(pool);
     const persistence = new FilingDocumentRepository(pool);
     const lexical = new FilingLexicalRepository(pool);
@@ -584,7 +587,11 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
       representation_policy_fingerprint: FILING_REPRESENTATION_POLICY.fingerprint,
       lexical_profile_id: FILING_LEXICAL_PROFILE.profileId,
     });
-    assert.equal(await exists(pool, 'filing_intelligence.filing_retrieval_activation'), false);
+    assert.equal(await exists(pool, 'filing_intelligence.filing_retrieval_activation'), true);
+    const activations = await pool.query<{ count: number }>(
+      'SELECT count(*)::integer AS count FROM filing_intelligence.filing_retrieval_activation',
+    );
+    assert.equal(activations.rows[0]?.count, 0);
   });
 
   await t.test('policy identities coexist without overwriting and bounded evaluation stays scoped',

@@ -12,12 +12,15 @@ export interface FilingEligibilityResult {
   readonly documentId: string;
   readonly receiptId: string;
   readonly retrievalPolicyId: string;
+  readonly retrievalPolicyFingerprint: string;
   readonly representationPolicyId: string;
+  readonly representationPolicyFingerprint: string;
   readonly status: FilingEligibilityStatus;
   readonly reasonCode: FilingEligibilityReason;
   readonly representationFingerprint: string;
   readonly eligibilityFingerprint: string;
   readonly lexicalGenerationId?: string;
+  readonly lexicalGenerationFingerprint?: string;
   readonly revision: string;
   readonly evaluatedAt: Date;
 }

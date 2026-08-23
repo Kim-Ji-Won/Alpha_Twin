@@ -163,9 +163,18 @@ async function readSnapshot(
   client: PoolClient,
   input: ResolveFamilyInput,
   hooks: GraphReadHooks,
+  options: {
+    readonly databaseNow?: Date;
+    readonly expectedFamilyId?: string;
+    readonly stabilizeReceipts?: boolean;
+  } = {},
 ): Promise<GraphLoadResult> {
-  const now = await client.query<{ database_now: Date }>('SELECT clock_timestamp() AS database_now');
-  const databaseNow = now.rows[0]!.database_now.toISOString();
+  const now = options.databaseNow == null
+    ? await client.query<{ database_now: Date }>('SELECT clock_timestamp() AS database_now')
+    : null;
+  const databaseDate = options.databaseNow ?? now?.rows[0]?.database_now;
+  if (!(databaseDate instanceof Date)) return integrity();
+  const databaseNow = databaseDate.toISOString();
   const rootResult = await client.query<RootRow>(
     `SELECT id::text, provider, receipt_number, corp_code, symbol
      FROM filing_intelligence.filing_receipt
@@ -181,8 +190,9 @@ async function readSnapshot(
     `SELECT id::text, provider, corp_code, symbol, lineage_root_receipt_id::text,
             family_status, revision::text, family_fingerprint
      FROM filing_intelligence.filing_report_family
-     WHERE provider = $1 AND corp_code = $2 AND lineage_root_receipt_id = $3`,
-    [input.provider, input.corpCode, root.id],
+     WHERE provider = $1 AND corp_code = $2 AND lineage_root_receipt_id = $3
+       AND ($4::bigint IS NULL OR id = $4)`,
+    [input.provider, input.corpCode, root.id, options.expectedFamilyId ?? null],
   );
   const family = familyResult.rows[0];
   if (!family) return { databaseNow, snapshot: null };
@@ -191,6 +201,7 @@ async function readSnapshot(
     || family.lineage_root_receipt_id !== root.id
     || !['verified', 'conflicted', 'quarantined'].includes(family.family_status)) return integrity();
   await hooks.afterFamilyRead?.();
+  const receiptLock = options.stabilizeReceipts ? ' FOR SHARE OF receipt' : '';
   const members = await client.query<MemberRow>(
     `SELECT member.member_role, member.membership_source, member.membership_fingerprint,
             receipt.id::text AS receipt_id, receipt.provider, receipt.receipt_number,
@@ -198,7 +209,7 @@ async function readSnapshot(
      FROM filing_intelligence.filing_report_family_member AS member
      JOIN filing_intelligence.filing_receipt AS receipt ON receipt.id = member.receipt_id
      WHERE member.family_id = $1
-     ORDER BY receipt.receipt_number, receipt.id`,
+     ORDER BY receipt.id${receiptLock}`,
     [family.id],
   );
   const relations = await client.query<RelationRow>(
@@ -265,5 +276,19 @@ export class VerifiedFilingGraphRepository {
     } finally {
       client.release(destroy);
     }
+  }
+
+  async loadWithClient(
+    client: PoolClient,
+    input: ResolveFamilyInput,
+    familyId: string,
+    databaseNow: Date,
+  ): Promise<GraphLoadResult> {
+    validateResolveFamilyInput(input);
+    return readSnapshot(client, input, this.hooks, {
+      databaseNow,
+      expectedFamilyId: familyId,
+      stabilizeReceipts: true,
+    });
   }
 }

@@ -212,6 +212,7 @@ test('verified filing resolution PostgreSQL integration', async t => {
       { constraint_name: 'filing_family_resolution_control_history_family_id_fkey', delete_rule: 'RESTRICT' },
     ]);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     assert.equal(await exists(pool, 'filing_intelligence.filing_retrieval_eligibility'), false);
     assert.equal(await exists(pool, 'filing_intelligence.filing_family_resolution_control'), true);
     await runMigrations('down', databaseUrl);

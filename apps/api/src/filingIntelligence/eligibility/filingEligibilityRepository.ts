@@ -289,13 +289,16 @@ function resultFor(
     documentId: row.document_id,
     receiptId: row.receipt_id,
     retrievalPolicyId: row.retrieval_policy_id,
+    retrievalPolicyFingerprint: row.retrieval_policy_fingerprint,
     representationPolicyId: row.representation_policy_id,
+    representationPolicyFingerprint: row.representation_policy_fingerprint,
     status: row.status,
     reasonCode: row.reason_code,
     representationFingerprint: row.representation_fingerprint,
     eligibilityFingerprint: row.eligibility_fingerprint,
     ...(row.lexical_generation_id == null ? {} : {
       lexicalGenerationId: row.lexical_generation_id,
+      lexicalGenerationFingerprint: row.lexical_generation_fingerprint!,
     }),
     revision: row.revision,
     evaluatedAt: row.evaluated_at,
@@ -349,14 +352,15 @@ export class FilingEligibilityRepository {
     client: PoolClient,
     documentId: string,
     retrievalPolicyId: string,
+    transactionDatabaseNow?: Date,
   ): Promise<FilingEligibilityResult> {
     checkedId(documentId);
     const policy = getRetrievalPolicy(retrievalPolicyId);
     try {
-      const timeResult = await client.query<{ database_now: Date }>(
-        'SELECT clock_timestamp() AS database_now',
-      );
-      const databaseNow = timeResult.rows[0]?.database_now;
+      const timeResult = transactionDatabaseNow == null
+        ? await client.query<{ database_now: Date }>('SELECT clock_timestamp() AS database_now')
+        : null;
+      const databaseNow = transactionDatabaseNow ?? timeResult?.rows[0]?.database_now;
       if (!(databaseNow instanceof Date)) {
         throw eligibilityError('FILING_ELIGIBILITY_TRANSACTION_FAILED');
       }

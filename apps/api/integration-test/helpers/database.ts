@@ -22,11 +22,36 @@ export function requiredTestDatabaseUrl(): string {
 export async function runMigrations(
   direction: 'up' | 'down',
   databaseUrl: string,
+  includeDense = false,
 ): Promise<void> {
+  if (!includeDense) {
+    const pool = new Pool({ connectionString: databaseUrl });
+    try {
+      const latest = await pool.query<{ name: string }>(
+        'SELECT name FROM public.pgmigrations ORDER BY id DESC LIMIT 1',
+      );
+      if (latest.rows[0]?.name === '1754946000000_dense-vector-persistence') {
+        await execFileAsync('npx', [
+          'node-pg-migrate', 'down', '1', '--migrations-dir', 'migrations',
+          '--migrations-schema', 'public', '--migrations-table', 'pgmigrations',
+          '--single-transaction', '--database-url-var', 'TEST_DATABASE_URL',
+        ], {
+          cwd: new URL('../../', import.meta.url),
+          env: { ...process.env, TEST_DATABASE_URL: databaseUrl },
+        });
+      }
+    } catch (value) {
+      if (!(typeof value === 'object' && value !== null && 'code' in value && value.code === '42P01')) throw value;
+    } finally {
+      await pool.end();
+    }
+  }
   const args = [
     'node-pg-migrate',
     direction,
     ...(direction === 'down' ? ['1'] : []),
+    ...(!includeDense && direction === 'up'
+      ? ['--to', '1754773200000_filing-retrieval-activation'] : []),
     '--migrations-dir',
     'migrations',
     '--migrations-schema',

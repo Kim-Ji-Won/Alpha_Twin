@@ -621,7 +621,7 @@ test('canonical filing PostgreSQL integration', async t => {
     );
   });
 
-  await t.test('actual PostgreSQL version is available without extension dependencies', async () => {
+  await t.test('actual PostgreSQL version and admin-installed pgvector prerequisite are available', async () => {
     const version = await pool.query<{ server_version: string }>(
       "SELECT current_setting('server_version') AS server_version",
     );
@@ -629,6 +629,6 @@ test('canonical filing PostgreSQL integration', async t => {
     const vector = await pool.query<{ count: number }>(
       "SELECT count(*)::integer AS count FROM pg_extension WHERE extname = 'vector'",
     );
-    assert.equal(vector.rows[0]?.count, 0);
+    assert.equal(vector.rows[0]?.count, 1);
   });
 });

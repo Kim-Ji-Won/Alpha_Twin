@@ -7,8 +7,10 @@
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
     "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "worker:filing": "node --env-file-if-exists=.env --import tsx src/filingIntelligence/ingestion/workerMain.ts",
+    "worker:dense": "node --env-file-if-exists=.env --import tsx src/filingIntelligence/dense/denseWorkerMain.ts",
     "build": "tsc",
     "worker:filing:start": "node --env-file-if-exists=.env dist/src/filingIntelligence/ingestion/workerMain.js",
+    "worker:dense:start": "node --env-file-if-exists=.env dist/src/filingIntelligence/dense/denseWorkerMain.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "tsx --test test/**/*.test.ts",
@@ -21,6 +23,7 @@
     "@fastify/cors": "^11.3.0",
     "fast-xml-parser": "^5.10.1",
     "fastify": "^5.10.0",
+    "js-tiktoken": "1.0.21",
     "openai": "^6.49.0",
     "pg": "8.22.0",
     "yauzl": "^3.4.0"

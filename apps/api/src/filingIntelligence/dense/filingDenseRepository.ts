@@ -75,8 +75,17 @@ export class FilingDenseRepository {
   }
 
   async persistVectorBatch(generationId: string, vectors: readonly DenseVectorInput[]): Promise<DenseGeneration> {
+    try { return await withTransaction(this.pool, async client =>
+      this.persistVectorBatchInTransaction(client, generationId, vectors));
+    } catch (value) { throw mapped(value); }
+  }
+
+  async persistVectorBatchInTransaction(
+    client: PoolClient,
+    generationId: string,
+    vectors: readonly DenseVectorInput[],
+  ): Promise<DenseGeneration> {
     if (!ID.test(generationId) || vectors.length === 0 || new Set(vectors.map(v => v.chunkRowId)).size !== vectors.length) throw error('FILING_DENSE_INVALID_INPUT');
-    try { return await withTransaction(this.pool, async client => {
       const current = await this.lockGeneration(client, generationId); if (current.status !== 'building') throw error('FILING_DENSE_GENERATION_CONFLICT');
       const profile = getFilingDenseProfile(current.dense_profile_id)!;
       if (vectors.length > profile.maximumInputsPerBatch) throw error('FILING_DENSE_INVALID_INPUT');
@@ -126,11 +135,16 @@ export class FilingDenseRepository {
         SET persisted_vector_count=$2,updated_at=clock_timestamp()
         WHERE id=$1 AND persisted_vector_count<>$2`, [generationId,count.rows[0]!.count]);
       return generation({ ...current, persisted_vector_count: count.rows[0]!.count });
-    }); } catch (value) { throw mapped(value); }
   }
 
   async finalizeGeneration(generationId: string): Promise<DenseGeneration> {
-    try { return await withTransaction(this.pool, async client => { const current = await this.lockGeneration(client,generationId);
+    try { return await withTransaction(this.pool, async client =>
+      this.finalizeGenerationInTransaction(client, generationId));
+    } catch(value){ throw mapped(value); }
+  }
+
+  async finalizeGenerationInTransaction(client: PoolClient, generationId: string): Promise<DenseGeneration> {
+      const current = await this.lockGeneration(client,generationId);
       if (current.status === 'ready') return generation(current); if (current.status !== 'building') throw error('FILING_DENSE_GENERATION_CONFLICT');
       const rows = await client.query<{ chunk_id:string; input_fingerprint:string; vector_fingerprint:string }>(
         `SELECT e.chunk_id,e.input_fingerprint,e.vector_fingerprint FROM filing_intelligence.filing_chunk_embedding e
@@ -146,7 +160,23 @@ export class FilingDenseRepository {
           generation_fingerprint=$3,ready_at=database_now.value,updated_at=database_now.value
         FROM database_now WHERE id=$1 RETURNING filing_dense_generation.*`,
       [generationId,rows.rows.length,fingerprint]); return generation(result.rows[0]!);
-    }); } catch(value){ throw mapped(value); }
+  }
+
+  async failGenerationInTransaction(
+    client: PoolClient,
+    generationId: string,
+    failureCode: string,
+  ): Promise<void> {
+    if (!/^[A-Z][A-Z0-9_]{0,63}$/.test(failureCode)) throw error('FILING_DENSE_INVALID_INPUT');
+    const current = await this.lockGeneration(client, generationId);
+    if (current.status === 'ready') throw error('FILING_DENSE_GENERATION_CONFLICT');
+    if (current.status === 'failed') return;
+    await client.query(
+      `UPDATE filing_intelligence.filing_dense_generation
+       SET status='failed',failure_code=$2,updated_at=clock_timestamp()
+       WHERE id=$1 AND status='building'`,
+      [generationId, failureCode],
+    );
   }
 
   private async lockGeneration(client: PoolClient,id:string):Promise<GenerationRow>{ if(!ID.test(id)) throw error('FILING_DENSE_INVALID_INPUT');

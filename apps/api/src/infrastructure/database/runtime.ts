@@ -31,6 +31,13 @@ const INGESTION_RELATIONS = [
   'filing_intelligence.filing_ingestion_attempt',
 ] as const;
 const INGESTION_MIGRATION_NAME = '1753822800000_filing-ingestion-queue';
+const DENSE_RELATIONS = [
+  'filing_intelligence.filing_dense_generation',
+  'filing_intelligence.filing_chunk_embedding',
+  'filing_intelligence.filing_dense_generation_job',
+  'filing_intelligence.filing_dense_generation_attempt',
+] as const;
+const DENSE_MIGRATION_NAME = '1755122400000_dense-generation-queue';
 
 export class DatabaseRuntime {
   private pool: Pool | undefined;
@@ -124,6 +131,27 @@ export class DatabaseRuntime {
       const migration = await this.getPool().query<{ applied: boolean }>(
         'SELECT EXISTS (SELECT 1 FROM public.pgmigrations WHERE name = $1) AS applied',
         [INGESTION_MIGRATION_NAME],
+      );
+      return relations.rows[0]?.relations.every(relation => relation != null)
+        && migration.rows[0]?.applied
+        ? { status: 'ready' }
+        : { status: 'unavailable', code: 'DATABASE_SCHEMA_INCOMPATIBLE' };
+    } catch {
+      return { status: 'unavailable', code: 'DATABASE_UNAVAILABLE' };
+    }
+  }
+
+  async probeDenseReadiness(): Promise<DatabaseReadiness> {
+    const core = await this.probeReadiness();
+    if (core.status !== 'ready') return core;
+    try {
+      const relations = await this.getPool().query<{ relations: Array<string | null> }>(
+        'SELECT ARRAY[to_regclass($1)::text, to_regclass($2)::text, to_regclass($3)::text, to_regclass($4)::text] AS relations',
+        [...DENSE_RELATIONS],
+      );
+      const migration = await this.getPool().query<{ applied: boolean }>(
+        'SELECT EXISTS (SELECT 1 FROM public.pgmigrations WHERE name = $1) AS applied',
+        [DENSE_MIGRATION_NAME],
       );
       return relations.rows[0]?.relations.every(relation => relation != null)
         && migration.rows[0]?.applied

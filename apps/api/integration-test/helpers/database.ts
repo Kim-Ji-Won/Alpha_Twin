@@ -27,10 +27,15 @@ export async function runMigrations(
   if (!includeDense) {
     const pool = new Pool({ connectionString: databaseUrl });
     try {
-      const latest = await pool.query<{ name: string }>(
-        'SELECT name FROM public.pgmigrations ORDER BY id DESC LIMIT 1',
-      );
-      if (latest.rows[0]?.name === '1754946000000_dense-vector-persistence') {
+      const denseOnlyMigrations = new Set([
+        '1755122400000_dense-generation-queue',
+        '1754946000000_dense-vector-persistence',
+      ]);
+      while (true) {
+        const latest = await pool.query<{ name: string }>(
+          'SELECT name FROM public.pgmigrations ORDER BY id DESC LIMIT 1',
+        );
+        if (!denseOnlyMigrations.has(latest.rows[0]?.name ?? '')) break;
         await execFileAsync('npx', [
           'node-pg-migrate', 'down', '1', '--migrations-dir', 'migrations',
           '--migrations-schema', 'public', '--migrations-table', 'pgmigrations',

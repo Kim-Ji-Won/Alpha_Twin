@@ -3,9 +3,10 @@ import { Pool, PoolClient } from 'pg';
 import { withTransaction } from '../../infrastructure/database/transaction.js';
 import { DenseChunkInput, DenseGeneration, DenseVectorInput } from './contracts.js';
 import { FilingDenseError } from './errors.js';
-import { canonicalizeDenseVector, denseGenerationFingerprint, denseInputFingerprint,
-  denseInputManifestFingerprint, denseVectorFingerprint } from './fingerprints.js';
-import { FILING_DENSE_DIMENSION, getFilingDenseProfile } from './profile.js';
+import { denseGenerationFingerprint, denseInputFingerprint,
+  denseInputManifestFingerprint } from './fingerprints.js';
+import { getFilingDenseProfile } from './profile.js';
+import { prepareDenseVector } from './vector.js';
 
 const ID = /^[1-9]\d{0,18}$/; const HASH = /^[0-9a-f]{64}$/;
 const error = (code: FilingDenseError['code']) => new FilingDenseError(code, false);
@@ -15,15 +16,6 @@ function mapped(value: unknown): FilingDenseError { if (value instanceof FilingD
   const code = pgCode(value); if (['23503', '23514', '22P02'].includes(code ?? '')) return error('FILING_DENSE_INTEGRITY_FAILURE');
   if (code === '23505') return error('FILING_DENSE_GENERATION_CONFLICT');
   return new FilingDenseError('FILING_DENSE_TRANSACTION_FAILED', code?.startsWith('08') ?? false, { cause: value }); }
-function canonicalVector(values: readonly number[]): { readonly text: string; readonly fingerprint: string } {
-  if (values.length !== FILING_DENSE_DIMENSION || values.some(value => !Number.isFinite(value))) {
-    throw error('FILING_DENSE_VECTOR_INVALID');
-  }
-  const canonical = canonicalizeDenseVector(values);
-  if (!canonical.some(value => value !== 0)) throw error('FILING_DENSE_VECTOR_INVALID');
-  return { text: `[${canonical.join(',')}]`, fingerprint: denseVectorFingerprint(canonical) };
-}
-
 interface GenerationRow { id: string; document_id: string; dense_profile_id: string; dense_profile_fingerprint: string;
   representation_fingerprint: string; input_manifest_fingerprint: string; dimension: number; status: string;
   expected_vector_count: number; persisted_vector_count: number; generation_fingerprint: string | null; }
@@ -102,7 +94,9 @@ export class FilingDenseRepository {
         if (!chunk || chunk.chunk_id !== value.chunkId || denseInputFingerprint(profile,
           current.representation_fingerprint, { chunkId: chunk.chunk_id, contentHash: chunk.content_hash,
             retrievalText: chunk.retrieval_text }) !== value.inputFingerprint) throw error('FILING_DENSE_VECTOR_INVALID');
-        return { ...value, ...canonicalVector(value.vector) };
+        const preparedVector = prepareDenseVector(value.vector);
+        return { ...value, text: preparedVector.pgVector,
+          fingerprint: preparedVector.fingerprint };
       });
       const parameters = [generationId, current.document_id, prepared.map(value => value.chunkRowId),
         prepared.map(value => value.chunkId), prepared.map(value => value.inputFingerprint),

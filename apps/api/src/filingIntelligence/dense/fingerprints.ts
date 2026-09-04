@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { serializeJson } from '../persistence/fingerprints.js';
+import { DenseChunkInput } from './contracts.js';
 import { FilingDenseProfile } from './profile.js';
 
 const hash = (value: unknown) => createHash('sha256').update(serializeJson(value)).digest('hex');
@@ -12,7 +13,7 @@ export function denseInputFingerprint(profile: FilingDenseProfile, representatio
 }
 
 export function denseInputManifestFingerprint(profile: FilingDenseProfile,
-  values: readonly { ordinal: number; chunkId: string; inputFingerprint: string }[]): string {
+  values: readonly DenseChunkInput[]): string {
   return hash({ profileFingerprint: profile.profileFingerprint, chunks: values });
 }
 
@@ -20,6 +21,9 @@ export function canonicalizeDenseVector(vector: readonly number[]): readonly num
   return vector.map(value => {
     if (!Number.isFinite(value)) throw new TypeError('Dense vector values must be finite');
     const canonical = Math.fround(value);
+    if (!Number.isFinite(canonical)) {
+      throw new TypeError('Dense vector values must remain finite as float32');
+    }
     return Object.is(canonical, -0) ? 0 : canonical;
   });
 }

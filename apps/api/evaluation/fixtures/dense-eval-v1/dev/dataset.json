@@ -1,0 +1,10 @@
+{
+  "payload": {
+    "datasetId": "dense-eval-v1",
+    "schemaVersion": "dense-eval-dataset@1",
+    "split": "dev",
+    "targetCount": 40,
+    "entries": []
+  },
+  "canonicalHash": "16648e0fb1ac6b435eb812ee3a7c6de667a5c8ef23eba9810e06c2536bd0ee08"
+}

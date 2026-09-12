@@ -34,6 +34,9 @@ interface ExistingDocumentRow {
   chunk_fingerprint: string;
   chunk_schema_version: string;
   chunker_version: string;
+  decoding_profile_id: string | null;
+  decoding_profile_fingerprint: string | null;
+  canonical_utf8_hash: string | null;
   section_count: number;
   block_count: number;
   chunk_count: number;
@@ -233,11 +236,15 @@ export class FilingDocumentRepository {
              upstream_report_name, source_entry_name, source_entry_hash,
              source_entry_byte_length, canonical_schema_name,
              canonical_schema_version, parser_version, chunk_schema_version,
-             chunker_version, canonical_fingerprint, chunk_fingerprint,
+             chunker_version, decoding_profile_id, decoding_profile_fingerprint,
+             source_declared_encoding, source_bom_kind, source_utf8_validity,
+             canonical_utf8_hash, decoder_runtime_label,
+             decoding_compatibility_reason, canonical_fingerprint, chunk_fingerprint,
              section_count, block_count, chunk_count
            ) VALUES (
              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-             $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+             $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+             $25, $26, $27, $28, $29, $30, $31, $32
            )
            ON CONFLICT ON CONSTRAINT filing_document_source_identity_unique
            DO NOTHING
@@ -262,6 +269,14 @@ export class FilingDocumentRepository {
             input.document.parserVersion,
             String(FILING_CHUNK_SCHEMA_VERSION),
             FILING_CHUNKER_VERSION,
+            input.document.source.decoding?.decodingProfileId ?? null,
+            input.document.source.decoding?.decodingProfileFingerprint ?? null,
+            input.document.source.decoding?.sourceDeclaredEncoding ?? null,
+            input.document.source.decoding?.sourceBomKind ?? null,
+            input.document.source.decoding?.sourceUtf8Validity ?? null,
+            input.document.source.decoding?.canonicalUtf8Sha256 ?? null,
+            input.document.source.decoding?.decoderRuntimeLabel ?? null,
+            input.document.source.decoding?.compatibilityReason ?? null,
             fingerprints.canonicalFingerprint,
             fingerprints.chunkFingerprint,
             prepared.sections.length,
@@ -409,7 +424,8 @@ export class FilingDocumentRepository {
   ): Promise<FilingPersistenceResult> {
     const existingResult = await client.query<ExistingDocumentRow>(
       `SELECT id::text, receipt_id::text, canonical_fingerprint, chunk_fingerprint,
-              chunk_schema_version, chunker_version,
+              chunk_schema_version, chunker_version, decoding_profile_id,
+              decoding_profile_fingerprint, canonical_utf8_hash,
               section_count, block_count, chunk_count
        FROM filing_intelligence.filing_document
        WHERE provider = $1
@@ -420,6 +436,9 @@ export class FilingDocumentRepository {
          AND parser_version = $6
          AND chunk_schema_version = $7
          AND chunker_version = $8
+         AND decoding_profile_id IS NOT DISTINCT FROM $9
+         AND decoding_profile_fingerprint IS NOT DISTINCT FROM $10
+         AND canonical_utf8_hash IS NOT DISTINCT FROM $11
        FOR UPDATE`,
       [
         input.document.provider,
@@ -430,6 +449,9 @@ export class FilingDocumentRepository {
         input.document.parserVersion,
         String(FILING_CHUNK_SCHEMA_VERSION),
         FILING_CHUNKER_VERSION,
+        input.document.source.decoding?.decodingProfileId ?? null,
+        input.document.source.decoding?.decodingProfileFingerprint ?? null,
+        input.document.source.decoding?.canonicalUtf8Sha256 ?? null,
       ],
     );
     const existing = existingResult.rows[0];
@@ -445,6 +467,12 @@ export class FilingDocumentRepository {
       || existing.chunk_fingerprint !== fingerprints.chunkFingerprint
       || existing.chunk_schema_version !== String(FILING_CHUNK_SCHEMA_VERSION)
       || existing.chunker_version !== FILING_CHUNKER_VERSION
+      || existing.decoding_profile_id
+        !== (input.document.source.decoding?.decodingProfileId ?? null)
+      || existing.decoding_profile_fingerprint
+        !== (input.document.source.decoding?.decodingProfileFingerprint ?? null)
+      || existing.canonical_utf8_hash
+        !== (input.document.source.decoding?.canonicalUtf8Sha256 ?? null)
     ) {
       throw new FilingPersistenceError('FILING_PERSISTENCE_CONFLICT', false);
     }
@@ -487,6 +515,12 @@ export class FilingDocumentRepository {
         symbol: string;
         canonical_schema_version: string;
         parser_version: string;
+        decoding_profile_id: string | null;
+        decoding_profile_fingerprint: string | null;
+        source_declared_encoding: string | null;
+        source_bom_kind: string | null;
+        source_utf8_validity: string | null;
+        canonical_utf8_hash: string | null;
         chunk_schema_version: string;
         chunker_version: string;
         canonical_fingerprint: string;
@@ -506,7 +540,9 @@ export class FilingDocumentRepository {
       }>(
         `SELECT id::text, receipt_id::text, provider, receipt_number, corp_code, symbol,
                 canonical_schema_version, parser_version, chunk_schema_version,
-                chunker_version, canonical_fingerprint, chunk_fingerprint,
+                chunker_version, decoding_profile_id, decoding_profile_fingerprint,
+                source_declared_encoding, source_bom_kind, source_utf8_validity,
+                canonical_utf8_hash, canonical_fingerprint, chunk_fingerprint,
                 manifest.representation_manifest_version,
                 manifest.section_manifest_fingerprint,
                 manifest.block_manifest_fingerprint,
@@ -585,6 +621,12 @@ export class FilingDocumentRepository {
           symbol: document.symbol,
           canonicalSchemaVersion: document.canonical_schema_version,
           parserVersion: document.parser_version,
+          decodingProfileId: document.decoding_profile_id,
+          decodingProfileFingerprint: document.decoding_profile_fingerprint,
+          sourceDeclaredEncoding: document.source_declared_encoding,
+          sourceBomKind: document.source_bom_kind,
+          sourceUtf8Validity: document.source_utf8_validity,
+          canonicalUtf8Hash: document.canonical_utf8_hash,
           chunkSchemaVersion: document.chunk_schema_version,
           chunkerVersion: document.chunker_version,
           canonicalFingerprint: document.canonical_fingerprint,

@@ -25,7 +25,7 @@ const CORE_RELATIONS = [
   'filing_intelligence.filing_chunk',
   'public.pgmigrations',
 ] as const;
-const CURRENT_MIGRATION_NAME = '1753650000000_canonical-filing-persistence';
+const CURRENT_MIGRATION_NAME = '1755295200000_legacy-filing-decoding-provenance';
 const INGESTION_RELATIONS = [
   'filing_intelligence.filing_ingestion_job',
   'filing_intelligence.filing_ingestion_attempt',

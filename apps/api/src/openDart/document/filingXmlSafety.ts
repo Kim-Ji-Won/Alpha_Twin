@@ -6,11 +6,19 @@ export interface DecodedFilingXml {
   readonly hadBom: boolean;
 }
 
+export type FilingXmlBomKind = 'none' | 'utf-8' | 'utf-16le' | 'utf-16be';
+
+export interface FilingXmlEncodingInspection {
+  readonly bomKind: FilingXmlBomKind;
+  readonly declaredEncoding: string | null;
+}
+
 export interface FilingXmlCompatibilityResult {
   readonly text: string;
   readonly repairs: {
     readonly bareAmpersandCount: number;
     readonly literalAngleBracketCount: number;
+    readonly carriageReturnEntityCount?: number;
   };
 }
 
@@ -36,6 +44,18 @@ function declaredEncoding(bytes: Buffer, offset: number): string | null {
   return /\bencoding\s*=\s*(['"])([^'"]+)\1/i.exec(declaration[1] ?? '')?.[2]
     ?.trim()
     .toLowerCase() ?? null;
+}
+
+export function inspectFilingXmlEncoding(bytes: Buffer): FilingXmlEncodingInspection {
+  const bomKind: FilingXmlBomKind = bytes.subarray(0, 3).equals(UTF8_BOM)
+    ? 'utf-8'
+    : bytes.subarray(0, 2).equals(UTF16_LE_BOM)
+      ? 'utf-16le'
+      : bytes.subarray(0, 2).equals(UTF16_BE_BOM)
+        ? 'utf-16be'
+        : 'none';
+  const offset = bomKind === 'utf-8' ? 3 : bomKind === 'none' ? 0 : 2;
+  return { bomKind, declaredEncoding: declaredEncoding(bytes, offset) };
 }
 
 function isUtf8Name(value: string): boolean {
@@ -126,6 +146,10 @@ function entityReference(text: string, offset: number): EntityReference | null {
 
 export function normalizeOpenDartXmlCompatibility(
   text: string,
+  options: {
+    readonly allowLegacyCarriageReturnEntity?: boolean;
+    readonly allowLegacyKoreanAngleLabels?: boolean;
+  } = {},
 ): FilingXmlCompatibilityResult {
   type State = 'text' | 'markup' | 'comment' | 'cdata' | 'pi';
   let state: State = 'text';
@@ -135,10 +159,18 @@ export function normalizeOpenDartXmlCompatibility(
   let copiedUntil = 0;
   let bareAmpersandCount = 0;
   let literalAngleBracketCount = 0;
+  let carriageReturnEntityCount = 0;
   const elementStack: string[] = [];
   const output: string[] = [];
 
   const escapeBareAmpersand = (): void => {
+    if (options.allowLegacyCarriageReturnEntity && text.startsWith('&cr;', cursor)) {
+      output.push(text.slice(copiedUntil, cursor), '&#13;');
+      cursor += 4;
+      copiedUntil = cursor;
+      carriageReturnEntityCount += 1;
+      return;
+    }
     const reference = entityReference(text, cursor);
     if (reference) {
       if (reference.replacement !== undefined) {
@@ -169,9 +201,12 @@ export function normalizeOpenDartXmlCompatibility(
       const compactEnd = compactAngleLabel ? cursor + compactAngleLabel[0].length : cursor;
       const compactIsObservedTextLabel = Boolean(
         compactAngleLabel
-        && /\s/.test(compactInner)
+        && (/\s/.test(compactInner) || options.allowLegacyKoreanAngleLabels)
         && /[^\x00-\x7f]/.test(compactInner)
-        && new RegExp(`^<\\/${parentTag}\\s*>`, 'i').test(text.slice(compactEnd)),
+        && (
+          options.allowLegacyKoreanAngleLabels
+          || new RegExp(`^<\\/${parentTag}\\s*>`, 'i').test(text.slice(compactEnd))
+        ),
       );
       const literalAngleLabel = spacedAngleLabel
         ?? (compactIsObservedTextLabel ? compactAngleLabel : null);
@@ -277,12 +312,22 @@ export function normalizeOpenDartXmlCompatibility(
   }
 
   if (output.length === 0) {
-    return { text, repairs: { bareAmpersandCount: 0, literalAngleBracketCount: 0 } };
+    return {
+      text,
+      repairs: {
+        bareAmpersandCount: 0,
+        literalAngleBracketCount: 0,
+      },
+    };
   }
   output.push(text.slice(copiedUntil));
   return {
     text: output.join(''),
-    repairs: { bareAmpersandCount, literalAngleBracketCount },
+    repairs: {
+      bareAmpersandCount,
+      literalAngleBracketCount,
+      ...(carriageReturnEntityCount > 0 ? { carriageReturnEntityCount } : {}),
+    },
   };
 }
 
@@ -291,10 +336,10 @@ export function decodeSafeFilingXml(bytes: Buffer): DecodedFilingXml {
     throw xmlError('OPENDART_DOCUMENT_INVALID_XML_ENCODING');
   }
 
-  const hasUtf8Bom = bytes.subarray(0, 3).equals(UTF8_BOM);
-  const hasUtf16Bom = bytes.subarray(0, 2).equals(UTF16_LE_BOM)
-    || bytes.subarray(0, 2).equals(UTF16_BE_BOM);
-  const encoding = declaredEncoding(bytes, hasUtf8Bom ? 3 : hasUtf16Bom ? 2 : 0);
+  const inspection = inspectFilingXmlEncoding(bytes);
+  const hasUtf8Bom = inspection.bomKind === 'utf-8';
+  const hasUtf16Bom = inspection.bomKind === 'utf-16le' || inspection.bomKind === 'utf-16be';
+  const encoding = inspection.declaredEncoding;
 
   if (hasUtf16Bom) {
     if (encoding && !/^utf-?16(?:le|be)?$/.test(encoding)) {
@@ -320,6 +365,11 @@ export function decodeSafeFilingXml(bytes: Buffer): DecodedFilingXml {
   } catch (error) {
     throw xmlError('OPENDART_DOCUMENT_INVALID_XML_ENCODING', error);
   }
+  validateDecodedFilingXmlText(text);
+  return { encoding: 'utf-8', text, hadBom: hasUtf8Bom };
+}
+
+export function validateDecodedFilingXmlText(text: string): void {
   if (text.includes('\0')) {
     throw xmlError('OPENDART_DOCUMENT_INVALID_XML_ENCODING');
   }
@@ -331,5 +381,4 @@ export function decodeSafeFilingXml(bytes: Buffer): DecodedFilingXml {
   if (hasUnsafeXmlDeclaration(text)) {
     throw xmlError('OPENDART_DOCUMENT_UNSAFE_XML');
   }
-  return { encoding: 'utf-8', text, hadBom: hasUtf8Bom };
 }

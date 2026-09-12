@@ -60,6 +60,7 @@ test('Korean lexical PostgreSQL integration', async t => {
     await runMigrations('up', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     assert.equal(await relationExists(pool,
       'filing_intelligence.filing_retrieval_eligibility'), false);
     assert.equal(await relationExists(pool,

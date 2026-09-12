@@ -50,6 +50,12 @@ export interface FilingPersistenceSnapshot {
     readonly symbol: string;
     readonly canonicalSchemaVersion: string;
     readonly parserVersion: string;
+    readonly decodingProfileId: string | null;
+    readonly decodingProfileFingerprint: string | null;
+    readonly sourceDeclaredEncoding: string | null;
+    readonly sourceBomKind: string | null;
+    readonly sourceUtf8Validity: string | null;
+    readonly canonicalUtf8Hash: string | null;
     readonly chunkSchemaVersion: string;
     readonly chunkerVersion: string;
     readonly canonicalFingerprint: string;

@@ -213,6 +213,7 @@ test('verified filing resolution PostgreSQL integration', async t => {
     ]);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     assert.equal(await exists(pool, 'filing_intelligence.filing_retrieval_eligibility'), false);
     assert.equal(await exists(pool, 'filing_intelligence.filing_family_resolution_control'), true);
     await runMigrations('down', databaseUrl);

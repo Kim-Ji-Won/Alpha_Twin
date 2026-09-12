@@ -3,6 +3,9 @@ import test from 'node:test';
 
 import { Pool } from 'pg';
 
+import { FilingEligibilityRepository } from '../src/filingIntelligence/eligibility/filingEligibilityRepository.js';
+import { FILING_RETRIEVAL_POLICY } from '../src/filingIntelligence/eligibility/policies.js';
+import { FilingLexicalRepository } from '../src/filingIntelligence/lexical/filingLexicalRepository.js';
 import {
   FilingDocumentRepository,
 } from '../src/filingIntelligence/persistence/filingDocumentRepository.js';
@@ -17,6 +20,7 @@ import {
   runMigrations,
 } from './helpers/database.js';
 import {
+  syntheticLegacyPersistenceInput,
   syntheticPersistenceInput,
   syntheticPersistenceInputFor,
 } from './helpers/filingFixture.js';
@@ -141,6 +145,7 @@ test('canonical filing PostgreSQL integration', async t => {
     await runMigrations('up', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     assert.equal(
       await relationExists(pool, 'filing_intelligence.filing_retrieval_eligibility'),
       false,
@@ -209,6 +214,7 @@ test('canonical filing PostgreSQL integration', async t => {
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     await pool.query(
       `UPDATE filing_intelligence.filing_document SET corp_code = '22222222'
        WHERE source_entry_name = 'second.xml'`,
@@ -230,6 +236,7 @@ test('canonical filing PostgreSQL integration', async t => {
        WHERE source_entry_name = 'second.xml'`,
     );
     await runMigrations('up', databaseUrl);
+    await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
     await runMigrations('down', databaseUrl);
@@ -264,6 +271,106 @@ test('canonical filing PostgreSQL integration', async t => {
     await runMigrations('up', databaseUrl);
   });
 
+  await t.test('starting-HEAD schema upgrades last without mutating existing UTF-8 evidence',
+    async () => {
+      await runMigrations('up', databaseUrl, true);
+      await clearPersistence(pool);
+      const repository = new FilingDocumentRepository(pool);
+      const stored = await repository.persistCanonicalFiling(syntheticPersistenceInputFor({
+        receiptNumber: '20990101990011',
+        paragraphTexts: ['existing schema upgrade evidence'],
+      }));
+      await new FilingLexicalRepository(pool).indexFilingDocumentLexically(stored.documentId);
+      const eligibility = await new FilingEligibilityRepository(pool)
+        .evaluateDocumentEligibility(stored.documentId, FILING_RETRIEVAL_POLICY.policyId);
+      assert.equal(eligibility.status, 'eligible');
+
+      const before = await pool.query<{
+        id: string;
+        canonical_fingerprint: string;
+        chunk_fingerprint: string;
+        representation_fingerprint: string;
+        eligibility_fingerprint: string;
+      }>(
+        `SELECT document.id::text, document.canonical_fingerprint,
+                document.chunk_fingerprint, manifest.representation_fingerprint,
+                eligibility.eligibility_fingerprint
+         FROM filing_intelligence.filing_document AS document
+         JOIN filing_intelligence.filing_document_representation_manifest AS manifest
+           ON manifest.document_id = document.id
+         JOIN filing_intelligence.filing_retrieval_eligibility AS eligibility
+           ON eligibility.document_id = document.id
+         WHERE document.id = $1`,
+        [stored.documentId],
+      );
+      assert.equal(before.rowCount, 1);
+
+      await runMigrations('down', databaseUrl, true);
+      const baselineHistory = await pool.query<{ name: string }>(
+        'SELECT name FROM public.pgmigrations ORDER BY id DESC LIMIT 1',
+      );
+      assert.equal(
+        baselineHistory.rows[0]?.name,
+        '1755122400000_dense-generation-queue',
+      );
+      const baseline = await pool.query<{
+        id: string;
+        canonical_fingerprint: string;
+        chunk_fingerprint: string;
+        representation_fingerprint: string;
+        eligibility_fingerprint: string;
+      }>(
+        `SELECT document.id::text, document.canonical_fingerprint,
+                document.chunk_fingerprint, manifest.representation_fingerprint,
+                eligibility.eligibility_fingerprint
+         FROM filing_intelligence.filing_document AS document
+         JOIN filing_intelligence.filing_document_representation_manifest AS manifest
+           ON manifest.document_id = document.id
+         JOIN filing_intelligence.filing_retrieval_eligibility AS eligibility
+           ON eligibility.document_id = document.id
+         WHERE document.id = $1`,
+        [stored.documentId],
+      );
+      assert.deepEqual(baseline.rows, before.rows);
+
+      await runMigrations('up', databaseUrl, true);
+      const after = await pool.query<{
+        id: string;
+        canonical_fingerprint: string;
+        chunk_fingerprint: string;
+        representation_fingerprint: string;
+        eligibility_fingerprint: string;
+        decoding_profile_id: string | null;
+        decoding_profile_fingerprint: string | null;
+        canonical_utf8_hash: string | null;
+      }>(
+        `SELECT document.id::text, document.canonical_fingerprint,
+                document.chunk_fingerprint, manifest.representation_fingerprint,
+                eligibility.eligibility_fingerprint, document.decoding_profile_id,
+                document.decoding_profile_fingerprint, document.canonical_utf8_hash
+         FROM filing_intelligence.filing_document AS document
+         JOIN filing_intelligence.filing_document_representation_manifest AS manifest
+           ON manifest.document_id = document.id
+         JOIN filing_intelligence.filing_retrieval_eligibility AS eligibility
+           ON eligibility.document_id = document.id
+         WHERE document.id = $1`,
+        [stored.documentId],
+      );
+      assert.deepEqual(after.rows, before.rows.map(row => ({
+        ...row,
+        decoding_profile_id: null,
+        decoding_profile_fingerprint: null,
+        canonical_utf8_hash: null,
+      })));
+      const history = await pool.query<{ name: string }>(
+        'SELECT name FROM public.pgmigrations ORDER BY id ASC',
+      );
+      assert.equal(
+        history.rows.at(-1)?.name,
+        '1755295200000_legacy-filing-decoding-provenance',
+      );
+    });
+
   await t.test('readiness reports ready against the migrated schema', async () => {
     const runtime = new DatabaseRuntime(loadConfig({
       LOG_LEVEL: 'silent',
@@ -272,6 +379,39 @@ test('canonical filing PostgreSQL integration', async t => {
     }));
     assert.deepEqual(await runtime.probeReadiness(), { status: 'ready' });
     await runtime.close();
+  });
+
+  await t.test('legacy decoding provenance persists immutably and remains idempotent', async () => {
+    await clearPersistence(pool);
+    const input = syntheticLegacyPersistenceInput();
+    const repository = new FilingDocumentRepository(pool);
+    const inserted = await repository.persistCanonicalFiling(input);
+    const repeated = await repository.persistCanonicalFiling(input);
+    assert.equal(inserted.status, 'inserted');
+    assert.equal(repeated.status, 'already_present');
+    assert.equal(repeated.documentId, inserted.documentId);
+    const snapshot = await repository.getPersistenceSnapshot(inserted.documentId);
+    assert.ok(snapshot);
+    assert.equal(
+      snapshot.document.decodingProfileId,
+      'opendart-korean-legacy-compatible-v1',
+    );
+    assert.equal(
+      snapshot.document.decodingProfileFingerprint,
+      input.document.source.decoding?.decodingProfileFingerprint,
+    );
+    assert.equal(snapshot.document.sourceDeclaredEncoding, 'utf-8');
+    assert.equal(snapshot.document.sourceBomKind, 'none');
+    assert.equal(snapshot.document.sourceUtf8Validity, 'invalid');
+    assert.equal(
+      snapshot.document.canonicalUtf8Hash,
+      input.document.source.decoding?.canonicalUtf8Sha256,
+    );
+    await assert.rejects(runMigrations('down', databaseUrl));
+    assert.equal(
+      await relationExists(pool, 'filing_intelligence.filing_document'),
+      true,
+    );
   });
 
   await t.test('happy path is lossless and ordered across bounded batches', async () => {
@@ -294,6 +434,9 @@ test('canonical filing PostgreSQL integration', async t => {
     assert.equal(snapshot.document.blockCount, input.document.blocks.length);
     assert.equal(snapshot.document.chunkCount, input.chunks.length);
     assert.equal(snapshot.document.isRetrievalReady, false);
+    assert.equal(snapshot.document.decodingProfileId, null);
+    assert.equal(snapshot.document.decodingProfileFingerprint, null);
+    assert.equal(snapshot.document.canonicalUtf8Hash, null);
     assert.deepEqual(
       snapshot.sections.map(section => section.ordinal),
       snapshot.sections.map((_, index) => index),

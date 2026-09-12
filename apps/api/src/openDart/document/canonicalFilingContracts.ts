@@ -6,6 +6,18 @@ export const FILING_CHUNK_SCHEMA_VERSION = 1;
 // Bump chunker for boundary, retrieval prefix, chunk ID, or chunk hash changes.
 export const FILING_CHUNKER_VERSION = '1.0.1';
 
+export interface FilingDecodingProvenance {
+  readonly decodingProfileId: 'opendart-korean-legacy-compatible-v1';
+  readonly decodingProfileFingerprint: string;
+  readonly sourceDeclaredEncoding: 'utf-8' | 'utf8';
+  readonly sourceBomKind: 'none';
+  readonly sourceUtf8Validity: 'invalid';
+  readonly sourceEntrySha256: string;
+  readonly canonicalUtf8Sha256: string;
+  readonly decoderRuntimeLabel: 'node-whatwg-textdecoder:euc-kr';
+  readonly compatibilityReason: 'declaration-actual-byte-mismatch';
+}
+
 export type CanonicalFilingBlockType = 'heading' | 'paragraph' | 'note' | 'table';
 
 export interface FilingSourceLocator {
@@ -90,11 +102,13 @@ export interface CanonicalFilingDocument {
     readonly byteLength: number;
     readonly encoding: 'utf-8';
     readonly rootTag: string;
+    readonly decoding?: FilingDecodingProvenance;
     readonly compatibility?: {
       readonly mode: 'opendart-xml-v1';
       readonly repairs: {
         readonly bareAmpersandCount?: number;
         readonly literalAngleBracketCount?: number;
+        readonly carriageReturnEntityCount?: number;
       };
     };
   };

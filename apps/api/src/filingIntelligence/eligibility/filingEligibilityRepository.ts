@@ -33,6 +33,7 @@ interface DocumentRow {
   canonical_schema_name: string;
   canonical_schema_version: string;
   parser_version: string;
+  decoding_profile_id: string | null;
   chunk_schema_version: string;
   chunker_version: string;
   canonical_fingerprint: string;
@@ -142,7 +143,8 @@ function representationMatches(document: DocumentRow): boolean {
     && document.canonical_schema_version === FILING_REPRESENTATION_POLICY.canonicalSchemaVersion
     && document.parser_version === FILING_REPRESENTATION_POLICY.parserVersion
     && document.chunk_schema_version === FILING_REPRESENTATION_POLICY.chunkSchemaVersion
-    && document.chunker_version === FILING_REPRESENTATION_POLICY.chunkerVersion;
+    && document.chunker_version === FILING_REPRESENTATION_POLICY.chunkerVersion
+    && document.decoding_profile_id === null;
 }
 
 async function loadDocument(
@@ -153,7 +155,8 @@ async function loadDocument(
     `SELECT document.id::text, document.receipt_id::text, document.provider,
             document.receipt_number, document.source_entry_hash,
             document.canonical_schema_name, document.canonical_schema_version,
-            document.parser_version, document.chunk_schema_version,
+            document.parser_version, document.decoding_profile_id,
+            document.chunk_schema_version,
             document.chunker_version, document.canonical_fingerprint,
             document.chunk_fingerprint, document.section_count,
             document.block_count, document.chunk_count,

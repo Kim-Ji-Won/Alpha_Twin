@@ -5,6 +5,7 @@ import { calculateEligibilityFingerprint } from '../src/filingIntelligence/eligi
 import {
   FILING_REPRESENTATION_POLICY,
   FILING_RETRIEVAL_POLICY,
+  LEGACY_FILING_REPRESENTATION_POLICY,
   getRepresentationPolicy,
   getRetrievalPolicy,
 } from '../src/filingIntelligence/eligibility/policies.js';
@@ -39,6 +40,7 @@ function fingerprintInput() {
 
 test('filing policy registries are immutable, exact, and deterministic', () => {
   assert.equal(Object.isFrozen(FILING_REPRESENTATION_POLICY), true);
+  assert.equal(Object.isFrozen(LEGACY_FILING_REPRESENTATION_POLICY), true);
   assert.equal(Object.isFrozen(FILING_RETRIEVAL_POLICY), true);
   assert.equal(FILING_REPRESENTATION_POLICY.canonicalSchemaName, 'canonical-filing-document');
   assert.equal(FILING_REPRESENTATION_POLICY.canonicalSchemaVersion, '1');
@@ -49,9 +51,23 @@ test('filing policy registries are immutable, exact, and deterministic', () => {
   assert.equal(FILING_RETRIEVAL_POLICY.denseProfileId, null);
   assert.equal(getRepresentationPolicy(FILING_REPRESENTATION_POLICY.policyId),
     FILING_REPRESENTATION_POLICY);
+  assert.equal(getRepresentationPolicy(LEGACY_FILING_REPRESENTATION_POLICY.policyId),
+    LEGACY_FILING_REPRESENTATION_POLICY);
   assert.equal(getRetrievalPolicy(FILING_RETRIEVAL_POLICY.policyId), FILING_RETRIEVAL_POLICY);
   assert.match(FILING_REPRESENTATION_POLICY.fingerprint, /^[0-9a-f]{64}$/);
   assert.match(FILING_RETRIEVAL_POLICY.fingerprint, /^[0-9a-f]{64}$/);
+  assert.equal(
+    FILING_REPRESENTATION_POLICY.fingerprint,
+    '478517a1a011f62f788de68e174362830ff6f820b250f94dbaa6d9b71efb5d8e',
+  );
+  assert.equal(
+    FILING_RETRIEVAL_POLICY.fingerprint,
+    '6bd7c02888299b9fc6d474c0c29f287d501598f95e4ce433097f0b87bdae862e',
+  );
+  assert.equal(
+    LEGACY_FILING_REPRESENTATION_POLICY.decodingProfileId,
+    'opendart-korean-legacy-compatible-v1',
+  );
 });
 
 test('unknown policy IDs fail with a typed error', () => {

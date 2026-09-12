@@ -13,7 +13,10 @@ import { FilingLexicalRepository } from '../src/filingIntelligence/lexical/filin
 import { FILING_LEXICAL_PROFILE } from '../src/filingIntelligence/lexical/profile.js';
 import { FilingDocumentRepository } from '../src/filingIntelligence/persistence/filingDocumentRepository.js';
 import { clearPersistence, requiredTestDatabaseUrl, runMigrations } from './helpers/database.js';
-import { syntheticPersistenceInputFor } from './helpers/filingFixture.js';
+import {
+  syntheticLegacyPersistenceInput,
+  syntheticPersistenceInputFor,
+} from './helpers/filingFixture.js';
 
 const RECEIPT_A = '20990101007001';
 const RECEIPT_B = '20990101007002';
@@ -101,6 +104,7 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
       await runMigrations('up', databaseUrl);
       await runMigrations('down', databaseUrl);
       await runMigrations('down', databaseUrl);
+      await runMigrations('down', databaseUrl);
       assert.equal(await exists(pool,
         'filing_intelligence.filing_retrieval_eligibility'), false);
       assert.equal(await exists(pool,
@@ -128,6 +132,7 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
       await clearPersistence(pool);
       const persistence = new FilingDocumentRepository(pool);
       const document = await persist(persistence, RECEIPT_A, 'migration manifest backfill');
+      await runMigrations('down', databaseUrl);
       await runMigrations('down', databaseUrl);
       await runMigrations('down', databaseUrl);
       assert.equal(await exists(pool,
@@ -164,6 +169,7 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
       const persistence = new FilingDocumentRepository(pool);
       const document = await persist(persistence, RECEIPT_A, 'unsafe downgrade identity');
       await insertVersionedRepresentation(pool, document.documentId, '1', '2.0.0');
+      await runMigrations('down', databaseUrl);
       await runMigrations('down', databaseUrl);
       await assert.rejects(runMigrations('down', databaseUrl));
       assert.equal(await exists(pool,
@@ -417,6 +423,20 @@ test('filing retrieval eligibility PostgreSQL foundation', async t => {
       eligibilityError('FILING_ELIGIBILITY_GENERATION_INTEGRITY_FAILURE'),
     );
   });
+
+  await t.test('legacy representation never falls through to the existing UTF-8 policy',
+    async () => {
+      await clearPersistence(pool);
+      const persistence = new FilingDocumentRepository(pool);
+      const stored = await persistence.persistCanonicalFiling(
+        syntheticLegacyPersistenceInput(RECEIPT_A),
+      );
+      const result = await new FilingEligibilityRepository(pool)
+        .evaluateDocumentEligibility(stored.documentId, FILING_RETRIEVAL_POLICY.policyId);
+      assert.equal(result.status, 'ineligible');
+      assert.equal(result.reasonCode, 'representation_policy_mismatch');
+      assert.equal(result.representationPolicyId, FILING_REPRESENTATION_POLICY.policyId);
+    });
 
   await t.test('missing representation manifest is an integrity failure, not a missing document',
     async () => {

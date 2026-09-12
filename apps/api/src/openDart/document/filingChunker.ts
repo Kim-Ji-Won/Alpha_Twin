@@ -16,6 +16,7 @@ import {
   validateFilingChunkPolicy,
 } from './filingParserPolicy.js';
 import { normalizeFilingText, renderCanonicalTable } from './filingXmlParser.js';
+import { filingRepresentationIdentitySeed } from './filingXmlDecoding.js';
 
 interface PendingChunk {
   readonly sectionId: string | null;
@@ -249,6 +250,10 @@ export function chunkFilingDocument(
 ): FilingChunk[] {
   const policy = validateFilingChunkPolicy(chunkPolicy);
   try {
+    const representationIdentity = filingRepresentationIdentitySeed(
+      document.parserVersion,
+      document.source.decoding,
+    );
     const pending: PendingChunk[] = [];
     let textBlocks: CanonicalFilingBlock[] = [];
     const flushText = (): void => {
@@ -273,7 +278,7 @@ export function chunkFilingDocument(
       const retrievalText = prefix ? `${prefix}\n\n${sourceText}` : sourceText;
       if (retrievalText.length > policy.maximumChars) throw chunkError();
       const contentHash = sha256([
-        document.parserVersion,
+        representationIdentity,
         FILING_CHUNKER_VERSION,
         retrievalText,
       ].join('\u001f'));
@@ -289,7 +294,7 @@ export function chunkFilingDocument(
           document.provider,
           document.receiptNumber,
           document.source.entrySha256,
-          document.parserVersion,
+          representationIdentity,
           FILING_CHUNKER_VERSION,
           ordinal,
           sourceBlockIds.join(','),

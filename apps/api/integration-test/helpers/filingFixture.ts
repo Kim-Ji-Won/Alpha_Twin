@@ -80,6 +80,50 @@ export function syntheticPersistenceInput(
   return syntheticPersistenceInputFor({ paragraphCount });
 }
 
+export function syntheticLegacyPersistenceInput(
+  receiptNumber = '20990101000009',
+): PersistCanonicalFilingInput {
+  const prefix = Buffer.from(
+    '<?xml version="1.0" encoding="utf-8"?><DOCUMENT><DOCUMENT-NAME>LEGACY TEST</DOCUMENT-NAME><BODY><SECTION-1><TITLE>',
+    'ascii',
+  );
+  const suffix = Buffer.from(
+    '</TITLE><P>legacy persistence</P></SECTION-1></BODY></DOCUMENT>',
+    'ascii',
+  );
+  const content = Buffer.concat([prefix, Buffer.from([0xc7, 0xd1, 0xb1, 0xdb]), suffix]);
+  const selected: ValidatedDisclosureDocumentEntry = {
+    entryName: `${receiptNumber}.xml`,
+    format: 'xml',
+    mediaType: 'application/xml',
+    compressedSize: content.length,
+    uncompressedSize: content.length,
+    sha256: sha256(content),
+    content,
+  };
+  const document = parseFilingDocument({
+    provider: 'opendart-fss',
+    receiptNumber,
+    archiveByteLength: content.length,
+    archiveSha256: selected.sha256,
+    archiveEntryCount: 1,
+    declaredTotalUncompressedBytes: content.length,
+    extractedTotalUncompressedBytes: content.length,
+    entries: [selected],
+  });
+  return {
+    metadata: {
+      corpCode: '00164779',
+      symbol: '000660',
+      companyName: 'SK하이닉스',
+      reportName: '합성 legacy 보고서',
+      filingDate: '2099-01-01',
+    },
+    document,
+    chunks: chunkFilingDocument(document),
+  };
+}
+
 export interface SyntheticPersistenceOptions {
   readonly paragraphCount?: number;
   readonly receiptNumber?: string;

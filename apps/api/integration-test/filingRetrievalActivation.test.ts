@@ -133,6 +133,7 @@ test('filing retrieval activation PostgreSQL integration', async t => {
     assert.equal(await exists('filing_intelligence.filing_retrieval_activation'), true);
     assert.equal(await exists('filing_intelligence.filing_retrieval_activation_history'), true);
     await runMigrations('down', databaseUrl);
+    await runMigrations('down', databaseUrl);
     assert.equal(await exists('filing_intelligence.filing_retrieval_activation'), false);
     assert.equal(await exists('filing_intelligence.filing_retrieval_eligibility'), true);
     await runMigrations('up', databaseUrl);

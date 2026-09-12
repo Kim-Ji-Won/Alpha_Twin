@@ -40,6 +40,7 @@ test('dense generation queue PostgreSQL lifecycle', async t => {
   await t.test('migration up is a no-op and down/re-up preserves E-B vector tables', async () => {
     await runMigrations('up', databaseUrl, true);
     await runMigrations('down', databaseUrl, true);
+    await runMigrations('down', databaseUrl, true);
     const afterDown = await pool.query<{ queue: string | null; generation: string | null }>(
       `SELECT to_regclass('filing_intelligence.filing_dense_generation_job')::text queue,
          to_regclass('filing_intelligence.filing_dense_generation')::text generation`,

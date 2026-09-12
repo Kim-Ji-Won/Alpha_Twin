@@ -56,7 +56,7 @@ export async function runMigrations(
     direction,
     ...(direction === 'down' ? ['1'] : []),
     ...(!includeDense && direction === 'up'
-      ? ['--to', '1754773200000_filing-retrieval-activation'] : []),
+      ? ['--to', '1755295200000_legacy-filing-decoding-provenance'] : []),
     '--migrations-dir',
     'migrations',
     '--migrations-schema',

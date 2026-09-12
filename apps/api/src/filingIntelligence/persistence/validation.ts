@@ -9,6 +9,8 @@ import {
 import { PersistCanonicalFilingInput } from './contracts.js';
 import { FilingPersistenceError } from './errors.js';
 import { flattenSections, FlattenedSection } from './fingerprints.js';
+import { filingRepresentationIdentitySeed } from '../../openDart/document/filingXmlDecoding.js';
+import { LEGACY_FILING_DECODING_PROFILE } from '../../openDart/document/filingXmlDecoding.js';
 
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
 const RECEIPT_PATTERN = /^[0-9]{14}$/;
@@ -124,6 +126,11 @@ export function validatePersistenceInput(
   readonly chunks: typeof input.chunks;
 } {
   const { document, metadata } = input;
+  const representationIdentity = filingRepresentationIdentitySeed(
+    document.parserVersion,
+    document.source.decoding,
+  );
+  const decoding = document.source.decoding;
   if (
     document.provider !== 'opendart-fss'
     || !RECEIPT_PATTERN.test(document.receiptNumber)
@@ -136,6 +143,14 @@ export function validatePersistenceInput(
   ) {
     invalid();
   }
+  if (decoding && (
+    decoding.decodingProfileId !== LEGACY_FILING_DECODING_PROFILE.profileId
+    || decoding.decodingProfileFingerprint !== LEGACY_FILING_DECODING_PROFILE.fingerprint
+    || decoding.sourceEntrySha256 !== document.source.entrySha256
+    || !HASH_PATTERN.test(decoding.canonicalUtf8Sha256)
+    || decoding.sourceBomKind !== 'none'
+    || decoding.sourceUtf8Validity !== 'invalid'
+  )) invalid();
 
   const sections = flattenSections(document.sections);
   const blocks = [...document.blocks].sort((left, right) => left.ordinal - right.ordinal);
@@ -181,7 +196,7 @@ export function validatePersistenceInput(
       || chunk.chunkerVersion !== FILING_CHUNKER_VERSION
       || !HASH_PATTERN.test(chunk.contentHash)
       || chunk.contentHash !== sha256([
-        chunk.parserVersion,
+        representationIdentity,
         chunk.chunkerVersion,
         chunk.retrievalText,
       ].join('\u001f'))

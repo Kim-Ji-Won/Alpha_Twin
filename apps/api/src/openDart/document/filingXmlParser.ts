@@ -26,10 +26,14 @@ import {
   validateFilingParserPolicy,
 } from './filingParserPolicy.js';
 import {
-  decodeSafeFilingXml,
   FilingXmlCompatibilityResult,
   normalizeOpenDartXmlCompatibility,
 } from './filingXmlSafety.js';
+import {
+  decodeValidatedOpenDartMainEntry,
+  filingRepresentationIdentitySeed,
+  OpenDartDecodedMainEntry,
+} from './filingXmlDecoding.js';
 
 type OrderedNode = Record<string, unknown>;
 
@@ -281,7 +285,9 @@ function candidateProfile(
   archive: ValidatedDisclosureDocumentArchive,
   entry: ValidatedDisclosureDocumentEntry,
 ): CandidateProfile {
-  const { text } = decodeSafeFilingXml(entry.content);
+  // Main-entry ranking only depends on ASCII XML structure. Full semantic
+  // decoding is deferred until the validated OpenDART main entry is selected.
+  const text = entry.content.toString('latin1');
   const rootTag = normalizedTag(
     /<(?![!?/])\s*([A-Za-z_][A-Za-z0-9:_.-]*)\b/.exec(text)?.[1] ?? '',
   );
@@ -435,11 +441,16 @@ function canonicalize(
   policy: FilingParserPolicy,
   context: FilingParserContext,
   compatibility: FilingXmlCompatibilityResult['repairs'],
+  decoded: OpenDartDecodedMainEntry,
 ): CanonicalFilingDocument {
   const structure = countStructure(nodes, policy);
   const blocks: CanonicalFilingBlock[] = [];
   const rootSections: MutableSection[] = [];
   let sectionOrdinal = 0;
+  const identitySeed = filingRepresentationIdentitySeed(
+    FILING_XML_PARSER_VERSION,
+    decoded.provenance,
+  );
 
   const addTextBlock = (
     type: 'heading' | 'paragraph' | 'note',
@@ -458,7 +469,7 @@ function canonicalize(
       archive.provider,
       archive.receiptNumber,
       profile.entry.sha256,
-      FILING_XML_PARSER_VERSION,
+      identitySeed,
       xmlPath,
       ordinal,
       type,
@@ -503,7 +514,7 @@ function canonicalize(
       archive.provider,
       archive.receiptNumber,
       profile.entry.sha256,
-      FILING_XML_PARSER_VERSION,
+      identitySeed,
       xmlPath,
     ]);
     const table: CanonicalFilingTable = {
@@ -520,7 +531,7 @@ function canonicalize(
       archive.provider,
       archive.receiptNumber,
       profile.entry.sha256,
-      FILING_XML_PARSER_VERSION,
+      identitySeed,
       xmlPath,
       ordinal,
       'table',
@@ -581,7 +592,7 @@ function canonicalize(
             archive.provider,
             archive.receiptNumber,
             profile.entry.sha256,
-            FILING_XML_PARSER_VERSION,
+            identitySeed,
             xmlPath,
             ordinal,
             title ?? '',
@@ -682,7 +693,10 @@ function canonicalize(
       byteLength: profile.entry.content.length,
       encoding: 'utf-8',
       rootTag: profile.rootTag,
-      ...(compatibility.bareAmpersandCount > 0 || compatibility.literalAngleBracketCount > 0
+      ...(decoded.provenance ? { decoding: decoded.provenance } : {}),
+      ...(compatibility.bareAmpersandCount > 0
+        || compatibility.literalAngleBracketCount > 0
+        || (compatibility.carriageReturnEntityCount ?? 0) > 0
         ? {
             compatibility: {
               mode: 'opendart-xml-v1' as const,
@@ -692,6 +706,9 @@ function canonicalize(
                   : {}),
                 ...(compatibility.literalAngleBracketCount > 0
                   ? { literalAngleBracketCount: compatibility.literalAngleBracketCount }
+                  : {}),
+                ...((compatibility.carriageReturnEntityCount ?? 0) > 0
+                  ? { carriageReturnEntityCount: compatibility.carriageReturnEntityCount }
                   : {}),
               },
             },
@@ -719,8 +736,24 @@ export function parseFilingDocument(
   if (sha256(profile.entry.content) !== profile.entry.sha256) {
     throw parserError('OPENDART_DOCUMENT_CANONICALIZATION_FAILED');
   }
-  const decoded = decodeSafeFilingXml(profile.entry.content);
-  const compatibility = normalizeOpenDartXmlCompatibility(decoded.text);
+  const decoded = decodeValidatedOpenDartMainEntry(profile.entry.content, {
+    provider: archive.provider,
+    safeArchiveValidated: true,
+    mainEntrySelected: true,
+    sourceEntrySha256: profile.entry.sha256,
+  });
+  const compatibility = normalizeOpenDartXmlCompatibility(decoded.text, {
+    allowLegacyCarriageReturnEntity: decoded.provenance != null,
+    allowLegacyKoreanAngleLabels: decoded.provenance != null,
+  });
   const nodes = parseOrderedXml(compatibility.text, policy);
-  return canonicalize(archive, profile, nodes, policy, context, compatibility.repairs);
+  return canonicalize(
+    archive,
+    profile,
+    nodes,
+    policy,
+    context,
+    compatibility.repairs,
+    decoded,
+  );
 }

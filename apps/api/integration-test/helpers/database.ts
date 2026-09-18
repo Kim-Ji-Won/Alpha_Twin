@@ -23,19 +23,21 @@ export async function runMigrations(
   direction: 'up' | 'down',
   databaseUrl: string,
   includeDense = false,
+  includeAdmission = false,
 ): Promise<void> {
-  if (!includeDense) {
+  if (!includeDense || !includeAdmission) {
     const pool = new Pool({ connectionString: databaseUrl });
     try {
-      const denseOnlyMigrations = new Set([
-        '1755122400000_dense-generation-queue',
-        '1754946000000_dense-vector-persistence',
+      const laterTestMigrations = new Set([
+        ...(!includeAdmission ? ['1755468000000_versioned-legacy-retrieval-admission'] : []),
+        ...(!includeDense ? ['1755122400000_dense-generation-queue',
+          '1754946000000_dense-vector-persistence'] : []),
       ]);
       while (true) {
         const latest = await pool.query<{ name: string }>(
           'SELECT name FROM public.pgmigrations ORDER BY id DESC LIMIT 1',
         );
-        if (!denseOnlyMigrations.has(latest.rows[0]?.name ?? '')) break;
+        if (!laterTestMigrations.has(latest.rows[0]?.name ?? '')) break;
         await execFileAsync('npx', [
           'node-pg-migrate', 'down', '1', '--migrations-dir', 'migrations',
           '--migrations-schema', 'public', '--migrations-table', 'pgmigrations',
@@ -55,8 +57,8 @@ export async function runMigrations(
     'node-pg-migrate',
     direction,
     ...(direction === 'down' ? ['1'] : []),
-    ...(!includeDense && direction === 'up'
-      ? ['--to', '1755295200000_legacy-filing-decoding-provenance'] : []),
+    ...(!includeAdmission && direction === 'up'
+      ? ['1755295200000', '--timestamp'] : []),
     '--migrations-dir',
     'migrations',
     '--migrations-schema',

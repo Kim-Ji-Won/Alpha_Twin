@@ -15,16 +15,20 @@ import {
   FilingRepresentationSelection,
 } from './contracts.js';
 import { FilingEligibilityError } from './errors.js';
-import { calculateEligibilityFingerprint } from './fingerprints.js';
+import { calculateEligibilityFingerprint, calculateEligibilityFingerprintV2 } from './fingerprints.js';
+import { AdmissionDocument, matchRepresentation, verifyAdmissionChunks } from './representationAdmission.js';
 import {
   FILING_REPRESENTATION_POLICY,
+  FILING_RETRIEVAL_POLICY_V2,
+  allowedRepresentationPolicies,
+  RepresentationPolicy,
   getRetrievalPolicy,
 } from './policies.js';
 
 const BIGINT = /^[1-9]\d{0,18}$/;
 const HASH = /^[0-9a-f]{64}$/;
 
-interface DocumentRow {
+interface DocumentRow extends AdmissionDocument {
   id: string;
   receipt_id: string;
   provider: string;
@@ -73,8 +77,8 @@ interface EligibilityRow {
   receipt_id: string;
   retrieval_policy_id: string;
   retrieval_policy_fingerprint: string;
-  representation_policy_id: string;
-  representation_policy_fingerprint: string;
+  representation_policy_id: string | null;
+  representation_policy_fingerprint: string | null;
   status: FilingEligibilityStatus;
   reason_code: FilingEligibilityReason;
   representation_fingerprint: string;
@@ -156,6 +160,10 @@ async function loadDocument(
             document.receipt_number, document.source_entry_hash,
             document.canonical_schema_name, document.canonical_schema_version,
             document.parser_version, document.decoding_profile_id,
+            document.decoding_profile_fingerprint, document.source_declared_encoding,
+            document.source_bom_kind, document.source_utf8_validity,
+            document.canonical_utf8_hash, document.decoder_runtime_label,
+            document.decoding_compatibility_reason,
             document.chunk_schema_version,
             document.chunker_version, document.canonical_fingerprint,
             document.chunk_fingerprint, document.section_count,
@@ -314,14 +322,15 @@ function storedRowMatchesEvaluation(
   state: EvaluationState,
   retrievalPolicyId: string,
   retrievalPolicyFingerprint: string,
+  matched: RepresentationPolicy | null,
 ): boolean {
   const generation = state.generation;
   return row.document_id === document.id
     && row.receipt_id === document.receipt_id
     && row.retrieval_policy_id === retrievalPolicyId
     && row.retrieval_policy_fingerprint === retrievalPolicyFingerprint
-    && row.representation_policy_id === FILING_REPRESENTATION_POLICY.policyId
-    && row.representation_policy_fingerprint === FILING_REPRESENTATION_POLICY.fingerprint
+    && row.representation_policy_id === (matched?.policyId ?? null)
+    && row.representation_policy_fingerprint === (matched?.fingerprint ?? null)
     && row.status === state.status
     && row.reason_code === state.reasonCode
     && row.representation_fingerprint === document.representation_fingerprint
@@ -370,8 +379,18 @@ export class FilingEligibilityRepository {
       const document = await loadDocument(client, documentId);
       await verifyRepresentation(client, document);
 
+      const isV2 = policy === FILING_RETRIEVAL_POLICY_V2;
+      const matched = isV2 ? matchRepresentation(document, policy) : FILING_REPRESENTATION_POLICY;
+      if (isV2 && matched !== null) {
+        const chunks = await client.query<{ content_hash: string; retrieval_text: string }>(
+          `SELECT content_hash, retrieval_text FROM filing_intelligence.filing_chunk
+           WHERE document_id = $1 ORDER BY ordinal, chunk_id`, [documentId],
+        );
+        verifyAdmissionChunks(document, chunks.rows);
+      }
+
       let state: EvaluationState;
-      if (!representationMatches(document)) {
+      if (isV2 ? matched === null : !representationMatches(document)) {
         state = {
           status: 'ineligible',
           reasonCode: 'representation_policy_mismatch',
@@ -403,7 +422,9 @@ export class FilingEligibilityRepository {
         }
       }
 
-      const eligibilityFingerprint = calculateEligibilityFingerprint({
+      const eligibilityFingerprint = isV2
+        ? calculateEligibilityFingerprintV2(document, matched, state)
+        : calculateEligibilityFingerprint({
         retrievalPolicyId: policy.policyId,
         retrievalPolicyFingerprint: policy.fingerprint,
         representationPolicyId: FILING_REPRESENTATION_POLICY.policyId,
@@ -439,7 +460,7 @@ export class FilingEligibilityRepository {
         },
       });
       return await this.persistEvaluation(client, document, state, policy.policyId,
-        policy.fingerprint, eligibilityFingerprint, databaseNow);
+        policy.fingerprint, eligibilityFingerprint, databaseNow, matched);
     } catch (error) {
       throw mapError(error);
     }
@@ -453,6 +474,7 @@ export class FilingEligibilityRepository {
     retrievalPolicyFingerprint: string,
     eligibilityFingerprint: string,
     databaseNow: Date,
+    matched: RepresentationPolicy | null,
   ): Promise<FilingEligibilityResult> {
     const generation = state.generation;
     const values = [
@@ -460,8 +482,8 @@ export class FilingEligibilityRepository {
       document.receipt_id,
       retrievalPolicyId,
       retrievalPolicyFingerprint,
-      FILING_REPRESENTATION_POLICY.policyId,
-      FILING_REPRESENTATION_POLICY.fingerprint,
+      matched?.policyId ?? null,
+      matched?.fingerprint ?? null,
       state.status,
       state.reasonCode,
       document.representation_fingerprint,
@@ -523,7 +545,7 @@ export class FilingEligibilityRepository {
     if (!existing) throw eligibilityError('FILING_ELIGIBILITY_CONFLICT');
     if (existing.eligibility_fingerprint === eligibilityFingerprint) {
       if (!storedRowMatchesEvaluation(existing, document, state, retrievalPolicyId,
-        retrievalPolicyFingerprint)) {
+        retrievalPolicyFingerprint, matched)) {
         throw eligibilityError('FILING_ELIGIBILITY_PERSISTED_STATE_INTEGRITY_FAILURE');
       }
       return resultFor('already_evaluated', existing);
@@ -583,13 +605,13 @@ export class FilingEligibilityRepository {
          WHERE receipt_id = $1
            AND retrieval_policy_id = $2
            AND retrieval_policy_fingerprint = $3
-           AND representation_policy_id = $4
-           AND representation_policy_fingerprint = $5
+           AND (representation_policy_id, representation_policy_fingerprint) IN
+             (SELECT * FROM unnest($4::text[], $5::text[]))
            AND status = 'eligible'
          ORDER BY document_id`,
         [receiptId, policy.policyId, policy.fingerprint,
-          FILING_REPRESENTATION_POLICY.policyId,
-          FILING_REPRESENTATION_POLICY.fingerprint],
+          allowedRepresentationPolicies(policy).map(value => value.policyId),
+          allowedRepresentationPolicies(policy).map(value => value.fingerprint)],
       );
       if (result.rows.length === 0) return { status: 'not_found', receiptId };
       if (result.rows.length > 1) {

@@ -1,6 +1,12 @@
 import { Pool } from 'pg';
+import { AdmissionDocument } from '../eligibility/representationAdmission.js';
+import { AdmissionGeneration } from '../eligibility/fingerprints.js';
+import { RETRIEVAL_POLICY_V2_ID } from '../eligibility/policies.js';
 
 export interface ActiveScopeEvidenceRow {
+  readonly admission_document?: AdmissionDocument | null;
+  readonly admission_generation?: AdmissionGeneration | null;
+  readonly admission_computed_fingerprint?: string | null;
   readonly database_now: Date;
   readonly family_id: string | null;
   readonly family_provider: string | null;
@@ -134,6 +140,18 @@ const EVIDENCE_FIELDS = `
   document.id::text AS document_id, document.receipt_id::text AS document_receipt_id,
   document.provider AS document_provider, document.corp_code AS document_corp_code,
   document.symbol AS document_symbol,
+  CASE WHEN candidate.activation_policy_id = '${RETRIEVAL_POLICY_V2_ID}' THEN
+    to_jsonb(document) || jsonb_build_object(
+      'id', document.id::text, 'receipt_id', document.receipt_id::text,
+      'representation_fingerprint', manifest.representation_fingerprint)
+    ELSE NULL END AS admission_document,
+  CASE WHEN candidate.activation_policy_id = '${RETRIEVAL_POLICY_V2_ID}' THEN
+    to_jsonb(generation) || jsonb_build_object('id', generation.id::text)
+    ELSE NULL END AS admission_generation,
+  CASE WHEN candidate.activation_policy_id = '${RETRIEVAL_POLICY_V2_ID}' THEN
+    (SELECT representation_fingerprint
+     FROM filing_intelligence.compute_filing_representation_manifest(document.id))
+    ELSE NULL END AS admission_computed_fingerprint,
   eligibility.document_id::text AS eligibility_document_id,
   eligibility.receipt_id::text AS eligibility_receipt_id,
   eligibility.retrieval_policy_id AS eligibility_policy_id,

@@ -3,8 +3,11 @@ import { ActivationFingerprintInput } from '../activation/contracts.js';
 import { FilingEligibilityError } from '../eligibility/errors.js';
 import {
   FILING_REPRESENTATION_POLICY,
+  FILING_RETRIEVAL_POLICY_V2,
   getRetrievalPolicy,
 } from '../eligibility/policies.js';
+import { matchRepresentation } from '../eligibility/representationAdmission.js';
+import { calculateEligibilityFingerprintV2 } from '../eligibility/fingerprints.js';
 import { FILING_LEXICAL_PROFILE } from '../lexical/profile.js';
 import { lineageFingerprint } from '../lineage/fingerprints.js';
 import { REPRESENTATION_MANIFEST_VERSION } from '../persistence/representationManifest.js';
@@ -254,12 +257,33 @@ function activeEvidence(
     || row.eligibility_fingerprint !== activation.eligibilityFingerprint) {
     throw scopeError('FILING_ACTIVE_SCOPE_ELIGIBILITY_STALE');
   }
+  let matched = FILING_REPRESENTATION_POLICY as ReturnType<typeof matchRepresentation>;
+  if (policy === FILING_RETRIEVAL_POLICY_V2) {
+    try {
+      const document = row.admission_document;
+      const generation = row.admission_generation;
+      if (!document || !generation || document.id !== documentId
+        || row.admission_computed_fingerprint !== document.representation_fingerprint
+        || document.receipt_id !== receiptId || document.provider !== familyProvider
+        || document.receipt_number !== receiptNumber) {
+        throw scopeError('FILING_ACTIVE_SCOPE_REPRESENTATION_INTEGRITY_FAILURE');
+      }
+      matched = matchRepresentation(document, policy);
+      if (!matched || calculateEligibilityFingerprintV2(document, matched, {
+        status: 'eligible', reasonCode: 'eligible', generation,
+      }) !== row.eligibility_fingerprint) {
+        throw scopeError('FILING_ACTIVE_SCOPE_REPRESENTATION_INTEGRITY_FAILURE');
+      }
+    } catch {
+      throw scopeError('FILING_ACTIVE_SCOPE_REPRESENTATION_INTEGRITY_FAILURE');
+    }
+  }
   if (row.eligibility_policy_fingerprint !== policy.fingerprint
-    || row.eligibility_representation_policy_id !== policy.representationPolicyId
+    || row.eligibility_representation_policy_id !== matched!.policyId
     || row.eligibility_representation_policy_fingerprint
-      !== policy.representationPolicyFingerprint
-    || activation.representationPolicyId !== policy.representationPolicyId
-    || activation.representationPolicyFingerprint !== policy.representationPolicyFingerprint) {
+      !== matched!.fingerprint
+    || activation.representationPolicyId !== matched!.policyId
+    || activation.representationPolicyFingerprint !== matched!.fingerprint) {
     throw scopeError('FILING_ACTIVE_SCOPE_POLICY_DRIFT');
   }
   if (row.manifest_document_id !== documentId

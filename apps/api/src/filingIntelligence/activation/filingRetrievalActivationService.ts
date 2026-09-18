@@ -3,7 +3,7 @@ import { PoolClient } from 'pg';
 import { FilingEligibilityError } from '../eligibility/errors.js';
 import { FilingEligibilityRepository } from '../eligibility/filingEligibilityRepository.js';
 import {
-  FILING_REPRESENTATION_POLICY,
+  allowedRepresentationPolicies,
   getRetrievalPolicy,
 } from '../eligibility/policies.js';
 import { serializeJson } from '../persistence/fingerprints.js';
@@ -266,14 +266,14 @@ export class FilingRetrievalActivationService {
       throw error('FILING_ACTIVATION_INTEGRITY_FAILURE');
     }
     const discoveredDocumentIds = await this.repository.findCompatibleDocumentIds(
-      client, resolution.selectedReceiptId, FILING_REPRESENTATION_POLICY,
+      client, resolution.selectedReceiptId, allowedRepresentationPolicies(policy),
     );
     await this.repository.lockCandidateDocuments(client, discoveredDocumentIds);
     await this.repository.stabilizeSelectedReceipt(
       client, family.id, resolution.selectedReceiptId,
     );
     const documentIds = await this.repository.findCompatibleDocumentIds(
-      client, resolution.selectedReceiptId, FILING_REPRESENTATION_POLICY,
+      client, resolution.selectedReceiptId, allowedRepresentationPolicies(policy),
     );
     const evaluations = [];
     for (const documentId of documentIds) {
@@ -290,6 +290,7 @@ export class FilingRetrievalActivationService {
     }
     const selected = eligible[0]!;
     if (selected.receiptId !== resolution.selectedReceiptId
+      || selected.representationPolicyId == null || selected.representationPolicyFingerprint == null
       || selected.lexicalGenerationId == null
       || selected.lexicalGenerationFingerprint == null) {
       throw error('FILING_ACTIVATION_INTEGRITY_FAILURE');

@@ -16,22 +16,18 @@ import { FilingDenseRetrievalRepository } from '../dense/filingDenseRetrievalRep
 import { getFilingDenseProfile } from '../dense/profile.js';
 import { FILING_DENSE_RETRIEVAL_BOUNDS } from '../dense/retrievalContracts.js';
 import { prepareDenseVector } from '../dense/vector.js';
-import { FILING_RETRIEVAL_POLICY } from '../eligibility/policies.js';
 import {
   ActiveCompanyDenseSearchResult,
-  DENSE_EVALUATION_BASE_SCOPE_POLICY_ID,
   DenseGenerationProvenance,
   SearchActiveCompanyFilingsDenselyInput,
 } from './contracts.js';
 import { prepareDenseQuery, DENSE_QUERY_FORMATTER_ID } from './denseQueryFormatter.js';
 import { ActiveCompanyDenseSearchError } from './errors.js';
+import { assertTrustedScopeBinding, hasInjectedAuthority, UTF8_RETRIEVAL_SCOPE_BINDING,
+  VerifiedRetrievalScopeBinding } from './scopeBinding.js';
 
 const CORP_CODE = /^\d{8}$/u;
 const SYMBOL = /^\d{6}$/u;
-const AUTHORITY_FIELDS = [
-  'documentIds', 'generationIds', 'generations', 'queryVector', 'retrievalPolicyId',
-  'scopePolicyId', 'scope', 'verifiedGenerations',
-] as const;
 const QUERY_INPUT_ID = 'active-company-dense-query';
 const NOT_READY_REASONS = new Set([
   'generation_missing', 'generation_building', 'generation_failed',
@@ -56,7 +52,7 @@ function validateStructuralInput(input: SearchActiveCompanyFilingsDenselyInput):
     || typeof input.query !== 'string' || typeof input.denseProfileId !== 'string'
     || !Number.isInteger(topK) || topK < 1
     || topK > FILING_DENSE_RETRIEVAL_BOUNDS.maximumTopK
-    || AUTHORITY_FIELDS.some(field => Object.hasOwn(input, field))) {
+    || hasInjectedAuthority(input)) {
     throw orchestrationError('FILING_ACTIVE_DENSE_SEARCH_INVALID_INPUT');
   }
   return topK;
@@ -65,6 +61,7 @@ function validateStructuralInput(input: SearchActiveCompanyFilingsDenselyInput):
 function validateScope(
   scope: ActiveCompanyFilingScope,
   input: SearchActiveCompanyFilingsDenselyInput,
+  binding: VerifiedRetrievalScopeBinding,
 ): void {
   const entryDocumentIds = scope.entries.map(entry => entry.documentId);
   const validEmpty = scope.status === 'empty' && scope.entries.length === 0
@@ -74,8 +71,8 @@ function validateScope(
     && new Set(scope.documentIds).size === scope.documentIds.length
     && scope.documentIds.every((documentId, index) => documentId === entryDocumentIds[index]);
   if (scope.corpCode !== input.corpCode || scope.symbol !== input.symbol
-    || scope.retrievalPolicyId !== DENSE_EVALUATION_BASE_SCOPE_POLICY_ID
-    || scope.retrievalPolicyFingerprint !== FILING_RETRIEVAL_POLICY.fingerprint
+    || scope.retrievalPolicyId !== binding.policyId
+    || scope.retrievalPolicyFingerprint !== binding.policyFingerprint
     || (!validEmpty && !validActive)) {
     throw orchestrationError('FILING_ACTIVE_DENSE_SEARCH_SCOPE_INTEGRITY_FAILURE');
   }
@@ -96,7 +93,9 @@ export class ActiveCompanyDenseSearchService {
     private readonly provider: EmbeddingProvider,
     tokenizer?: DenseTokenizer,
     private readonly monotonicNow: () => number = () => performance.now(),
+    private readonly binding: VerifiedRetrievalScopeBinding = UTF8_RETRIEVAL_SCOPE_BINDING,
   ) {
+    assertTrustedScopeBinding(binding);
     this.tokenizer = tokenizer ?? createOpenAiEmbeddingTokenizer();
   }
 
@@ -108,12 +107,16 @@ export class ActiveCompanyDenseSearchService {
     if (!profile || profile.queryFormatterVersion !== DENSE_QUERY_FORMATTER_ID) {
       throw orchestrationError('FILING_ACTIVE_DENSE_SEARCH_INVALID_INPUT');
     }
+    // Scope plumbing is not approval to widen immutable dense profile inputs.
+    if (this.binding !== UTF8_RETRIEVAL_SCOPE_BINDING) {
+      throw orchestrationError('FILING_DENSE_SCOPE_COMPATIBILITY_NOT_APPROVED');
+    }
     const scope = await this.activeScope.resolveCompany({
       corpCode: input.corpCode,
       symbol: input.symbol,
-      retrievalPolicyId: DENSE_EVALUATION_BASE_SCOPE_POLICY_ID,
+      retrievalPolicyId: this.binding.policyId,
     });
-    validateScope(scope, input);
+    validateScope(scope, input, this.binding);
     const common = {
       scope,
       denseProfileId: profile.profileId,

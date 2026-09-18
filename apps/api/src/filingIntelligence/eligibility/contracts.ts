@@ -13,8 +13,8 @@ export interface FilingEligibilityResult {
   readonly receiptId: string;
   readonly retrievalPolicyId: string;
   readonly retrievalPolicyFingerprint: string;
-  readonly representationPolicyId: string;
-  readonly representationPolicyFingerprint: string;
+  readonly representationPolicyId: string | null;
+  readonly representationPolicyFingerprint: string | null;
   readonly status: FilingEligibilityStatus;
   readonly reasonCode: FilingEligibilityReason;
   readonly representationFingerprint: string;

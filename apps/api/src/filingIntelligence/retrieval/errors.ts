@@ -16,6 +16,7 @@ export class ActiveCompanyLexicalSearchError extends Error {
 }
 
 export type ActiveCompanyDenseSearchErrorCode =
+  | 'FILING_DENSE_SCOPE_COMPATIBILITY_NOT_APPROVED'
   | 'FILING_ACTIVE_DENSE_SEARCH_INVALID_INPUT'
   | 'FILING_ACTIVE_DENSE_SEARCH_SCOPE_INTEGRITY_FAILURE'
   | 'FILING_DENSE_QUERY_EMBEDDING_FAILED';

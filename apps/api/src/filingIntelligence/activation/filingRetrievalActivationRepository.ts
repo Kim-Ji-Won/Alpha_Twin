@@ -158,21 +158,23 @@ export class FilingRetrievalActivationRepository {
   async findCompatibleDocumentIds(
     client: PoolClient,
     receiptId: string,
-    policy: {
+    policies: readonly {
       readonly canonicalSchemaName: string; readonly canonicalSchemaVersion: string;
       readonly parserVersion: string; readonly chunkSchemaVersion: string;
       readonly chunkerVersion: string;
-    },
+    }[],
   ): Promise<readonly string[]> {
     const result = await client.query<{ id: string }>(
       `SELECT id::text
        FROM filing_intelligence.filing_document
-       WHERE receipt_id = $1 AND canonical_schema_name = $2
-         AND canonical_schema_version = $3 AND parser_version = $4
-         AND chunk_schema_version = $5 AND chunker_version = $6
+       WHERE receipt_id = $1 AND
+         (canonical_schema_name, canonical_schema_version, parser_version,
+          chunk_schema_version, chunker_version) IN
+         (SELECT * FROM unnest($2::text[], $3::text[], $4::text[], $5::text[], $6::text[]))
        ORDER BY id`,
-      [receiptId, policy.canonicalSchemaName, policy.canonicalSchemaVersion,
-        policy.parserVersion, policy.chunkSchemaVersion, policy.chunkerVersion],
+      [receiptId, policies.map(p => p.canonicalSchemaName), policies.map(p => p.canonicalSchemaVersion),
+        policies.map(p => p.parserVersion), policies.map(p => p.chunkSchemaVersion),
+        policies.map(p => p.chunkerVersion)],
     );
     return result.rows.map(row => row.id);
   }

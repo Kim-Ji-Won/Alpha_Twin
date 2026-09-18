@@ -1,6 +1,5 @@
 import { ActiveCompanyFilingScope } from '../activeScope/contracts.js';
 import { ActiveFilingScopeService } from '../activeScope/activeFilingScopeService.js';
-import { FILING_RETRIEVAL_POLICY } from '../eligibility/policies.js';
 import { FilingLexicalRepository } from '../lexical/filingLexicalRepository.js';
 import { lexicalizeText } from '../lexical/lexicalNormalizer.js';
 import { FILING_LEXICAL_BOUNDS, FILING_LEXICAL_PROFILE } from '../lexical/profile.js';
@@ -9,6 +8,8 @@ import {
   SearchActiveCompanyFilingsLexicallyInput,
 } from './contracts.js';
 import { ActiveCompanyLexicalSearchError } from './errors.js';
+import { assertTrustedScopeBinding, hasInjectedAuthority, UTF8_RETRIEVAL_SCOPE_BINDING,
+  VerifiedRetrievalScopeBinding } from './scopeBinding.js';
 
 const CORP_CODE = /^\d{8}$/u;
 const SYMBOL = /^\d{6}$/u;
@@ -32,7 +33,7 @@ function validateInput(input: SearchActiveCompanyFilingsLexicallyInput): void {
   const topK = input.topK ?? FILING_LEXICAL_BOUNDS.defaultTopK;
   if (!CORP_CODE.test(input.corpCode) || !SYMBOL.test(input.symbol)
     || !Number.isInteger(topK) || topK < 1 || topK > FILING_LEXICAL_BOUNDS.maximumTopK
-    || Object.hasOwn(input, 'documentIds')) {
+    || hasInjectedAuthority(input)) {
     invalidInput();
   }
   lexicalizeText(input.query, { query: true });
@@ -41,6 +42,7 @@ function validateInput(input: SearchActiveCompanyFilingsLexicallyInput): void {
 function validateScope(
   scope: ActiveCompanyFilingScope,
   input: SearchActiveCompanyFilingsLexicallyInput,
+  binding: VerifiedRetrievalScopeBinding,
 ): void {
   const entryDocumentIds = scope.entries.map(entry => entry.documentId);
   const validEmpty = scope.status === 'empty'
@@ -51,8 +53,8 @@ function validateScope(
     && new Set(scope.documentIds).size === scope.documentIds.length
     && scope.documentIds.every((documentId, index) => documentId === entryDocumentIds[index]);
   if (scope.corpCode !== input.corpCode || scope.symbol !== input.symbol
-    || scope.retrievalPolicyId !== FILING_RETRIEVAL_POLICY.policyId
-    || scope.retrievalPolicyFingerprint !== FILING_RETRIEVAL_POLICY.fingerprint
+    || scope.retrievalPolicyId !== binding.policyId
+    || scope.retrievalPolicyFingerprint !== binding.policyFingerprint
     || (!validEmpty && !validActive)) {
     scopeIntegrityFailure();
   }
@@ -62,7 +64,8 @@ export class ActiveCompanyLexicalSearchService {
   constructor(
     private readonly activeScope: ActiveScopeResolver,
     private readonly lexical: LexicalRetriever,
-  ) {}
+    private readonly binding: VerifiedRetrievalScopeBinding = UTF8_RETRIEVAL_SCOPE_BINDING,
+  ) { assertTrustedScopeBinding(binding); }
 
   async search(
     input: SearchActiveCompanyFilingsLexicallyInput,
@@ -71,9 +74,9 @@ export class ActiveCompanyLexicalSearchService {
     const scope = await this.activeScope.resolveCompany({
       corpCode: input.corpCode,
       symbol: input.symbol,
-      retrievalPolicyId: FILING_RETRIEVAL_POLICY.policyId,
+      retrievalPolicyId: this.binding.policyId,
     });
-    validateScope(scope, input);
+    validateScope(scope, input, this.binding);
     const common = { scope, lexicalProfileId: FILING_LEXICAL_PROFILE.profileId } as const;
     if (scope.documentIds.length === 0) {
       return { ...common, status: 'scope_empty', candidates: [] };

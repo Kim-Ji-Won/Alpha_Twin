@@ -16,7 +16,8 @@ import { runBenchmarkPreflight } from '../evaluation/filingDense/preflight.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../evaluation/fixtures/dense-eval-v1');
 
-async function preflightWithDatabase(database: Parameters<typeof runBenchmarkPreflight>[0]['database']) {
+async function preflightWithDatabase(untrusted: unknown) {
+  const database = untrusted as Parameters<typeof runBenchmarkPreflight>[0]['database'];
   const datasets = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   return runBenchmarkPreflight({ ...datasets, registeredProfiles: [
     { profileId: 'small', profileFingerprint: 'small-fingerprint' },
@@ -35,11 +36,7 @@ test('benchmark preflight fails closed before live work when dataset and approva
     ...datasets,
     registeredProfiles: [{ profileId: 'small', profileFingerprint: 'small-fingerprint' }],
     requiredProfileIds: ['small', 'large'],
-    database: { environment: 'benchmark', databaseName: 'alpha_twin_production', explicitNonProduction: true,
-      operatorOptIn: true, allowedEnvironmentIdentity: 'local-isolated', databaseMarker: {
-        markerId: 'alpha-twin-dense-benchmark@1', purpose: 'disposable-evaluation',
-        databaseName: 'alpha_twin_production', verifiedFromDatabase: true,
-      } },
+    database: null,
     liveBudget: { enabled: false, explicitlyApproved: false, maxOpenAiCalls: 0, maxInputTokens: 0,
       maxEstimatedCostAtomicUnits: 0n },
     pricingSnapshotProvided: false,
@@ -66,13 +63,13 @@ test('performance contract distinguishes candidate and physical corpus scale', (
   assert.equal(DENSE_PERFORMANCE_CONFIG.providerAutomaticRetries, 0);
 });
 
-test('database guard requires operator opt-in and a matching DB-verified benchmark marker', async () => {
+test('database guard rejects fabricated caller booleans without verifier-owned evidence', async () => {
   const base = { environment: 'benchmark' as const, databaseName: 'alpha_twin_benchmark',
     explicitNonProduction: true, operatorOptIn: true, allowedEnvironmentIdentity: 'local-isolated' as const,
     databaseMarker: { markerId: 'alpha-twin-dense-benchmark@1' as const,
       purpose: 'disposable-evaluation' as const, databaseName: 'alpha_twin_benchmark',
       verifiedFromDatabase: true } };
-  assert.equal((await preflightWithDatabase(base)).reasons.includes('PRODUCTION_DATABASE_GUARD'), false);
+  assert.equal((await preflightWithDatabase(base)).reasons.includes('PRODUCTION_DATABASE_GUARD'), true);
   assert.equal((await preflightWithDatabase({ ...base, operatorOptIn: false })).reasons
     .includes('PRODUCTION_DATABASE_GUARD'), true);
   assert.equal((await preflightWithDatabase({ ...base, databaseMarker: {

@@ -1,20 +1,7 @@
 import { canonicalSha256 } from './canonical.js';
 import { DENSE_EVAL_CRITICAL_CATEGORIES, DenseEvalDatasetEnvelope } from './contracts.js';
 import { assessDatasetReadiness, evaluateDatasetCoverage } from './dataset.js';
-
-export interface BenchmarkDatabaseTarget {
-  readonly environment: 'benchmark' | 'test';
-  readonly databaseName: string;
-  readonly explicitNonProduction: boolean;
-  readonly operatorOptIn: boolean;
-  readonly allowedEnvironmentIdentity: 'local-isolated' | 'ci-benchmark';
-  readonly databaseMarker: {
-    readonly markerId: 'alpha-twin-dense-benchmark@1';
-    readonly purpose: 'disposable-evaluation';
-    readonly databaseName: string;
-    readonly verifiedFromDatabase: boolean;
-  };
-}
+import { isTrustedBenchmarkTarget, TrustedBenchmarkTargetEvidence } from './verifyBenchmarkTarget.js';
 
 export interface LiveCallBudget {
   readonly enabled: boolean;
@@ -37,7 +24,7 @@ export interface BenchmarkPreflightInput {
   readonly holdout: DenseEvalDatasetEnvelope;
   readonly registeredProfiles: readonly { readonly profileId: string; readonly profileFingerprint: string }[];
   readonly requiredProfileIds: readonly [string, string];
-  readonly database: BenchmarkDatabaseTarget;
+  readonly database: TrustedBenchmarkTargetEvidence | null;
   readonly liveBudget: LiveCallBudget;
   readonly pricingSnapshotProvided: boolean;
   readonly benchmarkConfigValid: boolean;
@@ -45,19 +32,6 @@ export interface BenchmarkPreflightInput {
   readonly largeCalibrationStatus: 'verified' | 'not_verified';
   readonly bothProfilesFullScopeReady: boolean;
   readonly performanceFixtureCandidateRows: number;
-}
-
-function databaseAllowed(target: BenchmarkDatabaseTarget): boolean {
-  const name = target.databaseName.toLocaleLowerCase('en-US');
-  return target.explicitNonProduction && (target.environment === 'benchmark' || target.environment === 'test')
-    && target.operatorOptIn
-    && ['local-isolated', 'ci-benchmark'].includes(target.allowedEnvironmentIdentity)
-    && target.databaseMarker.markerId === 'alpha-twin-dense-benchmark@1'
-    && target.databaseMarker.purpose === 'disposable-evaluation'
-    && target.databaseMarker.verifiedFromDatabase
-    && target.databaseMarker.databaseName === target.databaseName
-    && (name.includes('benchmark') || name.includes('test'))
-    && !name.includes('production') && !/(^|[_-])prod($|[_-])/.test(name);
 }
 
 export function runBenchmarkPreflight(input: BenchmarkPreflightInput) {
@@ -73,7 +47,8 @@ export function runBenchmarkPreflight(input: BenchmarkPreflightInput) {
   if (new Set(input.registeredProfiles.map(profile => profile.profileFingerprint)).size !== input.registeredProfiles.length) {
     reasons.push('PROFILE_FINGERPRINT_COLLISION');
   }
-  if (!databaseAllowed(input.database)) reasons.push('PRODUCTION_DATABASE_GUARD');
+  const database = isTrustedBenchmarkTarget(input.database) ? input.database : null;
+  if (!database) reasons.push('PRODUCTION_DATABASE_GUARD');
   if (!input.liveBudget.enabled || !input.liveBudget.explicitlyApproved
     || !Number.isSafeInteger(input.liveBudget.maxOpenAiCalls)
     || !Number.isSafeInteger(input.liveBudget.maxInputTokens)
@@ -91,7 +66,7 @@ export function runBenchmarkPreflight(input: BenchmarkPreflightInput) {
     datasetHashes: { dev: input.dev.canonicalHash, holdout: input.holdout.canonicalHash },
     configHash: canonicalSha256({
       requiredProfileIds: input.requiredProfileIds,
-      database: input.database,
+      database,
       liveBudget: { ...input.liveBudget, maxEstimatedCostAtomicUnits: input.liveBudget.maxEstimatedCostAtomicUnits.toString() },
       performanceFixtureCandidateRows: input.performanceFixtureCandidateRows,
     }),

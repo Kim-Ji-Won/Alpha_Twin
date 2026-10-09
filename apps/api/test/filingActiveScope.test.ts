@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { AdmissionDenied, AdmissionGuard } from '../src/filingIntelligence/admission/guard.js';
+import { evidence as syntheticAdmissionEvidence } from './fixtures/admission.js';
 
 import { activationFingerprint } from '../src/filingIntelligence/activation/fingerprints.js';
 import { ActiveFilingScopeService } from '../src/filingIntelligence/activeScope/activeFilingScopeService.js';
@@ -140,6 +142,59 @@ class Loader {
   async loadFamily() { return this.rows[0]!; }
   async loadCompany() { this.companyLoads += 1; return this.rows; }
 }
+
+function admissionGuard(deny = false) {
+  return new AdmissionGuard({ async load(binding) {
+    const e = syntheticAdmissionEvidence(binding);
+    for (const a of e.artifacts) {
+      a.source.request.startedAt = NOW.toISOString();
+      a.source.response.headersObservedAt = NOW.toISOString();
+      a.source.response.bodyReceivedAt = NOW.toISOString();
+    }
+    if (deny) e.lineage = null;
+    return e;
+  } }, { now: () => NOW.toISOString() });
+}
+
+test('guarded actual scope service checks both family and company before return', async () => {
+  const service = ActiveFilingScopeService.guarded(new Loader([rowFor()]), admissionGuard());
+  assert.equal((await service.resolveFamily({ familyId: '1', retrievalPolicyId: FILING_RETRIEVAL_POLICY.policyId })).status, 'active');
+  assert.equal((await service.resolveCompany({ corpCode: '55555555', symbol: '555555', retrievalPolicyId: FILING_RETRIEVAL_POLICY.policyId })).status, 'active');
+});
+
+test('guarded actual scope service rejects unsupported evidence, preserves veto semantics', async () => {
+  const service = ActiveFilingScopeService.guarded(new Loader([rowFor()]), admissionGuard(true));
+  await assert.rejects(service.resolveFamily({ familyId: '1', retrievalPolicyId: FILING_RETRIEVAL_POLICY.policyId }), AdmissionDenied);
+  await assert.rejects(service.resolveCompany({ corpCode: '55555555', symbol: '555555', retrievalPolicyId: FILING_RETRIEVAL_POLICY.policyId }), AdmissionDenied);
+  const veto = ActiveFilingScopeService.guarded(new Loader([hold(rowFor(), null)]), admissionGuard(true));
+  assert.equal((await veto.resolveFamily({ familyId: '1', retrievalPolicyId: FILING_RETRIEVAL_POLICY.policyId })).status, 'vetoed');
+});
+
+test('guarded scope factory requires guard and never silently selects legacy', () => {
+  assert.throws(() => ActiveFilingScopeService.guarded(new Loader([]), undefined as never), AdmissionDenied);
+});
+
+for (const kind of ['family', 'company'] as const) test(`F3 public ${kind} scope returns owned snapshot after provider mutation`, async () => {
+  const row = rowFor(); const loader = new Loader([row]); let mutated = false;
+  const guard = new AdmissionGuard({ async load(binding) {
+    const e = syntheticAdmissionEvidence(binding);
+    for (const a of e.artifacts) {
+      a.source.request.startedAt = NOW.toISOString(); a.source.response.headersObservedAt = NOW.toISOString();
+      a.source.response.bodyReceivedAt = NOW.toISOString();
+    }
+    Object.assign(row, { activation_representation_fingerprint: 'b'.repeat(64) }); mutated = true;
+    return e;
+  } }, { now: () => NOW.toISOString() });
+  const service = ActiveFilingScopeService.guarded(loader, guard);
+  const r = kind === 'family'
+    ? await service.resolveFamily({ familyId: '1', retrievalPolicyId: FILING_RETRIEVAL_POLICY.policyId })
+    : await service.resolveCompany({ corpCode: '55555555', symbol: '555555', retrievalPolicyId: FILING_RETRIEVAL_POLICY.policyId });
+  assert.equal(mutated, true); const entry = 'entries' in r ? r.entries[0]! : r.entry!;
+  assert.equal(entry.representationFingerprint, REPRESENTATION_HASH);
+  assert.equal(Object.isFrozen(r), true); assert.equal(Object.isFrozen(entry), true);
+  assert.equal(Object.isFrozen(row), false);
+  Object.assign(row, { activation_eligibility_revision: '999' }); assert.equal(entry.eligibilityRevision, '1');
+});
 
 function activeScopeError(code: ActiveFilingScopeError['code']) {
   return (value: unknown) => value instanceof ActiveFilingScopeError && value.code === code;

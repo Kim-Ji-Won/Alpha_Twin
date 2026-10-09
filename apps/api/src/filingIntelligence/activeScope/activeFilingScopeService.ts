@@ -1,4 +1,5 @@
 import { activationFingerprint } from '../activation/fingerprints.js';
+import { AdmissionDenied, AdmissionGuard, requireAdmissionGuard } from '../admission/guard.js';
 import { ActivationFingerprintInput } from '../activation/contracts.js';
 import { FilingEligibilityError } from '../eligibility/errors.js';
 import {
@@ -57,6 +58,7 @@ function postgresCode(value: unknown): string | undefined {
 }
 
 function mapError(value: unknown): ActiveFilingScopeError {
+  if (value instanceof AdmissionDenied) throw value;
   if (value instanceof ActiveFilingScopeError) return value;
   if (value instanceof FilingEligibilityError
     && value.code === 'FILING_ELIGIBILITY_POLICY_UNKNOWN') {
@@ -374,7 +376,12 @@ function compareEntries(left: ActiveFilingScopeEntry, right: ActiveFilingScopeEn
 }
 
 export class ActiveFilingScopeService {
-  constructor(private readonly repository: EvidenceLoader | ActiveFilingScopeRepository) {}
+  constructor(private readonly repository: EvidenceLoader | ActiveFilingScopeRepository,
+    private readonly admission?: AdmissionGuard) {}
+
+  static guarded(repository: EvidenceLoader | ActiveFilingScopeRepository, guard: AdmissionGuard): ActiveFilingScopeService {
+    return new ActiveFilingScopeService(repository, requireAdmissionGuard(guard));
+  }
 
   async resolveFamily(
     input: ResolveActiveFamilyFilingScopeInput,
@@ -414,11 +421,12 @@ export class ActiveFilingScopeService {
       const scopeFingerprint = activeFilingScopeFingerprint({
         ...common, entries, vetoes,
       });
-      return evidence.veto == null
+      const result: ActiveFamilyFilingScope = evidence.veto == null
         ? { ...common, status: 'active', entry: evidence.entry, veto: null,
           documentIds: [evidence.entry.documentId], scopeFingerprint }
         : { ...common, status: 'vetoed', entry: null, veto: evidence.veto,
           documentIds: [], scopeFingerprint };
+      return this.admission ? await this.admission.session().scope(result) : result;
     } catch (cause) {
       throw mapError(cause);
     }
@@ -463,7 +471,7 @@ export class ActiveFilingScopeService {
         entries,
         vetoes,
       };
-      return {
+      const result: ActiveCompanyFilingScope = {
         scopeId: ACTIVE_FILING_SCOPE_ID,
         scopeVersion: ACTIVE_FILING_SCOPE_VERSION,
         retrievalPolicyId: policy.policyId,
@@ -477,6 +485,7 @@ export class ActiveFilingScopeService {
         resolvedAt: now.toISOString(),
         scopeFingerprint: activeFilingScopeFingerprint(fingerprintInput),
       };
+      return this.admission ? await this.admission.session().scope(result) : result;
     } catch (cause) {
       throw mapError(cause);
     }

@@ -1,4 +1,6 @@
 import { PoolClient } from 'pg';
+import { AdmissionDenied, AdmissionGuard, AdmissionSession, requireAdmissionGuard } from '../admission/guard.js';
+import { Binding } from '../admission/policy.js';
 
 import { FilingEligibilityError } from '../eligibility/errors.js';
 import { FilingEligibilityRepository } from '../eligibility/filingEligibilityRepository.js';
@@ -45,6 +47,7 @@ function postgresCode(value: unknown): string | undefined {
 }
 
 function mapError(value: unknown): FilingRetrievalActivationError {
+  if (value instanceof AdmissionDenied) throw value;
   if (value instanceof FilingRetrievalActivationError) return value;
   if (value instanceof FilingResolutionError) {
     return error('FILING_ACTIVATION_INTEGRITY_FAILURE', value);
@@ -206,11 +209,18 @@ export class FilingRetrievalActivationService {
     private readonly repository: FilingRetrievalActivationRepository,
     private readonly graphs: VerifiedFilingGraphRepository,
     private readonly eligibility: FilingEligibilityRepository,
+    private readonly admission?: AdmissionGuard,
   ) {}
+
+  static guarded(repository: FilingRetrievalActivationRepository, graphs: VerifiedFilingGraphRepository,
+    eligibility: FilingEligibilityRepository, guard: AdmissionGuard): FilingRetrievalActivationService {
+    return new FilingRetrievalActivationService(repository, graphs, eligibility, requireAdmissionGuard(guard));
+  }
 
   async apply(
     input: ApplyFilingRetrievalActivationInput,
   ): Promise<ApplyFilingRetrievalActivationResult> {
+    const session = this.admission?.session();
     if (input.resolution.familyId == null || !BIGINT.test(input.resolution.familyId)) {
       throw error('FILING_ACTIVATION_INVALID_INPUT');
     }
@@ -221,9 +231,27 @@ export class FilingRetrievalActivationService {
       throw mapError(cause);
     }
     try {
-      return await this.repository.transaction(client => this.applyWithClient(
-        client, input.resolution, policy,
-      ));
+      if (session && input.resolution.selectedReceiptNumber) {
+        await session.check(this.resolutionBinding(input.resolution, policy.policyId), 'admission');
+      }
+      return await this.repository.transaction(async client => {
+        const result = await this.applyWithClient(client, input.resolution, policy, session);
+        // Still inside the transaction: rejection here must precede COMMIT.
+        if (session && result.activation?.status === 'active') {
+          const graph = await this.graphs.loadWithClient(client, {
+            provider: input.resolution.provider, corpCode: input.resolution.corpCode,
+            symbol: input.resolution.symbol, lineageRootReceiptNumber: input.resolution.lineageRootReceiptNumber,
+          }, input.resolution.familyId!, new Date(this.admission!.now()));
+          if (!graph.snapshot) throw new AdmissionDenied(['RETURN_TARGET_MISSING']);
+          assertFresh(input.resolution, resolveVerifiedFamilyGraph(graph.snapshot));
+          const member = graph.snapshot?.members.find(m => m.receipt.id === result.activation!.receiptId);
+          if (!member) throw new AdmissionDenied(['RETURN_TARGET_MISSING']);
+          await session.check(this.activationBinding(input.resolution, result.activation, member.receipt.receiptNumber),
+            ['retained_existing', 'already_current', 'candidate_not_ready'].includes(result.status) ? 'use' : 'admission', client);
+        }
+        if (session) await session.finalizeWrites(client);
+        return result;
+      });
     } catch (cause) {
       throw mapError(cause);
     }
@@ -233,6 +261,7 @@ export class FilingRetrievalActivationService {
     client: PoolClient,
     supplied: CurrentEffectiveReceiptResolution,
     policy: ReturnType<typeof getRetrievalPolicy>,
+    session?: AdmissionSession,
   ): Promise<ApplyFilingRetrievalActivationResult> {
     const time = await client.query<{ database_now: Date }>(
       'SELECT clock_timestamp() AS database_now',
@@ -257,8 +286,12 @@ export class FilingRetrievalActivationService {
     assertFresh(supplied, resolution);
     const action = activationActionFor(resolution.resolutionStatus);
     if (action === 'invalid') throw error('FILING_ACTIVATION_INVALID_INPUT');
+    if (session && action === 'evaluate') {
+      await session.check(this.resolutionBinding(resolution, policy.policyId), 'admission', client);
+    }
     if (action === 'retain') return { status: 'retained_existing', activation: current };
     if (action === 'deactivate') {
+      if (session) throw new AdmissionDenied(['DEACTIVATION_REQUIRES_SEPARATE_AUTHORITY']);
       if (current == null) return { status: 'inactive_noop', activation: null };
       return this.deactivate(client, current, resolution, policy, databaseNow);
     }
@@ -277,6 +310,7 @@ export class FilingRetrievalActivationService {
     );
     const evaluations = [];
     for (const documentId of documentIds) {
+      if (session) await session.beforeWrite({ ...this.resolutionBinding(resolution, policy.policyId), documentId }, client);
       evaluations.push(await this.eligibility.evaluateDocumentEligibilityWithClient(
         client, documentId, policy.policyId, databaseNow,
       ));
@@ -312,6 +346,7 @@ export class FilingRetrievalActivationService {
       activatedAt: current?.status === 'active'
         && current.documentId === selected.documentId ? current.activatedAt : databaseNow,
     });
+    if (session) await session.beforeWrite(this.activationBinding(resolution, next, resolution.selectedReceiptNumber!), client);
     if (current?.activationFingerprint === next.activationFingerprint) {
       return { status: 'already_current', activation: current };
     }
@@ -320,6 +355,29 @@ export class FilingRetrievalActivationService {
       : current.documentId === next.documentId ? 'refresh' : 'switch';
     return this.persist(client, current, next, eventType,
       transitionReason(eventType, resolution, current, next));
+  }
+
+  private resolutionBinding(r: CurrentEffectiveReceiptResolution, retrievalPolicyId: string): Binding {
+    if (!r.familyId || !r.selectedReceiptNumber) throw new AdmissionDenied(['TARGET_MISSING']);
+    return { provider: r.provider, corpCode: r.corpCode, symbol: r.symbol,
+      receiptNumber: r.selectedReceiptNumber, receiptId: r.selectedReceiptId,
+      familyId: r.familyId, lineageRootReceiptNumber: r.lineageRootReceiptNumber,
+      familyRevision: r.familyRevision, familyFingerprint: r.familyFingerprint,
+      resolutionFingerprint: r.resolutionFingerprint, memberCount: String(r.memberCount),
+      relationCount: String(r.relationCount), retrievalPolicyId };
+  }
+
+  private activationBinding(r: CurrentEffectiveReceiptResolution, a: FilingRetrievalActivationState, receiptNumber: string): Binding {
+    return { provider: r.provider, corpCode: r.corpCode, symbol: r.symbol,
+      receiptNumber, receiptId: a.receiptId, familyId: a.familyId,
+      lineageRootReceiptNumber: r.lineageRootReceiptNumber,
+      familyRevision: a.familyRevision, familyFingerprint: a.familyFingerprint,
+      currentFamilyRevision: r.familyRevision, currentFamilyFingerprint: r.familyFingerprint,
+      memberCount: String(r.memberCount), relationCount: String(r.relationCount),
+      resolutionFingerprint: a.resolutionFingerprint, documentId: a.documentId,
+      representationFingerprint: a.representationFingerprint, eligibilityRevision: a.eligibilityRevision,
+      eligibilityFingerprint: a.eligibilityFingerprint, lexicalGenerationId: a.lexicalGenerationId,
+      lexicalGenerationFingerprint: a.lexicalGenerationFingerprint, retrievalPolicyId: a.retrievalPolicyId };
   }
 
   private async deactivate(

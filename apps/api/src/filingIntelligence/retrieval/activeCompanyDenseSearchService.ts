@@ -1,4 +1,5 @@
 import { ActiveCompanyFilingScope } from '../activeScope/contracts.js';
+import { AdmissionDenied, AdmissionGuard, requireAdmissionGuard } from '../admission/guard.js';
 import { ActiveFilingScopeService } from '../activeScope/activeFilingScopeService.js';
 import {
   createOpenAiEmbeddingTokenizer,
@@ -94,9 +95,16 @@ export class ActiveCompanyDenseSearchService {
     tokenizer?: DenseTokenizer,
     private readonly monotonicNow: () => number = () => performance.now(),
     private readonly binding: VerifiedRetrievalScopeBinding = UTF8_RETRIEVAL_SCOPE_BINDING,
+    private readonly admission?: AdmissionGuard,
   ) {
     assertTrustedScopeBinding(binding);
     this.tokenizer = tokenizer ?? createOpenAiEmbeddingTokenizer();
+  }
+
+  static guarded(activeScope: ActiveScopeResolver, dense: DenseRepository, provider: EmbeddingProvider,
+    guard: AdmissionGuard, tokenizer?: DenseTokenizer): ActiveCompanyDenseSearchService {
+    return new ActiveCompanyDenseSearchService(activeScope, dense, provider, tokenizer,
+      () => performance.now(), UTF8_RETRIEVAL_SCOPE_BINDING, requireAdmissionGuard(guard));
   }
 
   async search(
@@ -111,12 +119,14 @@ export class ActiveCompanyDenseSearchService {
     if (this.binding !== UTF8_RETRIEVAL_SCOPE_BINDING) {
       throw orchestrationError('FILING_DENSE_SCOPE_COMPATIBILITY_NOT_APPROVED');
     }
-    const scope = await this.activeScope.resolveCompany({
+    let scope = await this.activeScope.resolveCompany({
       corpCode: input.corpCode,
       symbol: input.symbol,
       retrievalPolicyId: this.binding.policyId,
     });
     validateScope(scope, input, this.binding);
+    const session = this.admission?.session();
+    if (session) scope = await session.scope(scope);
     const common = {
       scope,
       denseProfileId: profile.profileId,
@@ -127,12 +137,23 @@ export class ActiveCompanyDenseSearchService {
       return { ...common, status: 'scope_empty', generations: [], candidates: [] };
     }
 
-    const readiness = await this.dense.resolveDenseReadiness({
+    if (session) scope = await session.scope(scope);
+    const loadedReadiness = await this.dense.resolveDenseReadiness({
       corpCode: input.corpCode,
       symbol: input.symbol,
       documentIds: scope.documentIds,
       denseProfileId: profile.profileId,
     });
+    const readiness = session ? structuredClone(loadedReadiness) : loadedReadiness;
+    if (session) {
+      readiness.generations.forEach(Object.freeze);
+      Object.freeze(readiness.generations);
+      if (readiness.status === 'not_ready') {
+        readiness.reasons.forEach(Object.freeze); Object.freeze(readiness.reasons);
+      }
+      Object.freeze(readiness);
+      scope = await session.scope(scope);
+    }
     if (readiness.denseProfileId !== profile.profileId
       || readiness.denseProfileFingerprint !== profile.profileFingerprint) {
       throw orchestrationError('FILING_ACTIVE_DENSE_SEARCH_SCOPE_INTEGRITY_FAILURE');
@@ -157,8 +178,19 @@ export class ActiveCompanyDenseSearchService {
         generation.documentId !== scope.documentIds[index])) {
       throw orchestrationError('FILING_ACTIVE_DENSE_SEARCH_SCOPE_INTEGRITY_FAILURE');
     }
+    if (session && (new Set(scope.entries.map(entry => entry.documentId)).size !== scope.entries.length
+      || scope.entries.length !== readiness.generations.length
+      || readiness.generations.some((generation, index) => {
+        const entry = scope.entries[index];
+        return !entry || generation.documentId !== entry.documentId
+          || !/^[a-f0-9]{64}$/.test(generation.representationFingerprint)
+          || generation.representationFingerprint !== entry.representationFingerprint;
+      }))) {
+      throw new AdmissionDenied(['DENSE_REPRESENTATION_MISMATCH']);
+    }
 
     const query = prepareDenseQuery(input.query, this.tokenizer);
+    if (session) scope = await session.scope(scope);
     const startedAt = this.monotonicNow();
     let response: Awaited<ReturnType<EmbeddingProvider['embedBatch']>>;
     try {
@@ -192,6 +224,7 @@ export class ActiveCompanyDenseSearchService {
         denseProfileFingerprint: profile.profileFingerprint,
       })),
     );
+    if (session) scope = await session.scope(scope);
     const candidates = await this.dense.retrieveDenseFilingChunks({
       corpCode: input.corpCode,
       symbol: input.symbol,
@@ -201,6 +234,15 @@ export class ActiveCompanyDenseSearchService {
       queryVector,
       topK,
     });
+    if (session) {
+      scope = await session.scope(scope);
+      if (candidates.some(c => !scope.entries.some(e => e.documentId === c.documentId
+        && e.receiptNumber === c.receiptNumber) || c.provider !== 'opendart-fss' || c.corpCode !== scope.corpCode || c.symbol !== scope.symbol
+        || c.denseProfileId !== profile.profileId || !readiness.generations.some(g =>
+          g.documentId === c.documentId && g.generationId === c.generationId && g.generationFingerprint === c.generationFingerprint))) {
+        throw new AdmissionDenied(['RESULT_TARGET_MISMATCH']);
+      }
+    }
     const queryEmbedding = Object.freeze({
       provider: response.provider,
       requestedModel: profile.modelId,

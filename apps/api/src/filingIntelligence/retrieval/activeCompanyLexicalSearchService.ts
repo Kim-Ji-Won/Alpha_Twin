@@ -1,4 +1,5 @@
 import { ActiveCompanyFilingScope } from '../activeScope/contracts.js';
+import { AdmissionDenied, AdmissionGuard, requireAdmissionGuard } from '../admission/guard.js';
 import { ActiveFilingScopeService } from '../activeScope/activeFilingScopeService.js';
 import { FilingLexicalRepository } from '../lexical/filingLexicalRepository.js';
 import { lexicalizeText } from '../lexical/lexicalNormalizer.js';
@@ -65,22 +66,31 @@ export class ActiveCompanyLexicalSearchService {
     private readonly activeScope: ActiveScopeResolver,
     private readonly lexical: LexicalRetriever,
     private readonly binding: VerifiedRetrievalScopeBinding = UTF8_RETRIEVAL_SCOPE_BINDING,
+    private readonly admission?: AdmissionGuard,
   ) { assertTrustedScopeBinding(binding); }
+
+  static guarded(activeScope: ActiveScopeResolver, lexical: LexicalRetriever, guard: AdmissionGuard,
+    binding: VerifiedRetrievalScopeBinding = UTF8_RETRIEVAL_SCOPE_BINDING): ActiveCompanyLexicalSearchService {
+    return new ActiveCompanyLexicalSearchService(activeScope, lexical, binding, requireAdmissionGuard(guard));
+  }
 
   async search(
     input: SearchActiveCompanyFilingsLexicallyInput,
   ): Promise<ActiveCompanyLexicalSearchResult> {
     validateInput(input);
-    const scope = await this.activeScope.resolveCompany({
+    let scope = await this.activeScope.resolveCompany({
       corpCode: input.corpCode,
       symbol: input.symbol,
       retrievalPolicyId: this.binding.policyId,
     });
     validateScope(scope, input, this.binding);
+    const session = this.admission?.session();
+    if (session) scope = await session.scope(scope);
     const common = { scope, lexicalProfileId: FILING_LEXICAL_PROFILE.profileId } as const;
     if (scope.documentIds.length === 0) {
       return { ...common, status: 'scope_empty', candidates: [] };
     }
+    if (session) scope = await session.scope(scope);
     const candidates = await this.lexical.retrieveLexicalFilingChunks({
       corpCode: input.corpCode,
       symbol: input.symbol,
@@ -88,6 +98,13 @@ export class ActiveCompanyLexicalSearchService {
       query: input.query,
       topK: input.topK,
     });
+    if (session) {
+      scope = await session.scope(scope);
+      if (candidates.some(c => !scope.entries.some(e => e.documentId === c.documentId
+        && e.receiptNumber === c.receiptNumber) || c.provider !== 'opendart-fss' || c.corpCode !== scope.corpCode || c.symbol !== scope.symbol)) {
+        throw new AdmissionDenied(['RESULT_TARGET_MISMATCH']);
+      }
+    }
     if (candidates.length === 0) {
       return { ...common, status: 'no_matches', candidates: [] };
     }

@@ -3,6 +3,7 @@ import { fingerprint } from '../../../evaluation/filingDense/evidenceMapping/inp
 import { parseInstant } from '../../../evaluation/filingDense/evidenceMapping/input.js';
 import { AdmissionEvidence, assessEvidence, Binding, GateResult, Operation } from './policy.js';
 import type { ActiveCompanyFilingScope, ActiveFamilyFilingScope } from '../activeScope/contracts.js';
+import { EvidenceProviderError } from './providerErrors.js';
 
 export class AdmissionDenied extends Error {
   readonly code = 'FILING_ADMISSION_DENIED';
@@ -11,7 +12,7 @@ export class AdmissionDenied extends Error {
 export interface EvidenceProvider {
   // Internal DI only. Must independently bind the loaded evidence to current DB/reviewer authority.
   // Transaction-aware implementations use this client, not another snapshot/connection.
-  load(binding: Binding, client?: PoolClient): Promise<AdmissionEvidence | null>;
+  load(binding: Binding, client?: PoolClient, operation?: Operation): Promise<AdmissionEvidence | null>;
 }
 export interface AdmissionClock { now(): string }
 export const systemAdmissionClock: AdmissionClock = Object.freeze({ now: () => new Date().toISOString() });
@@ -25,8 +26,10 @@ export class AdmissionGuard {
   now(): string { return this.clock.now(); }
   async inspect(binding: Binding, operation: Operation, client?: PoolClient): Promise<GateResult> {
     let evidence: AdmissionEvidence | null;
-    try { evidence = await this.provider.load(structuredClone(binding), client); }
-    catch { throw new AdmissionDenied(['EVIDENCE_PROVIDER_FAILED']); }
+    try { evidence = await this.provider.load(structuredClone(binding), client, operation); }
+    catch (error) {
+      throw new AdmissionDenied([error instanceof EvidenceProviderError ? error.code : 'EVIDENCE_PROVIDER_FAILED']);
+    }
     if (!evidence) throw new AdmissionDenied(['EVIDENCE_UNAVAILABLE']);
     let result: GateResult;
     try { result = assessEvidence(evidence, binding, operation, this.clock.now()); }

@@ -91,6 +91,10 @@ function integrity(): never {
   throw new FilingResolutionError('FILING_RESOLUTION_GRAPH_INTEGRITY_FAILURE', false);
 }
 
+export class GraphRowCardinalityError extends FilingResolutionError {
+  constructor() { super('FILING_RESOLUTION_GRAPH_INTEGRITY_FAILURE', false); }
+}
+
 function mapMember(row: MemberRow): ResolutionMemberSnapshot {
   if (!oneOf(FILING_PROVIDERS, row.provider)
     || !oneOf(FILING_LEGAL_STATUSES, row.legal_status)
@@ -181,7 +185,8 @@ async function readSnapshot(
      WHERE provider = $1 AND receipt_number = $2`,
     [input.provider, input.lineageRootReceiptNumber],
   );
-  const root = rootResult.rows[0];
+  const root = rootResult.rows[0] ? { ...rootResult.rows[0] } : undefined;
+  if (rootResult.rows.length > 1) throw new GraphRowCardinalityError();
   if (!root) return { databaseNow, snapshot: null };
   if (root.corp_code !== input.corpCode || root.symbol !== input.symbol) {
     throw new FilingResolutionError('FILING_RESOLUTION_FAMILY_IDENTITY_MISMATCH', false);
@@ -194,7 +199,9 @@ async function readSnapshot(
        AND ($4::bigint IS NULL OR id = $4)`,
     [input.provider, input.corpCode, root.id, options.expectedFamilyId ?? null],
   );
-  const family = familyResult.rows[0];
+  // These row fields are primitives; detach them before any subsequent query/hook await.
+  const family = familyResult.rows[0] ? { ...familyResult.rows[0] } : undefined;
+  if (familyResult.rows.length > 1) throw new GraphRowCardinalityError();
   if (!family) return { databaseNow, snapshot: null };
   if (!oneOf(FILING_PROVIDERS, family.provider)
     || family.symbol !== input.symbol
@@ -212,6 +219,7 @@ async function readSnapshot(
      ORDER BY receipt.id${receiptLock}`,
     [family.id],
   );
+  const memberSnapshots = members.rows.map(mapMember);
   const relations = await client.query<RelationRow>(
     `SELECT id::text, correction_receipt_id::text, corrects_receipt_id::text,
             relation_type, relation_source, verification_reference_hash,
@@ -221,6 +229,7 @@ async function readSnapshot(
      ORDER BY correction_receipt_id, corrects_receipt_id, id`,
     [family.id],
   );
+  const relationSnapshots = relations.rows.map(mapRelation);
   const control = await client.query<ControlRow>(
     `SELECT family_id::text, mode, selected_receipt_id::text, reason_code,
             reference_hash, actor_reference_hash, expires_at,
@@ -229,6 +238,7 @@ async function readSnapshot(
      WHERE family_id = $1`,
     [family.id],
   );
+  if (control.rows.length > 1) throw new GraphRowCardinalityError();
   return {
     databaseNow,
     snapshot: {
@@ -244,11 +254,17 @@ async function readSnapshot(
         revision: family.revision,
         fingerprint: family.family_fingerprint,
       },
-      members: members.rows.map(mapMember),
-      relations: relations.rows.map(mapRelation),
+      members: memberSnapshots,
+      relations: relationSnapshots,
       manualControl: mapControl(control.rows[0]),
     },
   };
+}
+
+// Query-only adapter entry: caller owns the transaction/snapshot and connection lifetime.
+export async function readBindingGraph(client: PoolClient, input: ResolveFamilyInput, familyId: string): Promise<GraphLoadResult> {
+  validateResolveFamilyInput(input);
+  return readSnapshot(client, input, {}, { expectedFamilyId: familyId });
 }
 
 export class VerifiedFilingGraphRepository {

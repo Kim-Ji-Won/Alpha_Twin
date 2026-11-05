@@ -338,6 +338,7 @@ export interface IndustryTwin {
   direction: Direction;
 }
 export interface NarrativeGapItem {
+  id: string;
   label: string;             // 'A사 (AI 테마)' — 원본 익명 표기 유지
   symbol?: string;           // 실종목만 이동 가능
   narrativeScore: number;    // 91

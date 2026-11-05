@@ -1,60 +1,94 @@
-# ALPHA TWIN — 모바일 앱 (apps/mobile)
+# ALPHA TWIN Mobile
 
-Claude Design 인계 패키지(리포 루트)를 기반으로 생성한 실행 가능한 Expo 앱입니다.
-디자인 원본·명세는 루트의 `design/`, `specs/`, `HANDOFF.md`를 참조하세요.
-
-## 실행
-
-```bash
-cd apps/mobile
-npm install
-npx expo start
-```
-
-iOS 시뮬레이터: `i` · Android 에뮬레이터: `a` · 실기기: Expo Go로 QR 스캔
+React Native와 Expo Router로 구현한 모바일 앱입니다. 앱 실행 소스는 이 디렉터리에 있으며, 루트의 디자인·인계 자료와 구분합니다.
 
 ## 기술 스택
 
-- Expo SDK 57 · React Native 0.86 · TypeScript · Expo Router (tabs 템플릿)
-- react-native-svg (브랜드/아트/그라디언트), @react-native-async-storage/async-storage (P0 로컬 플래그)
-- 폰트: Pretendard (npm `pretendard`, OFL-1.1) + JetBrains Mono (`@expo-google-fonts/jetbrains-mono`, OFL-1.1)
+| 영역 | 기술 |
+| --- | --- |
+| 앱 기반 | Expo SDK 57 · React Native 0.86 · React 19.2 · TypeScript |
+| 탐색·저장 | Expo Router · AsyncStorage |
+| 그래프·모션 | React Native SVG · Reanimated · Gesture Handler |
+| 접근성·폰트 | Safe Area Context · Reduce Motion · Pretendard · JetBrains Mono |
 
-## ⚠️ 배포 전 변경 필요 (임시값)
+## 실행
 
-| 항목 | 현재 임시값 | 위치 |
-|---|---|---|
-| iOS Bundle Identifier | `com.alphatwin.placeholder` | `app.json` → `expo.ios.bundleIdentifier` |
-| Android Package Name | `com.alphatwin.placeholder` | `app.json` → `expo.android.package` |
-| 앱 아이콘 | tabs 템플릿 기본 아이콘 | `assets/images/` — 루트 `assets/app-icon.svg`를 1024px PNG로 변환해 교체 (TODO P3) |
+저장소 루트에서:
+
+```bash
+cd apps/mobile
+npm ci
+EXPO_PUBLIC_ALPHA_TWIN_API_BASE_URL=http://127.0.0.1:4000 npx expo start
+```
+
+백엔드는 별도 터미널에서 실행합니다. 자세한 서버 설정은 [API README](../api/README.md)를 참고하세요.
+
+| 실행 대상 | API 주소 안내 |
+| --- | --- |
+| 같은 Mac의 iOS Simulator | `http://127.0.0.1:4000` |
+| Android Emulator | 일반적으로 `http://10.0.2.2:4000` |
+| 실기기 | 개발 PC의 LAN 주소. 서버 listen 주소·방화벽 별도 설정 필요 |
+
+Expo 터미널의 `i` / `a`로 시뮬레이터·에뮬레이터를 엽니다. 외부 API 키는 모바일에 넣지 않습니다.
+
+## 키 없이 확인할 수 있는 범위
+
+| 범위 | 상태 |
+| --- | --- |
+| 온보딩·관심 항목·탭 이동 | 로컬 UI와 상태 저장 |
+| Home·분석 시연 화면 | Mock 또는 준비 중 상태 포함 |
+| 백엔드 기본 시세 | Mock Provider |
+| OpenDART 기업·공시·재무 | 서버 키가 없으면 오류/이용 불가 상태 |
+| AI Analyst 답변 생성 | 서버의 OpenAI 및 분석 입력 데이터 설정 필요 |
+
+로그인 화면과 로컬 플래그는 운영용 사용자 인증 서버를 의미하지 않습니다.
+
+## 실제 데이터 경로
+
+- **Company Twin:** 금융위원회 최근 확정 시세·일봉, OpenDART 기업개황·공시·최근 정기보고서·정규화 재무 8개 항목.
+- **독립 로딩:** 시장·기업·공시·재무 영역별 실패 상태를 구분합니다.
+- **금액 표시:** 정밀도를 유지하기 위해 정수 문자열을 보존한 뒤 표시 형식으로 변환합니다.
+- **AI Analyst:** 백엔드 분석 API의 답변과 같은 분석 세션의 참조 목록을 표시합니다.
+- **참조 화면:** 구조화 데이터 참조이며 공시 원문 검색 RAG 통합 완료를 뜻하지 않습니다.
+- **남은 분석 기능:** Company Health·미래 확률·관계 해석·경영진 성과·Scenario 계산은 실제 검증 엔진으로 제공되는 기능이 아닙니다.
+
+AI 세션은 현재 프로세스 메모리에 보관되며, 앱 재시작 후 영구 대화 이력 보존을 보장하지 않습니다.
 
 ## 구조
 
+```text
+app/
+  index.tsx        진입 화면
+  onboarding.tsx   온보딩
+  auth/            로그인·관심 항목 UI
+  (tabs)/          Home · Discover · Twin · Portfolio · AI
+  company/         기업 상세 화면
+  ai/              AI 참조 등 상세 화면
+  scenario/        시나리오 화면
+  portfolio/       포트폴리오 화면
+components/        공통 UI·그래프
+lib/               앱 상태·폰트·모션 등 공통 기능
+src/               앱 전용 토큰·타입·서비스·Mock 데이터
 ```
-app/                 Expo Router 라우트
-├── index.tsx        스플래시 (프레임 10) → 상태에 따라 분기
-├── onboarding.tsx   온보딩 3페이지 (프레임 11–13)
-├── auth/login.tsx   로그인 (프레임 18)
-├── auth/interests.tsx 관심 산업·종목 (프레임 19)
-└── (tabs)/          하단 탭 5개 — home/discover/twin/portfolio/ai
-components/          P0 공통 컴포넌트 (AppScreen, AppHeader, BottomTabBar, 버튼, Panel …)
-lib/                 fonts(폰트 레지스트리)/typography(토큰→TextStyle)/appState(로컬 플래그)
-src/                 루트 인계 패키지에서 복사한 실소스 (theme/types/mocks/services/constants)
+
+`apps/mobile/src`는 현재 앱이 사용하는 구현입니다. 루트 `src`는 초기 인계 자료이므로 두 디렉터리를 무조건 동기화하거나 덮어쓰지 않습니다.
+
+## 검증
+
+```bash
+npx tsc --noEmit
+npx expo-doctor
+npx expo export --platform web
 ```
 
-- `src/`는 루트 `../../src`의 복사본입니다. 루트가 원본(source of truth)이며, 수정 시 양쪽 동기화가 필요합니다.
-- 화면은 `src/services`만 호출합니다 (Mock → 실제 API 교체 지점, HANDOFF.md 참조).
-- 온보딩/로그인 상태는 AsyncStorage 키 `@alpha-twin/app-flags-v1`에 저장됩니다. 초기화하려면 앱 삭제 후 재설치하거나 해당 키를 지우세요.
+위 명령은 타입·구성·번들 검사입니다. 실제 기기 UI·외부 API 동작 검증은 별도로 수행해야 합니다.
 
-## Company Twin 데이터
+## 배포 전 확인
 
-Company Twin은 모바일에서 외부 금융 서비스를 직접 호출하지 않고
-`EXPO_PUBLIC_ALPHA_TWIN_API_BASE_URL`로 설정된 ALPHA TWIN Backend만 사용합니다.
+- Bundle Identifier / Android package의 placeholder 설정 교체
+- 템플릿 아이콘 및 스플래시 자산 정리
+- 운영 인증·개인정보 처리·API 접근 제어 설계
+- 기기별 UI·접근성·성능 검증
+- 데이터 이용·표시 권리 및 서비스 고지 확인
 
-- 최근 확정 시세와 일봉: 금융위원회 공공데이터
-- 기업개황, 최근 공시: OpenDART
-- 최근 정기보고서와 정규화 재무 8개 항목: OpenDART Latest Financial Resolver
-- 시장, 기업개황, 공시, 재무는 독립적으로 로드되어 일부 API가 실패해도 다른 영역을 유지
-- 재무 금액은 정밀도 손실을 막기 위해 integer string 상태로 보존하고 표시할 때만 문자열로 구분
-
-Company Health, 미래 확률, 관계 해석, 경영진 성과, Scenario 계산과 AI 분석은
-아직 실제 엔진이 없으므로 Company Twin에서 점수나 판정 대신 준비 중 상태로 표시합니다.
+현재는 개발 프로젝트이며 앱스토어 출시 완료 상태가 아닙니다.

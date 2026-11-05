@@ -1,8 +1,15 @@
 # ALPHA TWIN API
 
-Fastify backend for normalized market data. The mobile app calls this API only; provider credentials remain in the ignored `apps/api/.env` file.
+Fastify backend for market data, OpenDART company/financial data, and AI Analyst. The mobile app calls this backend; provider credentials remain in the ignored `apps/api/.env` file.
 
-P3-C-3B also provides normalized OpenDART company profiles and disclosure lists. P3-C-3C-B adds lossless transport for one explicitly requested OpenDART financial report. P3-C-3C-C adds a deterministic canonical summary over that transport DTO. OpenDART credentials remain server-only and are never passed to the mobile application.
+| Area | Current implementation | Setup boundary |
+| --- | --- | --- |
+| Market data | Confirmed EOD quote/candles, bounded cache, stale/Mock fallback | Mock is the default; public data requires server configuration |
+| OpenDART | Company profile, disclosures, financial transport/normalization, latest report resolution | Server-side OpenDART credential required |
+| AI Analyst | Context building, OpenAI Responses provider, structured response/reference checks | OpenAI credential and supported model configuration required |
+| Filing intelligence | Canonical persistence, ingestion jobs, lexical/dense retrieval, admission guard | Separately configured PostgreSQL/worker foundation; not the default AI answer retrieval path |
+
+Core stack: Node.js, TypeScript, Fastify 5, OpenAI SDK, node-postgres, PostgreSQL 16/pgvector, node-pg-migrate, fast-xml-parser, and yauzl. Local Node version observed during documentation review: v22.21.0. This is not a cross-platform compatibility certification.
 
 ## Setup
 
@@ -42,7 +49,7 @@ market-data:{provider}:quote:{symbol}
 market-data:{provider}:candles:{symbol}:{range}
 ```
 
-Entries track `createdAt`, `freshUntil`, and `staleUntil`. Same-key cache misses share one in-flight Promise, which is removed after success or failure. `CacheStore` is the future persistence boundary; P3-C-2 does not add a file cache, Redis, SQLite, PostgreSQL, or any cross-process guarantee.
+Entries track `createdAt`, `freshUntil`, and `staleUntil`. Same-key cache misses share one in-flight Promise, which is removed after success or failure. The market-data cache remains process-local; the separate PostgreSQL filing subsystem does not make it a persistent or cross-process cache.
 
 ## Observability and security
 
@@ -111,4 +118,19 @@ Fixture tests need no API key. Optional live verification should be run only whe
 
 `npm run dev` and `npm run start` both load `.env` only when it exists. Watch mode can hit the macOS `EMFILE` limit in a heavily loaded development session; use `npm run start` for one-shot verification instead of changing system limits.
 
-This service does not provide KIS, WebSocket prices, KRX/Koscom feeds, news, AI/RAG, ML/DL, accounts, orders, trading, databases, or production deployment. Mobile OpenDART integration, Company Health, ratios, and analysis scores remain separate. Real-time or redistributed KRX data requires a separate licensed provider agreement.
+## AI Analyst and filing search
+
+The default server composes `AiAnalystService`, the company analysis context builder, and `OpenAiResponsesProvider`. Mobile Company Twin consumes company/financial routes, and mobile AI Analyst displays answers and their reference catalog. Missing OpenAI configuration returns `AI_NOT_CONFIGURED`; it is not replaced with a successful fabricated answer.
+
+Reference-ID validation checks the response against the supplied catalog. It does not establish the factual correctness of every generated statement. The filing retrieval subsystem is a separate development foundation, not a completed RAG integration in the default answer path.
+
+PostgreSQL persistence is opt-in. Filing ingestion and dense generation have separate worker entry points. Do not start workers or apply migrations against an existing database as part of the basic API quick start. Provision and verify an isolated target first; synthetic test acceptance is not operational claim authority.
+
+## Validation and exclusions
+
+- `npm run test`: non-DB unit tests using fixtures and test doubles; not live provider validation.
+- `npm run typecheck` and `npm run lint`: both currently run `tsc --noEmit`.
+- PostgreSQL integration tests require a dedicated isolated database. Do not run the full DB suite against production or a preserved benchmark corpus.
+- API keys, raw responses, execution evidence, database files, and runtime caches must stay outside Git.
+
+KIS, live trading feeds, news, user authentication infrastructure, accounts/orders, automated trading, and production deployment are not provided. Company Health and predictive scores are not validated analytical engines. Data display/redistribution rights must be checked separately before release.

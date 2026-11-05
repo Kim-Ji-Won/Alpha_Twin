@@ -1,68 +1,194 @@
-# ALPHA TWIN — 개발 인계 패키지
+# ALPHA TWIN
 
-> **⚠️ 지원 범위 (정직 고지)**: 이 패키지는 디자인 도구 환경에서 제작되어 **실행 가능한 Expo 프로젝트 전체를 포함하지 않습니다**. 검증 없이 생성된 RN 화면 코드를 "동작한다"고 넘기는 대신, Claude Code가 기계적으로 앱을 생성할 수 있도록 **디자인 원본(HTML) + 디자인 토큰(.ts) + 도메인 타입(.ts) + Mock Data(.ts) + 서비스 계층(.ts) + 내비 구조 + 화면·컴포넌트 명세**를 완전하게 제공합니다. 이 .ts 파일들은 Expo 프로젝트에 그대로 복사해 쓰는 실제 소스입니다.
+**기업·재무 데이터와 AI 분석을 함께 살펴보는 투자 인텔리전스 모바일 앱**
 
-## 1. 프로젝트 소개
-ALPHA TWIN — 상장기업을 데이터 기반 디지털 트윈으로 구현하는 AI 투자 인텔리전스 모바일 앱. 핵심: 정확한 데이터, 설명 가능한 AI, 직접 실험하는 미래 시나리오. 상세 브랜드/기능 정의는 HANDOFF.md와 design/ 참조.
+한국 상장기업의 최근 확정 시세, 공시, 재무 정보를 조회하고 AI에게 질문할 수 있는 개인 개발 프로젝트입니다.
 
-## 2. 목표 기술 스택
-React Native + Expo + TypeScript + Expo Router (iOS/Android). 차트: react-native-svg (+ react-native-gesture-handler, react-native-reanimated). 폰트: Pretendard, JetBrains Mono (expo-font 또는 expo-google-fonts).
+> **개발 진행 중** · 실제 데이터와 Mock 기반 화면이 함께 존재합니다. 실시간 거래·주문 서비스가 아니며, 앱 출시 및 운영 완료 상태를 의미하지 않습니다.
 
-## 3. Claude Code에서 시작하는 방법
+| 프로젝트 | 내용 |
+| --- | --- |
+| 작성자 | 김지원 |
+| 개발 기간 | 2026.06 ~ 현재 |
+| 형태 | 개인 프로젝트 · AI 도구 활용 |
+| 담당 | 서비스 기획·요구사항 구체화, AI 협업 개발, 실행 결과 확인 및 개선 |
+
+[주요 기능](#주요-기능) · [기술 스택](#기술-스택) · [아키텍처](#아키텍처) · [로컬 실행](#로컬-실행) · [검증](#검증)
+
+## 주요 기능
+
+| 영역 | 구현 내용 | 현재 범위 |
+| --- | --- | --- |
+| **Company Twin** | 확정 시세·일봉, 기업개황, 공시, 정규화 재무 8개 항목 | 금융위원회·OpenDART 백엔드 연동 |
+| **AI Analyst** | 기업 질문·답변, 분석에 사용한 참조 데이터 확인 | OpenAI 기반 백엔드·모바일 연동, 서버 키 설정 필요 |
+| **모바일 탐색** | 온보딩, 관심 종목, Home·Discover·Twin·Portfolio·AI 탭 | 화면 이동·로컬 상태 저장 구현 |
+| **분석 화면** | Scenario Lab, Portfolio X-Ray, 투자 논제, 관계 지도 | Mock·시연용 또는 준비 중 상태 포함, 실제 예측 엔진 아님 |
+| **모션·접근성** | 차트 draw-in, 접기·펼치기, 그래프 확대·이동, RichText | 애니메이션 설정·시스템 Reduce Motion 반영 |
+| **공시 검색 기반** | 원문 파싱·청킹, lexical/dense 검색, 근거 사용 조건 검증 | 별도 백엔드 개발 기반. 기본 AI 답변 통합·검색 품질 평가는 진행 과제 |
+
+## 기술 스택
+
+버전은 저장소의 패키지 선언 또는 검증 환경 기준입니다.
+
+| 계층 | 기술 | 용도 |
+| --- | --- | --- |
+| **모바일** | React Native 0.86 · React 19.2 · Expo SDK 57 · TypeScript | iOS/Android 앱 |
+| **라우팅·상태** | Expo Router · AsyncStorage | 화면 이동, 온보딩·설정 등 로컬 상태 |
+| **UI·인터랙션** | Reanimated 4 · Gesture Handler · React Native SVG · Safe Area Context | 차트, 그래프, 모션, 화면 영역 대응 |
+| **폰트** | Pretendard · JetBrains Mono · Expo Font | 본문·수치 표시 |
+| **백엔드** | Node.js · TypeScript · Fastify 5 | API, 입력 검증, Provider 조합 |
+| **금융 데이터** | 금융위원회 공공데이터 · OpenDART | 확정 시세·일봉, 기업·공시·재무 |
+| **AI** | OpenAI SDK · Responses API · js-tiktoken | 질문 처리, 구조화된 답변, 토큰 계산 |
+| **공시 처리** | fast-xml-parser · yauzl | XML 처리, ZIP 검증·해제 |
+| **저장·검색** | PostgreSQL 16 · pgvector · node-postgres | 공시·청크·작업 상태 저장, lexical/vector 검색 기반 |
+| **마이그레이션** | node-pg-migrate | 스키마 이력·순서 관리 |
+| **검증** | Node.js Test Runner · tsx · TypeScript compiler | 단위 테스트·타입 검사·격리 DB 통합 검증 |
+
+## 아키텍처
+
+```text
+Expo / React Native
+        |
+        | ALPHA TWIN API (DTO)
+        v
+Fastify Backend
+  +-- Market Data Service ---- 금융위원회 / Mock Provider
+  +-- OpenDART Service ------- 기업 · 공시 · 재무 정규화
+  +-- AI Analyst ------------ 분석 입력 구성 -> OpenAI -> 참조 검증
+
+별도 개발 중인 공시 검색 기반
+  원문 -> 검증·파싱 -> 청크 -> PostgreSQL
+                             +-- lexical index
+                             +-- embedding / vector retrieval
+                             +-- eligibility · activation · evidence guard
+```
+
+### 기술적 설계 포인트
+
+- **Provider와 DTO 분리:** 외부 응답을 내부 계약으로 변환해 모바일의 외부 API 의존성을 줄입니다.
+- **실패 상태 구분:** 캐시·stale·Mock fallback을 구분하며 모든 데이터 경로에 같은 fallback을 적용하지 않습니다.
+- **재무 의미 보존:** 금액을 정수 문자열로 유지하고 연결/별도·분기/누적·기간·출처를 구분합니다.
+- **AI 참조 검증:** 서버가 제공한 참조 ID 범위를 검사합니다. 답변 전체의 사실성을 보장하는 검증은 아닙니다.
+- **근거 사용 조건:** 문서·generation·activation 결속과 현재 상태를 확인하고, 근거가 부족하면 허용하지 않는 방향으로 개발합니다.
+- **트랜잭션 검증:** 합성 자료와 격리 PostgreSQL로 상태 변경·rollback·동일 client의 미커밋 값 가시성을 검증합니다.
+
+## 저장소 구조
+
+```text
+apps/
+  mobile/
+    app/                    Expo Router 화면
+    components/             모바일 UI 컴포넌트
+    lib/                    앱 상태·폰트 등 공통 기능
+    src/                    디자인 토큰·서비스·Mock 데이터
+  api/
+    src/
+      ai/                   AI Gateway·분석 입력·응답 검증
+      providers/            시장 데이터 Provider
+      openDart/             기업·공시·재무 데이터 처리
+      filingIntelligence/   공시 저장·작업 처리·검색·근거 검증
+      infrastructure/       DB 연결·트랜잭션
+    migrations/             PostgreSQL 스키마
+    test/                   단위 테스트·합성 fixture
+    integration-test/       PostgreSQL 통합 테스트
+    evaluation/             검색 평가 코드
+docs/                       데이터 계약·설계 문서
+design/ · specs/ · assets/   초기 디자인 원본·명세·브랜드 자료
+src/                        초기 인계 자료의 타입·토큰·Mock 소스
+```
+
+실행 앱은 `apps/mobile`, 서버는 `apps/api`에 있습니다. 루트 디자인·인계 자료는 초기 설계 기록이며 현재 구현 및 상태와 구분합니다.
+
+## 로컬 실행
+
+### 준비
+
+- Node.js와 npm: 백엔드의 `--env-file-if-exists` 옵션을 지원하는 Node.js가 필요합니다.
+- iOS 시뮬레이터는 macOS·Xcode, Android 에뮬레이터는 Android 개발 환경이 필요합니다.
+- 기본 Mock 시세 API 실행에는 PostgreSQL이나 외부 API 키가 필요하지 않습니다.
+
+### 1. 백엔드
+
+저장소 루트에서 실행합니다.
+
 ```bash
-# 1) 프로젝트 생성
-npx create-expo-app@latest alpha-twin --template tabs   # TypeScript + Expo Router
-cd alpha-twin
-npx expo install react-native-svg react-native-gesture-handler react-native-reanimated expo-font
-
-# 2) 이 패키지의 src/ 를 프로젝트에 복사
-cp -r ../alpha-twin-handoff/src ./src
-cp -r ../alpha-twin-handoff/assets ./assets/brand
-
-# 3) 실행
-npm install && npx expo start
-```
-그 다음 Claude Code에 지시: "HANDOFF.md와 design/Alpha Twin.dc.html을 참조해서 specs/components.md의 컴포넌트를 구현하고, src/constants/navigation.ts의 라우트 구조대로 화면을 만들어줘. 데이터는 반드시 src/services를 통해서만 가져와."
-
-## 4. 폴더 구조
-```
-alpha-twin-handoff/
-├── README.md              ← 이 문서
-├── HANDOFF.md             ← 화면별 목적·이동·인터랙션·주의사항
-├── TODO.md                ← 미구현 항목
-├── design/
-│   ├── Alpha Twin.dc.html ← 디자인 원본 (27프레임, 브라우저로 열기)
-│   └── support.js         ← 원본 뷰어 런타임
-├── specs/
-│   └── components.md      ← 공통 컴포넌트 Props 계약
-├── assets/
-│   ├── logo.svg           ← 브랜드 마크
-│   ├── app-icon.svg       ← 앱 아이콘 1024 원본
-│   └── app-icon-small.svg ← 29pt용 단순화 버전
-└── src/                   ← Expo 프로젝트에 그대로 복사하는 실소스
-    ├── theme/             ← colors/typography/spacing/radius/shadows
-    ├── types/index.ts     ← 14개 도메인 타입 전부
-    ├── mocks/             ← 디자인 프레임과 1:1 일치하는 Mock Data
-    ├── services/          ← Mock 반환 서비스 계층 (API 교체 지점)
-    └── constants/navigation.ts ← 탭 5개 + 전체 라우트 + 필수 플로우
+cd apps/api
+npm ci
+npm run start
 ```
 
-## 5. 전체 화면 목록 (27프레임)
-SYSTEM 디자인시스템 · 01 Market Brain · 02 Company Twin · 03/04 Scenario 입력/결과 · 05 Thesis OS · 06 Portfolio X-Ray · 07 AI Analyst · 08 Discover · 09 알림 센터 · 10 스플래시 · 11–13 온보딩 · 14 앱 아이콘 · 15 Management Track Record · 16 차트 라이브러리 · 17 예외 상태 9종(수집 중/분석 중/데이터 부족/실패/오래됨/빈 포트폴리오/검색 없음/추정/부분 분석) · 18 로그인 · 19 관심 산업·종목 선택 · 20 종목 추가 · 21 논제 작성 · 22 논제 변경 기록 · 23 AI 근거 상세 · 24 관심 종목 목록 · 25 프로필·설정·알림 설정 · 26 내비게이션 맵
+기본 주소는 `http://127.0.0.1:4000`입니다. 자동 재시작은 `npm run dev`를 사용합니다.
 
-## 6. 내비게이션
-`src/constants/navigation.ts` + 프레임 26 참조. 하단 탭: Home/Discover/Twin/Portfolio/AI. Scenario Lab은 Home·CompanyTwin·Portfolio 3곳에서 진입.
+### 2. 모바일
 
-## 7. 디자인 시스템
-`src/theme/` — 화면 코드에 hex/px 직접 쓰지 말고 토큰만 사용. 규칙 요약: 다크 네이비 단일 배경, 보더+반투명으로 깊이, 숫자는 전부 JetBrains Mono tabular, 상태는 색+기호+텍스트 삼중 표기, 그라디언트는 primary 버튼과 브랜드 요소만.
+별도 터미널에서 저장소 루트를 기준으로 실행합니다.
 
-## 8. Mock Data와 API 연결
-- Mock: `src/mocks/` — 디자인 화면의 수치와 1:1 일치 (SK하이닉스 상태 74, 논제 78 등). 임의 변경 금지
-- 화면은 `src/services/`만 호출. API 연결 = 서비스 메서드 본문 교체 (HANDOFF.md 교체 표 참조)
+```bash
+cd apps/mobile
+npm ci
+EXPO_PUBLIC_ALPHA_TWIN_API_BASE_URL=http://127.0.0.1:4000 npx expo start
+```
 
-## 9. 현재 동작하는 것 / 안 하는 것
-- **이 패키지에서 동작**: theme/types/mocks/services는 완결된 TS 소스 (외부 의존성 없음, RN 불필요)
-- **Claude Code에서 구현 필요**: 화면 JSX, 차트 컴포넌트, 내비게이션 연결, 폰트 로딩, 애니메이션 — TODO.md 참조
+Expo 터미널에서 `i`로 iOS 시뮬레이터, `a`로 Android 에뮬레이터를 엽니다. 위 주소는 같은 Mac의 iOS 시뮬레이터 기준입니다. Android 에뮬레이터는 보통 `10.0.2.2`, 실기기는 개발 PC의 LAN 주소를 사용하며 서버 listen 주소·방화벽도 별도로 설정해야 합니다.
 
-## 10. 검수 체크리스트 (구현 후)
-Safe Area / 긴 화면 스크롤 / 키보드 회피(KeyboardAvoidingView) / 탭·버튼 실동작 / 로딩·오류·빈 상태 / 접근성 label / TS 오류 0 / 작은 화면(SE) 잘림 없음
+### 실데이터·AI 설정
+
+| 기능 | 서버 설정 | 설정하지 않은 경우 |
+| --- | --- | --- |
+| 공공데이터 | `MARKET_DATA_PROVIDER=public-data`, 관련 서버 환경변수 | 기본 시장 데이터는 Mock Provider 사용 |
+| 기업·공시·재무 | `OPENDART_API_KEY` | 해당 API는 설정 필요 오류 반환 |
+| AI Analyst | `OPENAI_API_KEY`, 지원 모델 설정 | AI API는 설정 필요 오류 반환 |
+| 공시 저장·검색 | 별도 DB·worker 설정 | 기본 화면 실행과 분리된 선택적 구성 |
+
+환경변수 목록은 `apps/api/.env.example`을 참고하세요. 실제 키는 ignored 상태의 서버 `.env`에서만 관리하고, `EXPO_PUBLIC_*`에는 API 주소처럼 공개 가능한 값만 넣습니다. 외부 API 호출에는 사용 제한과 비용이 적용될 수 있습니다.
+
+## 검증
+
+**백엔드** (`apps/api`):
+
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+**모바일** (`apps/mobile`):
+
+```bash
+npx tsc --noEmit
+npx expo-doctor
+npx expo export --platform web
+```
+
+- 백엔드 `lint`는 현재 `tsc --noEmit` 기반입니다.
+- 단위 테스트는 합성 fixture·Fake Provider를 활용하며 실제 API 및 PostgreSQL 검증과 구분합니다.
+- DB 테스트는 전용 격리 환경에서만 실행하세요. 운영 DB나 보존 중인 benchmark DB를 사용하면 안 됩니다.
+- 위 명령은 실행 안내이며, 특정 시점의 전체 테스트 통과를 보장하는 배지가 아닙니다.
+
+## 현재 한계와 다음 과제
+
+- 금융위원회 데이터는 **최근 확정 시세**이며 실시간 가격이 아닙니다. 수정주가 여부가 확정되지 않은 데이터로 장기 수익률을 단정하지 않습니다.
+- 시나리오·점수·추천 화면에는 Mock 또는 준비 중 기능이 남아 있습니다. 로그인 화면은 운영 인증 서버 구축 완료를 뜻하지 않습니다.
+- 공시 검색 구현·합성 검증과 실제 공시 계보 승인·검색 품질 평가·AI 답변 통합은 별도 단계입니다.
+- 실계좌, 주문·자동매매, 운영 인증, 앱스토어 배포는 완료 범위에 포함하지 않습니다.
+- AI 답변은 투자 수익이나 정보의 완전한 정확성을 보장하지 않습니다.
+
+## 개발 방식
+
+요구사항과 작업 범위를 정하고, AI 도구와 구현·수정을 진행한 뒤 화면·테스트·감사 결과를 확인하는 방식으로 개발합니다. 모든 코드를 수작업으로 작성하거나 모든 검증을 독립적으로 수행했다는 의미는 아닙니다.
+
+| 역할 | 활용 범위 |
+| --- | --- |
+| **작성자** | 서비스 기획, 단계별 범위 결정, 구현·수정 요청, 결과 확인과 진행 관리 |
+| **ChatGPT** | 요구사항·설계 논의, 작업 요청 구체화, 공유한 결과 검토 |
+| **Codex** | 로컬 코드 구현·수정, 테스트 작성·보강, 실행 및 변경 결과 정리 |
+
+## 관련 문서
+
+- [데이터 계약](docs/data-contracts.md)
+- [Admission Evidence Provider](docs/admission-evidence-provider.md)
+- [백엔드 상세 문서](apps/api/README.md)
+- [모바일 상세 문서](apps/mobile/README.md)
+
+하위 문서에는 초기 단계의 설명이 일부 남아 있습니다. 현재 실행 구성은 각 앱의 코드·패키지 설정을 함께 확인하세요.

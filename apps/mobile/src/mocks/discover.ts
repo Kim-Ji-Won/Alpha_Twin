@@ -42,9 +42,9 @@ export const mockIndustryTwins: IndustryTwin[] = [
   { name: '바이오 · 자금 위축', score: 41, direction: 'negative' },
 ];
 
-// Narrative Gap 상위 — A사/B사는 디자인 원본의 익명 표기 유지 (표시 전용, 이동 불가)
+// Narrative Gap 상위 — 익명 항목도 상세는 제공하되 기업 트윈에는 연결하지 않는다.
 export const mockNarrativeGaps: NarrativeGapItem[] = [
-  { label: 'A사 (AI 테마)', narrativeScore: 91, revenueEvidence: 34 },
-  { label: 'B사 (로봇)', narrativeScore: 78, revenueEvidence: 41 },
-  { label: 'SK하이닉스', symbol: '000660', narrativeScore: 62, revenueEvidence: 58 },
+  { id: 'ai-theme', label: 'A사 (AI 테마)', narrativeScore: 91, revenueEvidence: 34 },
+  { id: 'robotics', label: 'B사 (로봇)', narrativeScore: 78, revenueEvidence: 41 },
+  { id: 'sk-hynix', label: 'SK하이닉스', symbol: '000660', narrativeScore: 62, revenueEvidence: 58 },
 ];

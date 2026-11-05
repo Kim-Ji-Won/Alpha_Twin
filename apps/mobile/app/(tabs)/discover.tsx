@@ -2,7 +2,7 @@
 // 검색 · 자연어 칩 · AI 이상 신호 · 산업 트윈 · Narrative Gap.
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -22,6 +22,7 @@ import { Stock } from '@/src/types';
 
 export default function DiscoverTab() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const { status, data, reload } = useDiscover();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Stock[] | null>(null);
@@ -198,12 +199,21 @@ export default function DiscoverTab() {
 
       {/* Narrative Gap */}
       <Panel>
-        <SectionHeader label="Narrative Gap 상위 · 기대 vs 실제" style={styles.panelHeader} />
+        <Text accessibilityRole="header" style={[styles.gapHeading, { fontFamily: font('body', '700') }]}>
+          Narrative Gap 상위 · 기대 vs 실제
+        </Text>
         <View style={styles.gaps}>
           {data.narrativeGaps.map(g => {
             const gap = g.narrativeScore - g.revenueEvidence;
             const tone = gap >= 40 ? colors.neg : gap >= 20 ? colors.warn : colors.pos;
-            const row = (
+            const row = fontScale > 1.3 ? (
+              <View style={styles.gapExpanded}>
+                <Text style={[styles.gapDetailText, { color: colors.ink, fontFamily: font('body', '600') }]}>{g.label}</Text>
+                <Text style={[styles.gapDetailText, { color: tone, fontFamily: font('mono', '600') }]}>
+                  {g.narrativeScore}/{g.revenueEvidence}
+                </Text>
+              </View>
+            ) : (
               <FactorRow
                 label={g.label}
                 pct={g.narrativeScore / 100}
@@ -213,22 +223,32 @@ export default function DiscoverTab() {
                 labelWidth={96}
               />
             );
-            return g.symbol ? (
-              <Pressable
-                key={g.label}
-                onPress={() => openCompany(g.symbol!)}
-                accessibilityRole="button"
-                accessibilityLabel={`${g.label} 기업 트윈 열기 — Narrative ${g.narrativeScore}, Revenue ${g.revenueEvidence}`}
-                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-                {row}
-              </Pressable>
-            ) : (
-              <View key={g.label}>{row}</View>
+            return (
+              <View key={g.id}>
+                {g.symbol ? (
+                  <Pressable
+                    onPress={() => openCompany(g.symbol!)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${g.label} 기업 트윈 열기 — Narrative ${g.narrativeScore}, Revenue ${g.revenueEvidence}`}
+                    style={({ pressed }) => [styles.gapCompany, { opacity: pressed ? 0.7 : 1 }]}>
+                    {row}
+                  </Pressable>
+                ) : (
+                  <View>{row}</View>
+                )}
+                <Pressable
+                  onPress={() => router.push({ pathname: '/narrative-gap/[id]', params: { id: g.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${g.label} Narrative Gap Mock 상세 보기`}
+                  style={({ pressed }) => [styles.gapDetail, { opacity: pressed ? 0.7 : 1 }]}>
+                  <Text style={[styles.gapDetailText, { fontFamily: font('body', '600') }]}>상세 보기</Text>
+                </Pressable>
+              </View>
             );
           })}
         </View>
         <Text style={[styles.gapFoot, { fontFamily: font('mono', '500') }]}>
-          Narrative Score / Revenue Evidence · 격차가 클수록 기대 선반영 (과열 레드 · 주의 앰버 · 균형 민트)
+          Narrative Score / Revenue Evidence (단위: 점) · 격차가 클수록 기대 선반영 (과열 레드 · 주의 앰버 · 균형 민트)
         </Text>
       </Panel>
 
@@ -282,6 +302,11 @@ const styles = StyleSheet.create({
   industryText: { fontSize: 13.5, color: '#cdd7e8', fontWeight: '600' },
   industryScore: { fontSize: 12.5, fontWeight: '600' },
   gaps: { marginTop: 10, gap: 5 },
+  gapHeading: { fontSize: 12, color: colors.dim },
+  gapExpanded: { gap: 8, paddingVertical: 8 },
+  gapCompany: { minHeight: 44, justifyContent: 'center' },
+  gapDetail: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 12, marginTop: 4 },
+  gapDetailText: { fontSize: 13, color: colors.accent },
   gapFoot: { fontSize: 11, lineHeight: 18, color: colors.dim, marginTop: 9 },
   meta: { marginTop: 4 },
   noResult: { paddingVertical: 14 },

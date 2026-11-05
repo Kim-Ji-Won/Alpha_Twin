@@ -1,5 +1,7 @@
 # HANDOFF.md — ALPHA TWIN 화면별 인계 문서
 
+> 초기 디자인 인계 기록입니다. 아래 구현 지시·교체 위치·미완료 목록은 당시 계획이며 현재 상태와 다를 수 있습니다. 현재 구현과 실행 방법은 [프로젝트 README](README.md), [모바일 문서](apps/mobile/README.md), [백엔드 문서](apps/api/README.md)를 기준으로 확인하세요.
+
 디자인 원본: `design/Alpha Twin.dc.html` (브라우저로 열기). 프레임 번호 = 캔버스 라벨.
 
 ## 상태 색상의 의미

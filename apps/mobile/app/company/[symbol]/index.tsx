@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useMemo, useState } from 'react';
 import {
   Linking,
   Pressable,
@@ -19,6 +19,7 @@ import { StockHeader } from '@/components/StockHeader';
 import { BadgeTone, StatusBadge } from '@/components/StatusBadge';
 import { NetworkGraph } from '@/components/charts/NetworkGraph';
 import { Sparkline } from '@/components/charts/Sparkline';
+import { SparklineRange } from '@/components/charts/sparklineRange';
 import { font } from '@/lib/fonts';
 import { CompanyTwinSection, useCompanyTwin } from '@/lib/hooks';
 import {
@@ -134,7 +135,11 @@ function MarketSection({
         </View>
         {points.length > 0 ? (
           <NetworklessSparkline
-            points={points}
+            key={JSON.stringify([quote.symbol, quote.currency, metadata.fallback, candles])}
+            candles={candles}
+            symbol={quote.symbol}
+            currency={quote.currency}
+            mock={metadata.fallback}
             axisLeft={first?.date.slice(5).replace('-', '/')}
             axisRight={last?.date.slice(5).replace('-', '/')}
           />
@@ -167,15 +172,36 @@ function MarketSection({
 }
 
 function NetworklessSparkline({
-  points,
+  candles,
+  symbol,
+  currency,
+  mock,
   axisLeft,
   axisRight,
 }: {
-  points: Array<{ date: string; score: number }>;
+  candles: CompanyMarketData['candles'];
+  symbol: string;
+  currency?: string;
+  mock: boolean;
   axisLeft?: string;
   axisRight?: string;
 }) {
+  const router = useRouter();
+  const points = useMemo(() => candles.map(candle => ({ date: candle.date, score: candle.close })), [candles]);
+  const [selection, setSelection] = useState<SparklineRange | null>(null);
+  const start = selection ? candles[selection.startIndex] : undefined;
+  const end = selection ? candles[selection.endIndex] : undefined;
+  const valid = start && end && Number.isFinite(start.close) && Number.isFinite(end.close);
+  const unit = currency === 'KRW' ? '원' : currency ? ` ${currency}` : ' (통화 미확인)';
+  const question = valid
+    ? `${symbol}의 ${start.date}부터 ${end.date}까지의 ${mock ? 'Mock 예시 ' : ''}일봉 구간을 보고 있어.\n`
+      + `시작 종가는 ${start.close}${unit}, 종료 종가는 ${end.close}${unit}이야.\n`
+      + '위 날짜와 두 종가는 질문에 포함한 값이며, 구간 전체 일봉 시계열을 전달한 것은 아니야.\n'
+      + '현재 제공 가능한 기업·재무·공시·시세 데이터를 기준으로 이 구간과 함께 확인할 만한 요인을 설명해줘.\n'
+      + '가격 변동의 원인을 단정하지 말고, 근거가 부족하면 부족하다고 말해줘.'
+    : '';
   return (
+    <>
     <Sparkline
       points={points}
       height={62}
@@ -187,7 +213,22 @@ function NetworklessSparkline({
           : '최근 확정 일봉 데이터 없음'
       }
       style={styles.marketChart}
+      rangeSelectionEnabled
+      onRangeSelected={setSelection}
     />
+    {valid ? (
+      <View>
+        <Text accessibilityLiveRegion="polite" style={[styles.stateText, { fontFamily: font('body', '500') }]}>
+          선택 구간 · {start.date} → {end.date}{'\n'}
+          종가 {start.close}{unit} → {end.close}{unit}{mock ? ' · Mock 예시' : ''}
+        </Text>
+        <SecondaryButton label="이 구간을 AI Analyst에 질문"
+          accessibilityLabel={`${symbol}, ${start.date}부터 ${end.date}까지의 구간으로 AI 질문 초안 열기`}
+          onPress={() => router.navigate({ pathname: '/(tabs)/ai', params: { symbol, question } })}
+        />
+      </View>
+    ) : null}
+    </>
   );
 }
 
@@ -482,6 +523,8 @@ export default function CompanyTwinRoute() {
 
   return (
     <AppScreen edges={['top', 'left', 'right']} tabBar={<StaticTabBar />}>
+      {/* Keep edge-back navigation without iOS 26 full-screen swipe stealing chart drags. */}
+      <Stack.Screen options={{ fullScreenGestureEnabled: false }} />
       <StockHeader stock={stock} priceState={priceState} onBack={goBack} />
 
       <View style={styles.refreshRow}>

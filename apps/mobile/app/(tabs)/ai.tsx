@@ -42,11 +42,14 @@ function normalizeSymbol(value: string | string[] | undefined): string | undefin
 
 export default function AiTab() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ symbol?: string | string[] }>();
+  const params = useLocalSearchParams<{ symbol?: string | string[]; question?: string | string[] }>();
   const routeSymbol = normalizeSymbol(params.symbol);
+  const routeQuestion = typeof params.question === 'string' ? params.question.trim() : '';
+  const questionTooLong = routeQuestion.length > AI_QUESTION_MAX_CHARS;
   const watchlist = useWatchlist();
   const [selectedSymbol, setSelectedSymbol] = useState<string | undefined>(routeSymbol);
   const [input, setInput] = useState('');
+  const [prefillError, setPrefillError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const companyNamesRef = useRef(new Map<string, string>());
   const savedCompanies = watchlist.data ?? [];
@@ -64,11 +67,22 @@ export default function AiTab() {
   const analyst = useAiAnalyst(selectedSymbol, companyName);
 
   useEffect(() => {
-    if (!routeSymbol || routeSymbol === selectedSymbol) return;
-    analyst.clearConversation();
-    setInput('');
-    setSelectedSymbol(routeSymbol);
-  }, [analyst.clearConversation, routeSymbol, selectedSymbol]);
+    if (routeSymbol && routeSymbol !== selectedSymbol) {
+      analyst.clearConversation();
+      setInput('');
+      setSelectedSymbol(routeSymbol);
+    }
+    if (params.question !== undefined) {
+      if (questionTooLong) {
+        setPrefillError(`질문 초안이 ${AI_QUESTION_MAX_CHARS}자 제한을 초과해 입력하지 않았습니다.`);
+      } else if (routeQuestion) {
+        setInput(routeQuestion);
+        setPrefillError(null);
+      }
+      // Consume once so edits, company selection and conversation clearing cannot reapply the draft.
+      router.setParams({ question: undefined });
+    }
+  }, [analyst.clearConversation, routeSymbol, selectedSymbol, params.question, routeQuestion, questionTooLong, router]);
 
   useEffect(() => {
     if (analyst.messages.length === 0 && !analyst.isGenerating && !analyst.error) return;
@@ -79,6 +93,7 @@ export default function AiTab() {
     if (symbol === selectedSymbol) return;
     analyst.clearConversation();
     setInput('');
+    setPrefillError(null);
     setSelectedSymbol(symbol);
     router.setParams({ symbol });
   };
@@ -327,6 +342,9 @@ export default function AiTab() {
         </ScrollView>
 
         <View style={styles.inputBar}>
+          {prefillError ? (
+            <Text accessibilityLiveRegion="polite" style={styles.errorText}>{prefillError}</Text>
+          ) : null}
           <AIComposer
             value={input}
             onChangeText={setInput}

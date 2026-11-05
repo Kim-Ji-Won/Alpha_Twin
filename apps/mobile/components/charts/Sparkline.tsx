@@ -1,11 +1,12 @@
 // specs/components.md — SparkLine: 논제 건강도 추이 + 변화 이벤트 도트.
 // 빈 데이터/단일 값 안전 처리 포함.
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import Svg, { Circle, Polyline, Text as SvgText } from 'react-native-svg';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PanResponder, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import { colors } from '@/src/theme';
 import { font } from '@/lib/fonts';
 import { ChartReveal } from '@/components/charts/ChartReveal';
+import { selectSparklineRange, SPARKLINE_PAD_X, SparklineRange } from './sparklineRange';
 
 export interface SparklineMarker {
   /** points 배열 내 인덱스 */
@@ -25,6 +26,8 @@ export interface SparklineProps {
   stroke?: string;
   accessibilityLabel?: string;
   style?: ViewStyle;
+  rangeSelectionEnabled?: boolean;
+  onRangeSelected?: (range: SparklineRange | null) => void;
 }
 
 export function Sparkline({
@@ -37,8 +40,34 @@ export function Sparkline({
   stroke = colors.accent,
   accessibilityLabel,
   style,
+  rangeSelectionEnabled = false,
+  onRangeSelected,
 }: SparklineProps) {
   const [width, setWidth] = useState(0);
+  const [selection, setSelection] = useState<SparklineRange | null>(null);
+  const startX = useRef(0);
+  const pointsKey = JSON.stringify(points);
+  useEffect(() => { setSelection(null); }, [pointsKey, width, rangeSelectionEnabled]);
+  const responder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: event => {
+      startX.current = event.nativeEvent.locationX;
+      return false;
+    },
+    onMoveShouldSetPanResponder: (_, gesture) => rangeSelectionEnabled
+      && points.length > 1 && Math.abs(gesture.dx) >= 8
+      && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+    onPanResponderGrant: () => { setSelection(null); onRangeSelected?.(null); },
+    onPanResponderMove: (_, gesture) => {
+      setSelection(selectSparklineRange(points, width, startX.current, startX.current + gesture.dx));
+    },
+    onPanResponderRelease: (_, gesture) => {
+      const range = selectSparklineRange(points, width, startX.current, startX.current + gesture.dx);
+      setSelection(range);
+      onRangeSelected?.(range);
+    },
+    onPanResponderTerminate: () => { setSelection(null); onRangeSelected?.(null); },
+    onPanResponderTerminationRequest: () => true,
+  }), [points, width, rangeSelectionEnabled, onRangeSelected]);
   const labelSpace = axisLeft || axisRight ? 16 : 0;
 
   const defaultAccessibilityLabel =
@@ -69,8 +98,13 @@ export function Sparkline({
             axisLeft={axisLeft}
             axisRight={axisRight}
             stroke={stroke}
+            selection={selection}
           /></ChartReveal>
         )
+      ) : null}
+      {rangeSelectionEnabled && points.length > 1 ? (
+        <View style={[StyleSheet.absoluteFill, { bottom: labelSpace }]}
+          accessible={false} {...responder.panHandlers} />
       ) : null}
     </View>
   );
@@ -86,13 +120,15 @@ function SparklineSvg({
   axisLeft,
   axisRight,
   stroke,
-}: Required<Omit<SparklineProps, 'style' | 'axisLeft' | 'axisRight' | 'accessibilityLabel'>> & {
+  selection,
+}: Required<Omit<SparklineProps, 'style' | 'axisLeft' | 'axisRight' | 'accessibilityLabel' | 'rangeSelectionEnabled' | 'onRangeSelected'>> & {
   width: number;
   labelSpace: number;
   axisLeft?: string;
   axisRight?: string;
+  selection: SparklineRange | null;
 }) {
-  const padX = 6;
+  const padX = SPARKLINE_PAD_X;
   const padY = 8;
   const scores = points.map(p => p.score);
   const min = Math.min(...scores);
@@ -108,6 +144,17 @@ function SparklineSvg({
 
   return (
     <Svg width={width} height={height + labelSpace}>
+      {selection ? (
+        <>
+          <Rect x={xOf(selection.startIndex)} y={0}
+            width={xOf(selection.endIndex) - xOf(selection.startIndex)} height={height}
+            fill={colors.accent} fillOpacity={0.12} />
+          {[selection.startIndex, selection.endIndex].map(index => (
+            <Line key={index} x1={xOf(index)} x2={xOf(index)} y1={0} y2={height}
+              stroke={colors.accent} strokeWidth={1} />
+          ))}
+        </>
+      ) : null}
       {points.length === 1 ? (
         <Circle cx={xOf(0)} cy={yOf(points[0].score)} r={3.5} fill={stroke} />
       ) : (

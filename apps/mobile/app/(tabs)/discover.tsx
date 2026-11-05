@@ -2,7 +2,7 @@
 // 검색 · 자연어 칩 · AI 이상 신호 · 산업 트윈 · Narrative Gap.
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { AppHeader } from '@/components/AppHeader';
@@ -12,6 +12,8 @@ import { DiscoverSignalCard } from '@/components/DiscoverSignalCard';
 import { FactorRow } from '@/components/FactorRow';
 import { Panel } from '@/components/Panel';
 import { SectionHeader } from '@/components/SectionHeader';
+import { StockSearchRow } from '@/components/StockSearchRow';
+import { SecondaryButton } from '@/components/SecondaryButton';
 import { ErrorState, LoadingState } from '@/components/States';
 import { directionColor } from '@/lib/direction';
 import { font } from '@/lib/fonts';
@@ -27,24 +29,37 @@ export default function DiscoverTab() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Stock[] | null>(null);
   const [searching, setSearching] = useState(false);
-  const alive = useRef(true);
-  React.useEffect(() => () => { alive.current = false; }, []);
+  const requestId = useRef(0);
+  const [searchError, setSearchError] = useState(false);
+  React.useEffect(() => () => { requestId.current += 1; }, []);
+
+  const openResults = () => {
+    const q = query.trim();
+    if (!q) return;
+    Keyboard.dismiss();
+    router.push({ pathname: '/stock-search', params: { q } });
+  };
 
   const openCompany = (symbol: string) =>
     router.push({ pathname: '/company/[symbol]', params: { symbol } });
 
   const search = async (text: string) => {
+    const id = ++requestId.current;
     setQuery(text);
+    setResults(null);
+    setSearchError(false);
     if (!text.trim()) {
-      setResults(null);
+      setSearching(false);
       return;
     }
     setSearching(true);
     try {
       const found = await discoverService.search(text.trim());
-      if (alive.current) setResults(found);
+      if (id === requestId.current) setResults(found);
+    } catch {
+      if (id === requestId.current) setSearchError(true);
     } finally {
-      if (alive.current) setSearching(false);
+      if (id === requestId.current) setSearching(false);
     }
   };
 
@@ -80,12 +95,18 @@ export default function DiscoverTab() {
         <TextInput
           value={query}
           onChangeText={search}
+          onSubmitEditing={openResults}
+          returnKeyType="search"
           placeholder="종목명 · 코드 · 자연어로 검색"
           placeholderTextColor={colors.dim}
           accessibilityLabel="종목 검색"
           style={[styles.searchInput, { fontFamily: font('body', '500') }]}
         />
       </View>
+
+      {query.trim() ? <SecondaryButton label="전체 결과 보기" onPress={openResults} /> : null}
+      {searching ? <Text style={styles.noResultBody}>검색 중</Text> : null}
+      {searchError ? <ErrorState onRetry={() => search(query)} /> : null}
 
       {/* 검색 결과 (검색 중일 때만) */}
       {results != null ? (
@@ -115,26 +136,7 @@ export default function DiscoverTab() {
             </View>
           ) : (
             results.map((s, i) => (
-              <Pressable
-                key={s.symbol}
-                onPress={() => openCompany(s.symbol)}
-                accessibilityRole="button"
-                accessibilityLabel={`${s.name} 기업 트윈 열기`}
-                style={({ pressed }) => [
-                  styles.resultRow,
-                  i > 0 && styles.resultDivider,
-                  { opacity: pressed ? 0.7 : 1 },
-                ]}>
-                <View style={styles.resultBody}>
-                  <Text style={[styles.resultName, { fontFamily: font('body', '700') }]}>{s.name}</Text>
-                  <Text style={[styles.resultMeta, { fontFamily: font('mono', '500') }]}>
-                    {s.symbol} · {s.sector}
-                  </Text>
-                </View>
-                <Text style={[styles.resultScore, { fontFamily: font('mono', '700') }]}>
-                  {s.healthScore}
-                </Text>
-              </Pressable>
+              <StockSearchRow key={s.symbol} stock={s} divider={i > 0} onPress={() => openCompany(s.symbol)} />
             ))
           )}
         </Panel>
@@ -313,16 +315,4 @@ const styles = StyleSheet.create({
   noResultTitle: { fontSize: 14.5, fontWeight: '700', color: colors.ink },
   noResultBody: { fontSize: 13, lineHeight: 20, color: colors.mut, marginTop: 6 },
   noResultAction: { fontSize: 12.5, color: colors.accent, fontWeight: '700', marginTop: 10 },
-  resultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    minHeight: 48,
-  },
-  resultDivider: { borderTopWidth: 1, borderTopColor: colors.line },
-  resultBody: { flex: 1 },
-  resultName: { fontSize: 14, fontWeight: '700', color: colors.ink },
-  resultMeta: { fontSize: 11, color: colors.dim, marginTop: 3 },
-  resultScore: { fontSize: 15, color: colors.accent },
 });

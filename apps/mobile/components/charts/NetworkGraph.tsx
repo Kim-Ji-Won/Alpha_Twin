@@ -9,22 +9,13 @@ import { CompanyNetwork, NetworkNode } from '@/src/types';
 import { font } from '@/lib/fonts';
 import { FlowLine } from '@/components/charts/FlowLine';
 import { GraphExplorerModal } from '@/components/charts/GraphExplorerModal';
+import { computeNetworkLayout, NETWORK_CENTER as CENTER } from './networkLayout';
 
 export interface NetworkGraphProps {
   network: CompanyNetwork;
   style?: ViewStyle;
 }
 
-// viewBox 350×180 기준 위성 노드 슬롯 (디자인 프레임 02 배치 확장)
-const SLOTS: Array<{ x: number; y: number }> = [
-  { x: 80, y: 32 },
-  { x: 285, y: 34 },
-  { x: 60, y: 127 },
-  { x: 300, y: 130 },
-  { x: 175, y: 150 },
-  { x: 322, y: 84 },
-];
-const CENTER = { x: 175, y: 84 };
 const ZOOM_STEPS = [0.8, 1, 1.25, 1.5];
 
 const GROUP_LABEL: Record<NetworkNode['group'], string> = {
@@ -64,10 +55,11 @@ export function NetworkGraph({ network, style }: NetworkGraphProps) {
   const [selectedId, setSelectedId] = useState<string | undefined>(defaultSelected);
   const [zoomIdx, setZoomIdx] = useState(1);
   const [fullscreen, setFullscreen] = useState(false);
+  const [sizes, setSizes] = useState({ inline: { width: 0, height: 0 }, fullscreen: { width: 0, height: 0 } });
 
   const placed = useMemo(
-    () => network.nodes.slice(0, SLOTS.length).map((node, i) => ({ node, pos: SLOTS[i] })),
-    [network.nodes],
+    () => computeNetworkLayout(network),
+    [network.nodes, network.edges, network.center.id],
   );
   const selectedEdge = network.edges.find(e => e.to === selectedId || e.from === selectedId);
   const selectedNode = network.nodes.find(n => n.id === selectedId);
@@ -79,8 +71,11 @@ export function NetworkGraph({ network, style }: NetworkGraphProps) {
       `${selectedNode.label} — 의존도 ${Math.round((selectedEdge?.weight ?? 0) * 100)}%`)
     : '노드를 선택하면 영향 경로가 표시됩니다';
 
-  const graph = (zoom = 1) => (
-    <View style={styles.graphCanvas}>
+  const graph = (zoom = 1, mode: 'inline' | 'fullscreen' = 'inline') => (
+    <View style={styles.graphCanvas} onLayout={({ nativeEvent: { layout } }) => {
+      setSizes(previous => previous[mode].width === layout.width && previous[mode].height === layout.height
+        ? previous : { ...previous, [mode]: { width: layout.width, height: layout.height } });
+    }}>
     <Svg
       width="100%"
       height="100%"
@@ -172,6 +167,10 @@ export function NetworkGraph({ network, style }: NetworkGraphProps) {
     {placed.map(({ node, pos }) => {
       const x = CENTER.x + (pos.x - CENTER.x) * zoom;
       const y = CENTER.y + (pos.y - CENTER.y) * zoom;
+      const { width, height } = sizes[mode];
+      const scale = Math.min(width / 350, height / 180);
+      const left = (width - 350 * scale) / 2 + x * scale;
+      const top = (height - 180 * scale) / 2 + y * scale;
       return (
         <Pressable
           key={`touch-${node.id}`}
@@ -179,7 +178,7 @@ export function NetworkGraph({ network, style }: NetworkGraphProps) {
           accessibilityRole="button"
           accessibilityLabel={`${node.label} 관계 노드 선택`}
           accessibilityState={{ selected: selectedId === node.id }}
-          style={[styles.nodeTouch, { left: `${(x / 350) * 100}%`, top: `${(y / 180) * 100}%` }]}
+          style={[styles.nodeTouch, { left, top }]}
         />
       );
     })}
@@ -235,7 +234,7 @@ export function NetworkGraph({ network, style }: NetworkGraphProps) {
         description={selectedNode ? `선택됨: ${description}` : description}
         contentHeight={300}
         onClose={() => setFullscreen(false)}>
-        {graph()}
+        {graph(1, 'fullscreen')}
       </GraphExplorerModal>
     </View>
   );

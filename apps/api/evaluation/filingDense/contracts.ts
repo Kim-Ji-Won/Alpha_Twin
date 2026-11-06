@@ -65,6 +65,8 @@ export interface DenseEvalEntry {
   readonly company: DenseEvalCompany;
   readonly reportFamily: DenseEvalReportFamily;
   readonly evidenceModality: DenseEvalEvidenceModality;
+  // Coverage classification, not lineage proof; false permits fixed historical-source annotation.
+  // Neither value bypasses review or runtime guards. See goldenAuthoring.md Types A/B/C.
   readonly currentEffectiveCorrection: boolean;
   readonly evidenceGroups: readonly DenseEvalEvidenceGroup[];
   readonly review: DenseEvalReviewEvidence;

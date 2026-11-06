@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { canonicalSha256 } from './canonical.js';
+import { parseEvaluationLocator } from './evaluationLocator.js';
 import {
   DENSE_EVAL_CATEGORIES,
   DENSE_EVAL_CRITICAL_CATEGORIES,
@@ -56,15 +57,7 @@ function parseChunk(value: unknown): DenseEvalChunkPin {
   exactKeys(item, ['provider', 'corpCode', 'symbol', 'receiptNumber', 'documentId', 'chunkId',
     'contentHash', 'representationFingerprint', 'parserVersion', 'chunkerVersion',
     'schemaVersion', 'sectionPath', 'locator']);
-  const locator = record(item.locator);
-  if (Object.keys(locator).length > 12) throw new DenseEvaluationError('DATASET_LOCATOR_INVALID');
-  for (const locatorValue of Object.values(locator)) {
-    if (!['string', 'number', 'boolean'].includes(typeof locatorValue)
-      || (typeof locatorValue === 'string' && locatorValue.length > 256)
-      || (typeof locatorValue === 'number' && !Number.isFinite(locatorValue))) {
-      throw new DenseEvaluationError('DATASET_LOCATOR_INVALID');
-    }
-  }
+  const locator = parseEvaluationLocator(item.locator);
   const chunk: DenseEvalChunkPin = {
     provider: item.provider === 'opendart-fss' ? item.provider : (() => {
       throw new DenseEvaluationError('DATASET_PROVIDER_INVALID');
@@ -80,7 +73,7 @@ function parseChunk(value: unknown): DenseEvalChunkPin {
     chunkerVersion: string(item.chunkerVersion),
     schemaVersion: string(item.schemaVersion),
     sectionPath: stringArray(item.sectionPath),
-    locator: locator as Readonly<Record<string, string | number | boolean>>,
+    locator,
   };
   if (!CORP_CODE.test(chunk.corpCode) || !SYMBOL.test(chunk.symbol)
     || !RECEIPT.test(chunk.receiptNumber) || !HASH.test(chunk.contentHash)
@@ -170,6 +163,7 @@ function parseEntry(value: unknown, expectedSplit: DenseEvalSplit): DenseEvalEnt
   if (actualSplit === 'holdout' && reviewStatus === 'reviewed') {
     throw new DenseEvaluationError('DATASET_HOLDOUT_NOT_SEALED');
   }
+  assertReviewMetadata(review);
   if ((item.notes !== undefined && typeof item.notes !== 'string')
     || (review.reviewedAt !== undefined && typeof review.reviewedAt !== 'string')
     || (review.reviewerRoleId !== undefined && typeof review.reviewerRoleId !== 'string')) {
@@ -341,6 +335,7 @@ export function assessDatasetReadiness(
 }
 
 export function assertBenchmarkEligible(entry: DenseEvalEntry): void {
+  assertReviewMetadata(entry.review);
   if (entry.review.status === 'pending') throw new DenseEvaluationError('PENDING_ANNOTATION');
   if (entry.split === 'holdout' && entry.review.status !== 'sealed') {
     throw new DenseEvaluationError('HOLDOUT_NOT_SEALED');
@@ -352,6 +347,8 @@ export function assertReviewTransition(
   previous: DenseEvalEntry['review'],
   next: DenseEvalEntry['review'],
 ): void {
+  assertReviewMetadata(previous);
+  assertReviewMetadata(next);
   if (next.reviewRoundCount < previous.reviewRoundCount) {
     throw new DenseEvaluationError('REVIEW_ROUND_REGRESSION');
   }
@@ -367,6 +364,19 @@ export function assertReviewTransition(
     || (next.status === 'reviewed' && next.reviewRoundCount < 1)
     || (next.status === 'sealed' && next.reviewRoundCount < 2)) {
     throw new DenseEvaluationError('REVIEW_TRANSITION_INVALID');
+  }
+}
+
+function assertReviewMetadata(review: {
+  readonly status?: unknown; readonly reviewedAt?: unknown; readonly reviewerRoleId?: unknown;
+}): void {
+  if (review.status === 'pending') {
+    if (Object.hasOwn(review, 'reviewedAt') || Object.hasOwn(review, 'reviewerRoleId')) {
+      throw new DenseEvaluationError('DATASET_REVIEW_EVIDENCE_INVALID');
+    }
+  } else if (typeof review.reviewedAt !== 'string' || !Number.isFinite(Date.parse(review.reviewedAt))
+    || typeof review.reviewerRoleId !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(review.reviewerRoleId)) {
+    throw new DenseEvaluationError('DATASET_REVIEW_EVIDENCE_INVALID');
   }
 }
 

@@ -13,7 +13,8 @@ const pin = (id: string) => ({
 const entry: DenseEvalEntry = {
   queryId: 'DEV-001', split: 'dev', queryText: '질문', categories: ['causal', 'profit'],
   company: { corpCode: '00164779', symbol: '000660' }, reportFamily: 'annual', evidenceModality: 'narrative',
-  currentEffectiveCorrection: false, review: { status: 'reviewed', reviewRoundCount: 1 },
+  currentEffectiveCorrection: false, review: { status: 'reviewed', reviewRoundCount: 1,
+    reviewedAt: '2026-09-01T00:00:00Z', reviewerRoleId: 'evidence-review' },
   evidenceGroups: [
     { evidenceGroupId: 'cause', grade: 2, acceptableChunks: [pin('cause-a'), pin('cause-b')] },
     { evidenceGroupId: 'support', grade: 1, acceptableChunks: [pin('support')] },

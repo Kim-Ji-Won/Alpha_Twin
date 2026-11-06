@@ -44,6 +44,7 @@ export interface DenseEvalChunkPin {
 
 export interface DenseEvalEvidenceGroup {
   readonly evidenceGroupId: string;
+  // 2: direct core evidence; 1: relevant supporting/partial evidence. See goldenAuthoring.md.
   readonly grade: 1 | 2;
   readonly acceptableChunks: readonly DenseEvalChunkPin[];
 }
@@ -51,6 +52,7 @@ export interface DenseEvalEvidenceGroup {
 export interface DenseEvalReviewEvidence {
   readonly status: DenseEvalReviewStatus;
   readonly reviewRoundCount: number;
+  // Runtime validation requires both metadata fields for reviewed/sealed, neither for pending.
   readonly reviewedAt?: string;
   readonly reviewerRoleId?: string;
 }

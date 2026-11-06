@@ -19,6 +19,7 @@ import { DenseEvalDatasetPayload, DenseEvalEntry, DenseEvaluationError } from '.
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../evaluation/fixtures/dense-eval-v1');
 const hash = 'a'.repeat(64);
+const reviewMetadata = { reviewedAt: '2026-09-01T00:00:00Z', reviewerRoleId: 'evidence-review' };
 const chunk = (id = 'chunk-1') => ({
   provider: 'opendart-fss' as const, corpCode: '00164779', symbol: '000660',
   receiptNumber: '20260319000001', documentId: 'document-1', chunkId: id, contentHash: hash,
@@ -30,7 +31,7 @@ const entry = (overrides: Readonly<Record<string, unknown>> = {}): DenseEvalEntr
   categories: ['causal', 'profit'], company: { corpCode: '00164779', symbol: '000660' },
   reportFamily: 'annual', evidenceModality: 'narrative', currentEffectiveCorrection: false,
   evidenceGroups: [{ evidenceGroupId: 'group-1', grade: 2, acceptableChunks: [chunk()] }],
-  review: { status: 'reviewed', reviewRoundCount: 1, reviewerRoleId: 'finance-reviewer' },
+  review: { status: 'reviewed', reviewRoundCount: 1, ...reviewMetadata },
   ...overrides,
 } as DenseEvalEntry);
 function envelope(current: DenseEvalEntry, split: 'dev' | 'holdout' = 'dev') {
@@ -45,7 +46,7 @@ const code = (expected: string) => (value: unknown) =>
 
 test('valid reviewed dev and sealed holdout entries parse', () => {
   assert.equal(parseDatasetEnvelope(envelope(entry()), 'dev').payload.entries.length, 1);
-  const holdout = entry({ queryId: 'HOLD-001', split: 'holdout', review: { status: 'sealed', reviewRoundCount: 2 } });
+  const holdout = entry({ queryId: 'HOLD-001', split: 'holdout', review: { status: 'sealed', reviewRoundCount: 2, ...reviewMetadata } });
   assert.equal(parseDatasetEnvelope(envelope(holdout, 'holdout'), 'holdout').payload.entries.length, 1);
 });
 
@@ -91,7 +92,7 @@ test('canonical dataset hash ignores key order but changes with review or eviden
   const reordered = { nested: { gamma: 3, beta: 2 }, alpha: 1 };
   assert.equal(canonicalSha256(left), canonicalSha256(reordered));
   assert.notEqual(canonicalSha256(envelope(entry()).payload),
-    canonicalSha256(envelope(entry({ review: { status: 'reviewed', reviewRoundCount: 2 } })).payload));
+    canonicalSha256(envelope(entry({ review: { status: 'reviewed', reviewRoundCount: 2, ...reviewMetadata } })).payload));
   assert.notEqual(canonicalSha256(envelope(entry()).payload),
     canonicalSha256(envelope(entry({ evidenceGroups: [{ evidenceGroupId: 'changed', grade: 2,
       acceptableChunks: [chunk()] }] })).payload));
@@ -139,13 +140,47 @@ test('review-time leakage helper detects an eight-token sequence without persist
 
 test('review transitions separate dev review from terminal sealed holdout', () => {
   assert.doesNotThrow(() => assertReviewTransition('dev',
-    { status: 'pending', reviewRoundCount: 0 }, { status: 'reviewed', reviewRoundCount: 1 }));
+    { status: 'pending', reviewRoundCount: 0 }, { status: 'reviewed', reviewRoundCount: 1, ...reviewMetadata }));
   assert.doesNotThrow(() => assertReviewTransition('holdout',
-    { status: 'pending', reviewRoundCount: 0 }, { status: 'sealed', reviewRoundCount: 2 }));
+    { status: 'pending', reviewRoundCount: 0 }, { status: 'sealed', reviewRoundCount: 2, ...reviewMetadata }));
   assert.throws(() => assertReviewTransition('dev',
-    { status: 'reviewed', reviewRoundCount: 1 }, { status: 'sealed', reviewRoundCount: 2 }),
+    { status: 'reviewed', reviewRoundCount: 1, ...reviewMetadata }, { status: 'sealed', reviewRoundCount: 2, ...reviewMetadata }),
   code('REVIEW_TRANSITION_INVALID'));
   assert.throws(() => assertReviewTransition('holdout',
-    { status: 'sealed', reviewRoundCount: 2 }, { status: 'pending', reviewRoundCount: 2 }),
+    { status: 'sealed', reviewRoundCount: 2, ...reviewMetadata }, { status: 'pending', reviewRoundCount: 2 }),
   code('SEALED_REVIEW_IMMUTABLE'));
+});
+
+test('review metadata is mandatory for reviewed/sealed and absent for pending', () => {
+  for (const status of ['pending', 'reviewed', 'sealed'] as const) {
+    const split = status === 'sealed' ? 'holdout' : 'dev';
+    const base = { status, reviewRoundCount: status === 'pending' ? 0 : status === 'reviewed' ? 1 : 2 };
+    const parse = (review: Record<string, unknown>) => parseDatasetEnvelope(envelope(entry({
+      queryId: split === 'dev' ? 'DEV-001' : 'HOLD-001', split, review,
+    }), split), split);
+    assert.doesNotThrow(() => parse(status === 'pending' ? base : { ...base, ...reviewMetadata }));
+    for (const key of ['reviewedAt', 'reviewerRoleId'] as const) {
+      if (status === 'pending') {
+        for (const value of [reviewMetadata[key], undefined, null]) {
+          assert.throws(() => parse({ ...base, [key]: value }), code('DATASET_REVIEW_EVIDENCE_INVALID'));
+        }
+      } else {
+        const incomplete: Record<string, unknown> = { ...base, ...reviewMetadata };
+        delete incomplete[key];
+        assert.throws(() => parse(incomplete), code('DATASET_REVIEW_EVIDENCE_INVALID'));
+        for (const value of ['', null, undefined, 'not valid']) {
+          assert.throws(() => parse({ ...base, ...reviewMetadata, [key]: value }), code('DATASET_REVIEW_EVIDENCE_INVALID'));
+        }
+      }
+    }
+    if (status !== 'pending') assert.throws(() => parse(base), code('DATASET_REVIEW_EVIDENCE_INVALID'));
+  }
+  assert.throws(() => parseDatasetEnvelope(envelope(entry({ review: {
+    status: 'sealed', reviewRoundCount: 2, ...reviewMetadata,
+  } })), 'dev'), code('DATASET_DEV_SEALED_INVALID'));
+  assert.throws(() => parseDatasetEnvelope(envelope(entry({ queryId: 'HOLD-001', split: 'holdout',
+    review: { status: 'reviewed', reviewRoundCount: 1, ...reviewMetadata },
+  }), 'holdout'), 'holdout'), code('DATASET_HOLDOUT_NOT_SEALED'));
+  assert.throws(() => assertReviewTransition('dev', { status: 'pending', reviewRoundCount: 0 },
+    { status: 'reviewed', reviewRoundCount: 1 }), code('DATASET_REVIEW_EVIDENCE_INVALID'));
 });

@@ -93,8 +93,8 @@ function holdoutDataset(split: 'dev' | 'holdout' = 'holdout'): DenseEvalDatasetE
       company: { corpCode: '00164779', symbol: '000660' }, reportFamily: 'annual',
       evidenceModality: 'narrative', currentEffectiveCorrection: index < 8,
       evidenceGroups: [{ evidenceGroupId: `group-${queryId}`, grade: 2, acceptableChunks: [chunk(queryId)] }],
-      review: split === 'holdout' ? { status: 'sealed', reviewRoundCount: 2 }
-        : { status: 'reviewed', reviewRoundCount: 1 } };
+      review: { status: split === 'holdout' ? 'sealed' : 'reviewed', reviewRoundCount: split === 'holdout' ? 2 : 1,
+        reviewedAt: '2026-09-01T00:00:00Z', reviewerRoleId: 'evidence-review' } };
   });
   const payload = { datasetId: 'dense-eval-v1' as const, schemaVersion: 'dense-eval-dataset@1' as const,
     split, targetCount: split === 'holdout' ? 20 : 40, entries };

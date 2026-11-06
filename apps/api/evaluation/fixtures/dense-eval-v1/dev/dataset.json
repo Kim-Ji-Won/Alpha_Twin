@@ -4,7 +4,287 @@
     "schemaVersion": "dense-eval-dataset@1",
     "split": "dev",
     "targetCount": 40,
-    "entries": []
+    "entries": [
+      {
+        "queryId": "DEV-001",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서에서 DX 부문이 생산·판매한다고 설명한 제품군은 무엇인가?",
+        "categories": [
+          "segment",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_1079c6717de11c0237953099764851f1",
+                "contentHash": "7e7f62ff8827f9131432125271f6acb2cea55d50171fa332befa5dc9a215807f",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "I. 회사의 개요",
+                  "1. 회사의 개요"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 31,
+                  "lastBlockOrdinal": 38
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T10:31:54Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260310002820; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-002",
+        "split": "dev",
+        "queryText": "삼성전자는 2026년 반기보고서에서 차세대·원천 기술 확보의 목적을 어떻게 설명하는가?",
+        "categories": [
+          "causal",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_f13d0513fd20e0a61d10ab44fe0ef0a0",
+                "contentHash": "0f7175a7b1cb70cd74147beec8e10ab09a3b6ad199d6afb930314309bdfb13df",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "6. 주요계약 및 연구개발활동"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 230,
+                  "lastBlockOrdinal": 230
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T10:31:54Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260814003699; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-003",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서에 따르면 금리 위험은 주로 어떤 차입 조건에서 발생하며 어떤 스왑으로 관리하는가?",
+        "categories": [
+          "risk",
+          "debt_liquidity",
+          "causal"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_e0df499213d89e4801bb3de0a67de18c",
+                "contentHash": "a77fbdf17518f8600a074819f9689a4942489f62e4a3a6e63c8cf4c14b879cc3",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "5. 위험관리 및 파생거래"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 120,
+                  "lastBlockOrdinal": 128
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T10:31:54Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-004",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서의 원재료 표에서 모바일 AP 솔루션의 매입 비중과 주요 매입처는 무엇인가?",
+        "categories": [
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_a7156249ad305f83fe341c5a3cadca7f",
+                "contentHash": "96c648a19a6b586ac63af833ad43e8fba764ad5591f670a5420ae72e08f224f1",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "3. 원재료 및 생산설비"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 136,
+                  "lastBlockOrdinal": 136,
+                  "tableId": "tbl_be78feff20e7094d60f4dbbd5aa6739a",
+                  "rowStart": 0,
+                  "rowEnd": 19,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T10:31:54Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260310002820; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-005",
+        "split": "dev",
+        "queryText": "SK하이닉스 제79기 1분기 누계 주요 제품 표에서 반도체 부문의 매출 비중은 얼마인가?",
+        "categories": [
+          "segment",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_669c4879fb3e120233dfa44812c137a1",
+                "contentHash": "a1110b0763113fb96a2f2ab598e22871ad601daeb08415dd7c0d21d3243dd008",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "2. 주요 제품 및 서비스"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 66,
+                  "lastBlockOrdinal": 66,
+                  "tableId": "tbl_ebfb7a21b843d2d03120eaf3a24c0f23",
+                  "rowStart": 0,
+                  "rowEnd": 2,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T10:31:54Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      }
+    ]
   },
-  "canonicalHash": "16648e0fb1ac6b435eb812ee3a7c6de667a5c8ef23eba9810e06c2536bd0ee08"
+  "canonicalHash": "c674c7c146b019692378c2e3b57b3d3e734d23349bda3eb25fd1869f3fb0e581"
 }

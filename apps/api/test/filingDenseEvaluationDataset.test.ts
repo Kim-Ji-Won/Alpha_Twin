@@ -112,12 +112,40 @@ test('development loader reads only dev and final loader needs explicit holdout 
   assert.equal(both.holdout.payload.split, 'holdout');
 });
 
-test('empty canonical manifests disclose annotation incompleteness', async () => {
+test('partial canonical manifests disclose annotation incompleteness', async () => {
   const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   assert.deepEqual(assessDatasetReadiness(dev, holdout).ready, false);
   const coverage = evaluateDatasetCoverage([]);
   assert.equal(coverage.total, 0);
   assert.ok(coverage.errors.includes('COMPANY_MINIMUM_NOT_MET'));
+});
+
+test('first dev tranche preserves author review and historical-source coverage', async () => {
+  const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
+  const entries = dev.payload.entries;
+  assert.deepEqual(entries.map(value => value.queryId), ['DEV-001', 'DEV-002', 'DEV-003', 'DEV-004', 'DEV-005']);
+  assert.equal(new Set(entries.map(value => value.queryId)).size, 5);
+  assert.equal(dev.payload.targetCount, 40);
+  assert.equal(dev.payload.schemaVersion, 'dense-eval-dataset@1');
+  assert.equal(dev.canonicalHash, canonicalSha256(dev.payload));
+  assert.equal(holdout.payload.entries.length, 0);
+  assert.equal(holdout.payload.targetCount, 20);
+  for (const value of entries) {
+    assert.equal(value.review.status, 'reviewed');
+    assert.equal(value.review.reviewRoundCount, 1);
+    assert.equal(value.review.reviewerRoleId, 'author-review');
+    assert.ok(Number.isFinite(Date.parse(value.review.reviewedAt ?? '')));
+    assert.equal(value.currentEffectiveCorrection, false);
+    assert.equal(value.evidenceGroups.length, 1);
+    assert.equal(value.evidenceGroups[0]?.grade, 2);
+  }
+  assert.equal(entries.filter(value => value.evidenceModality === 'narrative').length, 3);
+  assert.equal(entries.filter(value => value.evidenceModality === 'table').length, 2);
+  const categories = new Set<string>(entries.flatMap(value => value.categories));
+  for (const category of ['causal', 'risk', 'numeric', 'period', 'table_targeted']) {
+    assert.ok(categories.has(category), category);
+  }
+  assert.equal(assessDatasetReadiness(dev, holdout).ready, false);
 });
 
 test('current-effective evidence seam detects missing pinned chunks', () => {

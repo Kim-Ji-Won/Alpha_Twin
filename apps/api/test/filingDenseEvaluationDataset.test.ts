@@ -16,6 +16,7 @@ import {
   validateCurrentEffectiveEvidence,
 } from '../evaluation/filingDense/dataset.js';
 import { DenseEvalDatasetPayload, DenseEvalEntry, DenseEvaluationError } from '../evaluation/filingDense/contracts.js';
+import { evaluateRankedCandidates } from '../evaluation/filingDense/metrics.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../evaluation/fixtures/dense-eval-v1');
 const hash = 'a'.repeat(64);
@@ -126,6 +127,44 @@ test('current-effective evidence seam detects missing pinned chunks', () => {
   const key = absent.missingChunkKeys[0]!;
   assert.deepEqual(validateCurrentEffectiveEvidence(value, new Set([key])), { compatible: true, missingChunkKeys: [] });
 });
+
+test('fixed historical-source annotation parses without family or graph fields', () => {
+  const historical = entry({
+    queryText: 'What products did synthetic receipt 20260319000001 describe?',
+    currentEffectiveCorrection: false,
+    notes: 'Synthetic historical-source test only; not current-validity or human approval evidence.',
+    review: { status: 'pending', reviewRoundCount: 0 },
+  });
+  const parsed = parseDatasetEnvelope(envelope(historical), 'dev').payload.entries[0]!;
+  assert.deepEqual(parsed, historical);
+  assert.equal(evaluateDatasetCoverage([parsed]).correctionCount, 0);
+  assert.throws(() => evaluateRankedCandidates(parsed, []), code('PENDING_ANNOTATION'));
+});
+
+for (const currentEffectiveCorrection of [false, true]) {
+  test(`correction coverage flag ${currentEffectiveCorrection} cannot bypass review or establish current evidence`, () => {
+    const value = entry({ currentEffectiveCorrection });
+    const parsed = parseDatasetEnvelope(envelope(value), 'dev').payload.entries[0]!;
+    assert.equal(evaluateDatasetCoverage([parsed]).correctionCount, Number(currentEffectiveCorrection));
+    assert.deepEqual(evaluateRankedCandidates(parsed, []), evaluateRankedCandidates(entry(), []));
+    const absent = validateCurrentEffectiveEvidence(parsed, new Set());
+    assert.equal(absent.compatible, false);
+    assert.equal(absent.missingChunkKeys.length, 1);
+    for (const status of ['reviewed', 'sealed'] as const) {
+      const split = status === 'sealed' ? 'holdout' : 'dev';
+      const missingMetadata = entry({ currentEffectiveCorrection, split,
+        queryId: split === 'dev' ? 'DEV-001' : 'HOLD-001',
+        review: { status, reviewRoundCount: status === 'sealed' ? 2 : 1 },
+      });
+      assert.throws(() => parseDatasetEnvelope(envelope(missingMetadata, split), split),
+        code('DATASET_REVIEW_EVIDENCE_INVALID'));
+      assert.throws(() => evaluateRankedCandidates(missingMetadata, []),
+        code('DATASET_REVIEW_EVIDENCE_INVALID'));
+    }
+    const pending = entry({ currentEffectiveCorrection, review: { status: 'pending', reviewRoundCount: 0 } });
+    assert.throws(() => evaluateRankedCandidates(pending, []), code('PENDING_ANNOTATION'));
+  });
+}
 
 test('review-time leakage helper detects an eight-token sequence without persisting source', () => {
   assert.equal(findCopiedTokenSequence('하나 둘 셋 넷 다섯 여섯 일곱 여덟', '앞 하나 둘 셋 넷 다섯 여섯 일곱 여덟 뒤'), true);

@@ -120,17 +120,22 @@ test('partial canonical manifests disclose annotation incompleteness', async () 
   assert.ok(coverage.errors.includes('COMPANY_MINIMUM_NOT_MET'));
 });
 
-test('first two dev tranches preserve author review and historical-source coverage', async () => {
+test('first three dev tranches preserve author review and historical-source coverage', async () => {
   const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   const entries = dev.payload.entries;
   assert.deepEqual(entries.map(value => value.queryId), [
     'DEV-001', 'DEV-002', 'DEV-003', 'DEV-004', 'DEV-005',
     'DEV-006', 'DEV-007', 'DEV-008', 'DEV-009', 'DEV-010',
+    'DEV-011', 'DEV-012', 'DEV-013', 'DEV-014', 'DEV-015',
   ]);
-  assert.equal(new Set(entries.map(value => value.queryId)).size, 10);
+  assert.equal(new Set(entries.map(value => value.queryId)).size, 15);
+  assert.equal(dev.payload.datasetId, 'dense-eval-v1');
   assert.equal(dev.payload.targetCount, 40);
   assert.equal(dev.payload.schemaVersion, 'dense-eval-dataset@1');
   assert.equal(dev.canonicalHash, canonicalSha256(dev.payload));
+  // Preserve the exact previously approved payload, including all ten pins and reviews.
+  assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 10) }),
+    '2de8771ee983cbbc27ed9eee8497ecf190ba2fc0679202318eeb359bb4718b90');
   assert.equal(holdout.payload.entries.length, 0);
   assert.equal(holdout.payload.targetCount, 20);
   for (const value of entries) {
@@ -144,22 +149,59 @@ test('first two dev tranches preserve author review and historical-source covera
     assert.equal(value.evidenceGroups[0]?.grade, 2);
     assert.equal(value.evidenceGroups[0]?.acceptableChunks.length, 1);
   }
-  assert.deepEqual(entries.slice(5).map(value => value.categories), [
+  assert.deepEqual(entries.slice(5, 10).map(value => value.categories), [
     ['profit', 'numeric', 'period', 'table_targeted'],
     ['capex', 'period', 'table_targeted'],
     ['contract_customer', 'numeric', 'period', 'paraphrase'],
     ['dividend', 'cash_flow', 'period', 'synonym'],
     ['segment', 'synonym', 'lexical_sparse'],
   ]);
-  assert.deepEqual(entries.slice(5).map(value => value.evidenceModality), [
+  assert.deepEqual(entries.slice(5, 10).map(value => value.evidenceModality), [
     'table', 'table', 'narrative', 'narrative', 'narrative',
   ]);
   for (const [index, value] of entries.entries()) {
     assert.equal(value.split, 'dev');
-    assert.equal(value.review.reviewedAt, index < 5 ? '2026-11-06T10:31:54Z' : '2026-11-06T11:31:37Z');
+    const reviewedAt = ['2026-11-06T10:31:54Z', '2026-11-06T11:31:37Z', '2026-11-11T11:07:52Z'];
+    assert.equal(value.review.reviewedAt, reviewedAt[Math.floor(index / 5)]);
   }
-  assert.equal(entries.filter(value => value.evidenceModality === 'narrative').length, 6);
-  assert.equal(entries.filter(value => value.evidenceModality === 'table').length, 4);
+  const third = entries.slice(10);
+  assert.deepEqual(third.map(value => value.queryText), [
+    '삼성전자 2025년 사업보고서의 연구개발비용 표에서 연구개발비/매출액 비율은 제57기와 제56기에 각각 몇 %인가?',
+    '삼성전자 2026년 반기보고서에서 주요 유동성 공급원은 무엇이며, 주요 유동성 수요로 어떤 용도를 설명하는가?',
+    '삼성전자 2026년 반기보고서에 따르면 모바일용 메모리와 TV·모니터용 디스플레이 패널 가격은 전년 연간평균 대비 각각 어떻게 변했는가?',
+    'SK하이닉스 2026년 1분기보고서는 계절적 비수기에도 사상 최대 실적과 최고 수익률을 기록한 배경을 수요·공급 환경과 제품 가격 측면에서 어떻게 설명하는가?',
+    'SK하이닉스 2026년 1분기보고서의 환율 민감도 표에서 USD 행의 10% 상승 시와 10% 하락 시 금액은 각각 얼마인가? 표의 단위와 괄호 표기를 함께 제시해 주세요.',
+  ]);
+  assert.deepEqual(third.map(value => value.categories), [
+    ['numeric', 'period', 'table_targeted'],
+    ['debt_liquidity', 'cash_flow', 'paraphrase'],
+    ['numeric', 'period'],
+    ['causal', 'profit', 'period'],
+    ['risk', 'numeric', 'table_targeted'],
+  ]);
+  assert.deepEqual(third.map(value => value.evidenceModality), [
+    'table', 'narrative', 'narrative', 'narrative', 'table',
+  ]);
+  assert.deepEqual(third.map(value => value.reportFamily), [
+    'annual', 'half_year', 'half_year', 'quarterly', 'quarterly',
+  ]);
+  assert.deepEqual(third.map(value => value.evidenceGroups[0]?.acceptableChunks[0]?.locator), [
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 254, lastBlockOrdinal: 254,
+      tableId: 'tbl_924bbba964684bfef5914cf6c9b488f1', rowStart: 0, rowEnd: 5,
+      repeatedHeaderRowStart: 0, repeatedHeaderRowEnd: 0 },
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 191, lastBlockOrdinal: 211 },
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 123, lastBlockOrdinal: 123 },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 67, lastBlockOrdinal: 67 },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 119, lastBlockOrdinal: 119,
+      tableId: 'tbl_767e42bb2ad003c76eb9f8eb759f6d8a', rowStart: 0, rowEnd: 5,
+      repeatedHeaderRowStart: 0, repeatedHeaderRowEnd: 1 },
+  ]);
+  assert.equal(new Set(entries.map(value => value.queryText)).size, 15);
+  const coverage = evaluateDatasetCoverage(entries);
+  assert.deepEqual(coverage.modalityCounts, { narrative: 9, table: 6 });
+  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 8, '00164779:000660': 7 });
+  assert.deepEqual(coverage.reportFamilyCounts, { annual: 4, half_year: 4, quarterly: 7 });
+  assert.equal(coverage.categories.regulation_litigation, 0);
   const categories = new Set<string>(entries.flatMap(value => value.categories));
   for (const category of ['causal', 'risk', 'numeric', 'period', 'table_targeted']) {
     assert.ok(categories.has(category), category);

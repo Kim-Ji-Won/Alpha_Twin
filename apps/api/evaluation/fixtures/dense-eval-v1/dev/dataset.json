@@ -564,8 +564,287 @@
           "reviewerRoleId": "author-review"
         },
         "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-011",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서의 연구개발비용 표에서 연구개발비/매출액 비율은 제57기와 제56기에 각각 몇 %인가?",
+        "categories": [
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_70059dea7b1e42d67b797e49e9d8638e",
+                "contentHash": "0fa82e8df44c29dbcb1226fe88038b43437f71184a28f8746e6443b36cf9ae5f",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "6. 주요계약 및 연구개발활동"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 254,
+                  "lastBlockOrdinal": 254,
+                  "tableId": "tbl_924bbba964684bfef5914cf6c9b488f1",
+                  "rowStart": 0,
+                  "rowEnd": 5,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T11:07:52Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260310002820; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-012",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서에서 주요 유동성 공급원은 무엇이며, 주요 유동성 수요로 어떤 용도를 설명하는가?",
+        "categories": [
+          "debt_liquidity",
+          "cash_flow",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_aff31f2cf958594c4ee79fdff081e449",
+                "contentHash": "febf2a242fbf08c30233e992c52b7e43f7bcf9433b9e18bd9fe7dd758d2ea99e",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "5. 위험관리 및 파생거래"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 191,
+                  "lastBlockOrdinal": 211
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T11:07:52Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260814003699; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-013",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서에 따르면 모바일용 메모리와 TV·모니터용 디스플레이 패널 가격은 전년 연간평균 대비 각각 어떻게 변했는가?",
+        "categories": [
+          "numeric",
+          "period"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_002b1ac79645ccaf5a2ff53a9adae858",
+                "contentHash": "54f168d51b938afde3d2deb2858b3e57eab13536816fb15b0befd0a8901189ee",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "3. 원재료 및 생산설비"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 123,
+                  "lastBlockOrdinal": 123
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T11:07:52Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260814003699; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-014",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서는 계절적 비수기에도 사상 최대 실적과 최고 수익률을 기록한 배경을 수요·공급 환경과 제품 가격 측면에서 어떻게 설명하는가?",
+        "categories": [
+          "causal",
+          "profit",
+          "period"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_ca4638a4c76f3c6df4e534344f0e2618",
+                "contentHash": "c0f90857a696231f1ed6f70d831514b15c0e8e0964c33128b8b981e4885c4eb2",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "2. 주요 제품 및 서비스"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 67,
+                  "lastBlockOrdinal": 67
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T11:07:52Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-015",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서의 환율 민감도 표에서 USD 행의 10% 상승 시와 10% 하락 시 금액은 각각 얼마인가? 표의 단위와 괄호 표기를 함께 제시해 주세요.",
+        "categories": [
+          "risk",
+          "numeric",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_a2a388cb01b553ca1c2a867963cc3cc5",
+                "contentHash": "789ca6da417325c43573ef57d2e182c89084a0f2d492bb084533b71a03993e0d",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "5. 위험관리 및 파생거래"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 119,
+                  "lastBlockOrdinal": 119,
+                  "tableId": "tbl_767e42bb2ad003c76eb9f8eb759f6d8a",
+                  "rowStart": 0,
+                  "rowEnd": 5,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 1
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T11:07:52Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
       }
     ]
   },
-  "canonicalHash": "2de8771ee983cbbc27ed9eee8497ecf190ba2fc0679202318eeb359bb4718b90"
+  "canonicalHash": "371585c8ac295f044eb2aab0212f8bf359169ba3515fd6e70331443568dace4b"
 }

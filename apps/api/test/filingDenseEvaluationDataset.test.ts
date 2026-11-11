@@ -120,11 +120,14 @@ test('partial canonical manifests disclose annotation incompleteness', async () 
   assert.ok(coverage.errors.includes('COMPANY_MINIMUM_NOT_MET'));
 });
 
-test('first dev tranche preserves author review and historical-source coverage', async () => {
+test('first two dev tranches preserve author review and historical-source coverage', async () => {
   const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   const entries = dev.payload.entries;
-  assert.deepEqual(entries.map(value => value.queryId), ['DEV-001', 'DEV-002', 'DEV-003', 'DEV-004', 'DEV-005']);
-  assert.equal(new Set(entries.map(value => value.queryId)).size, 5);
+  assert.deepEqual(entries.map(value => value.queryId), [
+    'DEV-001', 'DEV-002', 'DEV-003', 'DEV-004', 'DEV-005',
+    'DEV-006', 'DEV-007', 'DEV-008', 'DEV-009', 'DEV-010',
+  ]);
+  assert.equal(new Set(entries.map(value => value.queryId)).size, 10);
   assert.equal(dev.payload.targetCount, 40);
   assert.equal(dev.payload.schemaVersion, 'dense-eval-dataset@1');
   assert.equal(dev.canonicalHash, canonicalSha256(dev.payload));
@@ -137,10 +140,26 @@ test('first dev tranche preserves author review and historical-source coverage',
     assert.ok(Number.isFinite(Date.parse(value.review.reviewedAt ?? '')));
     assert.equal(value.currentEffectiveCorrection, false);
     assert.equal(value.evidenceGroups.length, 1);
+    assert.equal(value.evidenceGroups[0]?.evidenceGroupId, 'G1');
     assert.equal(value.evidenceGroups[0]?.grade, 2);
+    assert.equal(value.evidenceGroups[0]?.acceptableChunks.length, 1);
   }
-  assert.equal(entries.filter(value => value.evidenceModality === 'narrative').length, 3);
-  assert.equal(entries.filter(value => value.evidenceModality === 'table').length, 2);
+  assert.deepEqual(entries.slice(5).map(value => value.categories), [
+    ['profit', 'numeric', 'period', 'table_targeted'],
+    ['capex', 'period', 'table_targeted'],
+    ['contract_customer', 'numeric', 'period', 'paraphrase'],
+    ['dividend', 'cash_flow', 'period', 'synonym'],
+    ['segment', 'synonym', 'lexical_sparse'],
+  ]);
+  assert.deepEqual(entries.slice(5).map(value => value.evidenceModality), [
+    'table', 'table', 'narrative', 'narrative', 'narrative',
+  ]);
+  for (const [index, value] of entries.entries()) {
+    assert.equal(value.split, 'dev');
+    assert.equal(value.review.reviewedAt, index < 5 ? '2026-11-06T10:31:54Z' : '2026-11-06T11:31:37Z');
+  }
+  assert.equal(entries.filter(value => value.evidenceModality === 'narrative').length, 6);
+  assert.equal(entries.filter(value => value.evidenceModality === 'table').length, 4);
   const categories = new Set<string>(entries.flatMap(value => value.categories));
   for (const category of ['causal', 'risk', 'numeric', 'period', 'table_targeted']) {
     assert.ok(categories.has(category), category);

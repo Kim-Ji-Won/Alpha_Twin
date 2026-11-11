@@ -283,8 +283,289 @@
           "reviewerRoleId": "author-review"
         },
         "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-006",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서의 연결 손익계산서에서 제57기 기본주당이익과 희석주당이익은 각각 몇 원인가?",
+        "categories": [
+          "profit",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_13fea4d411fccc814a1bb25d1fafb819",
+                "contentHash": "c0ada8343d406c8f0fe3af2ca02e26b7bbd855cd4d8728e69b3a20ef1424f256",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "III. 재무에 관한 사항",
+                  "2. 연결재무제표"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 388,
+                  "lastBlockOrdinal": 388,
+                  "tableId": "tbl_d1cbea9db1e548643f4290c4bbb856ec",
+                  "rowStart": 0,
+                  "rowEnd": 19,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T11:31:37Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260310002820; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-007",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서의 보완투자 표에서 2026년 1월 1일부터 3월 31일까지의 투자대상자산과 투자효과는 무엇인가?",
+        "categories": [
+          "capex",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_9514103b877b21582d7894d5a2150f44",
+                "contentHash": "4513631ff47856273eeb6825f1f570f82fcd85eac5e981e837d65c721aba5034",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "3. 원재료 및 생산설비"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 97,
+                  "lastBlockOrdinal": 97,
+                  "tableId": "tbl_538ad2683dce1bdbe9d552d41decf826",
+                  "rowStart": 0,
+                  "rowEnd": 2
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T11:31:37Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-008",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서에 적힌 주요 5대 매출처는 어디이며, 이들이 전체 매출에서 차지한 비중은 어느 정도인가?",
+        "categories": [
+          "contract_customer",
+          "numeric",
+          "period",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_f392b478b54a54b33d92bad252160b6d",
+                "contentHash": "8c31b6443af2d42ccc921353cad7797362399081fe544be8a2fcee1dae389245",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "4. 매출 및 수주상황"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 181,
+                  "lastBlockOrdinal": 186
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T11:31:37Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260814003699; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-009",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서의 2025~2027년 주주환원정책에서, 기존에 지급하던 연간 잉여현금흐름의 5%는 어디에 우선 활용하며 추가 환원은 어떤 조건에서 계획하는가?",
+        "categories": [
+          "dividend",
+          "cash_flow",
+          "period",
+          "synonym"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_896a727a5189242e5b508bf8319ea44c",
+                "contentHash": "9b6f8d1d6c78ddfb1e0878601a8f3fb65b026c8c74998a0dd8343c1bd1433c7a",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "III. 재무에 관한 사항",
+                  "6. 배당에 관한 사항"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 1369,
+                  "lastBlockOrdinal": 1372
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T11:31:37Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-010",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서는 휴대기기·개인용 컴퓨터 중심이던 데이터 저장용 메모리의 수요처가 어떤 기업용 저장장치로 확대된다고 설명하는가?",
+        "categories": [
+          "segment",
+          "synonym",
+          "lexical_sparse"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_6804e3f6f0205af318651e01462220af",
+                "contentHash": "bdfbd1cf1be8b945ed0fa65ca5f80962092399563737e9f2062fd062775877f8",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "7. 기타 참고사항"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 197,
+                  "lastBlockOrdinal": 199
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-06T11:31:37Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
       }
     ]
   },
-  "canonicalHash": "c674c7c146b019692378c2e3b57b3d3e734d23349bda3eb25fd1869f3fb0e581"
+  "canonicalHash": "2de8771ee983cbbc27ed9eee8497ecf190ba2fc0679202318eeb359bb4718b90"
 }

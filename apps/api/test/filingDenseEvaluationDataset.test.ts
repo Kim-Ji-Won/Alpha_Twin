@@ -17,6 +17,7 @@ import {
 } from '../evaluation/filingDense/dataset.js';
 import { DenseEvalDatasetPayload, DenseEvalEntry, DenseEvaluationError } from '../evaluation/filingDense/contracts.js';
 import { evaluateRankedCandidates } from '../evaluation/filingDense/metrics.js';
+import { canonicalToEvaluationLocator, evaluationToCanonicalLocator } from '../evaluation/filingDense/evaluationLocator.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../evaluation/fixtures/dense-eval-v1');
 const hash = 'a'.repeat(64);
@@ -120,7 +121,7 @@ test('partial canonical manifests disclose annotation incompleteness', async () 
   assert.ok(coverage.errors.includes('COMPANY_MINIMUM_NOT_MET'));
 });
 
-test('first four dev tranches preserve author review and historical-source coverage', async () => {
+test('first five dev tranches preserve author review and historical-source coverage', async () => {
   const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   const entries = dev.payload.entries;
   assert.deepEqual(entries.map(value => value.queryId), [
@@ -128,8 +129,9 @@ test('first four dev tranches preserve author review and historical-source cover
     'DEV-006', 'DEV-007', 'DEV-008', 'DEV-009', 'DEV-010',
     'DEV-011', 'DEV-012', 'DEV-013', 'DEV-014', 'DEV-015',
     'DEV-016', 'DEV-017', 'DEV-018', 'DEV-019', 'DEV-020',
+    'DEV-021', 'DEV-022', 'DEV-023', 'DEV-024', 'DEV-025',
   ]);
-  assert.equal(new Set(entries.map(value => value.queryId)).size, 20);
+  assert.equal(new Set(entries.map(value => value.queryId)).size, 25);
   assert.equal(dev.payload.datasetId, 'dense-eval-v1');
   assert.equal(dev.payload.targetCount, 40);
   assert.equal(dev.payload.schemaVersion, 'dense-eval-dataset@1');
@@ -139,6 +141,8 @@ test('first four dev tranches preserve author review and historical-source cover
     '2de8771ee983cbbc27ed9eee8497ecf190ba2fc0679202318eeb359bb4718b90');
   assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 15) }),
     '371585c8ac295f044eb2aab0212f8bf359169ba3515fd6e70331443568dace4b');
+  assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 20) }),
+    'b9ae65d8d2bcae35afc4ecfaafc902ea02bf0a9b4fd0e6afa4583ec33febbfa1');
   assert.equal(holdout.payload.entries.length, 0);
   assert.equal(holdout.payload.targetCount, 20);
   for (const value of entries) {
@@ -167,6 +171,7 @@ test('first four dev tranches preserve author review and historical-source cover
     const reviewedAt = [
       '2026-11-06T10:31:54Z', '2026-11-06T11:31:37Z',
       '2026-11-11T11:07:52Z', '2026-11-11T14:27:06Z',
+      '2026-11-12T02:40:43Z',
     ];
     assert.equal(value.review.reviewedAt, reviewedAt[Math.floor(index / 5)]);
   }
@@ -202,7 +207,7 @@ test('first four dev tranches preserve author review and historical-source cover
       tableId: 'tbl_767e42bb2ad003c76eb9f8eb759f6d8a', rowStart: 0, rowEnd: 5,
       repeatedHeaderRowStart: 0, repeatedHeaderRowEnd: 1 },
   ]);
-  const fourth = entries.slice(15);
+  const fourth = entries.slice(15, 20);
   assert.deepEqual(fourth.map(value => value.queryText), [
     '삼성전자 2025년 사업보고서의 제57기 가동률 표에서 DS 부문 메모리와 SDC 디스플레이 패널의 가동률은 각각 몇 %인가?',
     'SK하이닉스 2026년 1분기보고서의 주요 원재료 현황 표에서 Wafer, Substrate, PCB의 투입액 비율은 각각 몇 %인가?',
@@ -236,12 +241,64 @@ test('first four dev tranches preserve author review and historical-source cover
     { entryName: '20260310002820.xml', firstBlockOrdinal: 256, lastBlockOrdinal: 259 },
     { entryName: '20260515002287.xml', firstBlockOrdinal: 73, lastBlockOrdinal: 81 },
   ]);
-  assert.equal(new Set(entries.map(value => value.queryText)).size, 20);
+  const fifth = entries.slice(20);
+  assert.deepEqual(fifth.map(value => value.queryText), [
+    '삼성전자 2026년 반기보고서의 연결 재무상태표에서 제58기 반기말 현금및현금성자산과 단기금융상품은 각각 얼마인가? 표의 백만원 단위로 답하라.',
+    '삼성전자 2026년 반기보고서의 연결 손익계산서에서 제58기 반기 누적 매출액과 반기순이익은 각각 얼마인가? 3개월 열이 아닌 누적 열을 백만원 단위로 읽어라.',
+    'SK하이닉스 2026년 1분기보고서는 직판 거래와 대리점 거래를 실수요자에게 판매하는 방식에 따라 어떻게 구분하는가?',
+    '삼성전자 2026년 반기보고서는 2025년에 매입한 자기주식 중 임직원 보상 목적을 제외한 주식의 소각 규모와 시기를 어떻게 기재하는가?',
+    '삼성전자 2026년 반기보고서의 녹색경영 설명에 따르면, 법규에 따라 정부에 신고하는 두 정보는 무엇이며 이해관계자에게 어떤 보고서로 공개하는가?',
+  ]);
+  assert.deepEqual(fifth.map(value => value.categories), [
+    ['debt_liquidity', 'numeric', 'period', 'table_targeted'],
+    ['profit', 'numeric', 'period', 'table_targeted'],
+    ['contract_customer', 'paraphrase'],
+    ['dividend', 'numeric', 'period'],
+    ['regulation_litigation', 'paraphrase'],
+  ]);
+  assert.deepEqual(fifth.map(value => value.evidenceModality), [
+    'table', 'table', 'narrative', 'narrative', 'narrative',
+  ]);
+  assert.deepEqual(fifth.map(value => value.reportFamily), [
+    'half_year', 'half_year', 'quarterly', 'half_year', 'half_year',
+  ]);
+  // Frozen from Issue #17 candidate audit; each hash binds every approved pin field.
+  assert.deepEqual(fifth.map(value => canonicalSha256(value.evidenceGroups[0]?.acceptableChunks[0])), [
+    '21c250f110a91febdfa6c07a588fa498da8226a3a7e24c0079e112554cc48d73',
+    '028062a562c397968d66b4b985ba79276db82f5b867a2a96a31f9333f5559e1f',
+    'dbafba46db70f57197272702219a2d7f749e9b9e642adf51cb97e4678803c04b',
+    'abf154300cd127639875785f9597d3a43b3ee1ea4810fc00d7ffceb28bad4061',
+    '64b6c5b014737eb398186a042f5559d8ab91c49e1c6fbf687d3681fa4660f82d',
+  ]);
+  const fifthLocators = fifth.map(value => value.evidenceGroups[0]!.acceptableChunks[0]!.locator);
+  const canonicalLocators = [
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 358, lastBlockOrdinal: 358,
+      tableId: 'tbl_9fd25812cad87d7fe0094e7adf1dd885', rowRange: [0, 52], repeatedHeaderRowRange: [0, 0] },
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 360, lastBlockOrdinal: 360,
+      tableId: 'tbl_4db91f7ee6901706c347cefc9dd4e141', rowRange: [0, 20], repeatedHeaderRowRange: [0, 1] },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 102, lastBlockOrdinal: 112 },
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 1352, lastBlockOrdinal: 1362 },
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 2094, lastBlockOrdinal: 2098 },
+  ];
+  assert.deepEqual(fifthLocators.map(evaluationToCanonicalLocator), canonicalLocators);
+  for (const locator of fifthLocators) {
+    assert.deepEqual(canonicalToEvaluationLocator(evaluationToCanonicalLocator(locator)), locator);
+  }
+  assert.match(fifth[0]!.notes!, /adjacent source block 357, not inside the pinned chunk/);
+  assert.match(fifth[1]!.notes!, /adjacent block 359, not the pinned chunk/);
+  assert.match(fifth[3]!.notes!, /treasury-share cancellation, not cash dividends/);
+  assert.match(fifth[4]!.notes!, /environmental reporting\/disclosure, not litigation, sanctions or violations/);
+  assert.equal(new Set(entries.map(value => value.queryText)).size, 25);
   const coverage = evaluateDatasetCoverage(entries);
-  assert.deepEqual(coverage.modalityCounts, { narrative: 11, table: 9 });
-  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 11, '00164779:000660': 9 });
-  assert.deepEqual(coverage.reportFamilyCounts, { annual: 7, half_year: 4, quarterly: 9 });
-  assert.equal(coverage.categories.regulation_litigation, 1);
+  assert.deepEqual(coverage.modalityCounts, { narrative: 14, table: 11 });
+  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 15, '00164779:000660': 10 });
+  assert.deepEqual(coverage.reportFamilyCounts, { annual: 7, half_year: 8, quarterly: 10 });
+  assert.deepEqual(coverage.categories, {
+    causal: 3, segment: 3, profit: 3, capex: 1, cash_flow: 2, debt_liquidity: 3,
+    dividend: 2, risk: 3, regulation_litigation: 2, contract_customer: 3, numeric: 12,
+    period: 16, paraphrase: 8, synonym: 2, lexical_sparse: 1, table_targeted: 11,
+  });
+  assert.equal(coverage.correctionCount, 0);
   const categories = new Set<string>(entries.flatMap(value => value.categories));
   for (const category of ['causal', 'risk', 'numeric', 'period', 'table_targeted']) {
     assert.ok(categories.has(category), category);

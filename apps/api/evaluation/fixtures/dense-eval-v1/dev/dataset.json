@@ -843,8 +843,292 @@
           "reviewerRoleId": "author-review"
         },
         "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-016",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서의 제57기 가동률 표에서 DS 부문 메모리와 SDC 디스플레이 패널의 가동률은 각각 몇 %인가?",
+        "categories": [
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_9ef99e7dc98f47ad63362c1a8f3ffbe5",
+                "contentHash": "3f51b0fb8dad80d16e36c6cee92964be4c008aa30ee2f412c5c771d67bea85e9",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "3. 원재료 및 생산설비"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 154,
+                  "lastBlockOrdinal": 154,
+                  "tableId": "tbl_460e01439332247e8a5897c2c6a33592",
+                  "rowStart": 0,
+                  "rowEnd": 3,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 1
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T14:27:06Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260310002820; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-017",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서의 주요 원재료 현황 표에서 Wafer, Substrate, PCB의 투입액 비율은 각각 몇 %인가?",
+        "categories": [
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_1369a1e6692abbdb54f521fe8293cd33",
+                "contentHash": "6738bca8ac8d05c0c1b9956576b09f11ef7b14fda8dc0e2b2b218840f0b5854c",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "3. 원재료 및 생산설비"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 72,
+                  "lastBlockOrdinal": 72,
+                  "tableId": "tbl_2cf6c7ba3491c273f3f32d5c3e4b8728",
+                  "rowStart": 0,
+                  "rowEnd": 7,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T14:27:06Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-018",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서의 제재 현황 표에서 2024년 4월 7일 공정거래위원회가 당사에 내린 조치와 그 근거 법률 조항은 무엇인가?",
+        "categories": [
+          "regulation_litigation",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_595109bbfd8e865b0d7b58a5cffb53b6",
+                "contentHash": "6bb34e77407a058ea404572430342d2ab284302b94cc792250ccb69e9ee50338",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "XI. 그 밖에 투자자 보호를 위하여 필요한 사항",
+                  "3. 제재 등과 관련된 사항"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 2555,
+                  "lastBlockOrdinal": 2555,
+                  "tableId": "tbl_6f5a1db3ee4b811c0a5e1aefbd68055d",
+                  "rowStart": 0,
+                  "rowEnd": 3,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T14:27:06Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260310002820; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated. Regenerated chunk bound by full canonical/chunk fingerprints and preserved representation mapping; no individual historical chunk readback or current DB readback."
+      },
+      {
+        "queryId": "DEV-019",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서는 국내 연구개발에서 1~2년 내 상품화 기술, 3~5년 내 중장기 기술, 미래 성장엔진의 핵심 요소 기술을 각각 어느 조직이 담당한다고 설명하는가?",
+        "categories": [
+          "period",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_3badbfab9c5e6ce2318b6dce5e125f9c",
+                "contentHash": "bdc8d50f6538d4f39639cf28387c3804c78966c0a76f5e05fc6f362b0461f6cb",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "6. 주요계약 및 연구개발활동"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 256,
+                  "lastBlockOrdinal": 259
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T14:27:06Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260310002820; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-020",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서는 웨이퍼 가격이 무엇의 영향을 받으며, 원가 경쟁력 강화와 급격한 수요 변화에 대응하기 위해 어떤 방침을 제시하는가?",
+        "categories": [
+          "risk",
+          "contract_customer",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_686f00057731c0ec25351edf4926a7e8",
+                "contentHash": "a57f6d2ea48af33ac75835fdf458a8dd94ccb24c14ea6ff2a46427b65b53de1a",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "3. 원재료 및 생산설비"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 73,
+                  "lastBlockOrdinal": 81
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-11T14:27:06Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
       }
     ]
   },
-  "canonicalHash": "371585c8ac295f044eb2aab0212f8bf359169ba3515fd6e70331443568dace4b"
+  "canonicalHash": "b9ae65d8d2bcae35afc4ecfaafc902ea02bf0a9b4fd0e6afa4583ec33febbfa1"
 }

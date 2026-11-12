@@ -120,22 +120,25 @@ test('partial canonical manifests disclose annotation incompleteness', async () 
   assert.ok(coverage.errors.includes('COMPANY_MINIMUM_NOT_MET'));
 });
 
-test('first three dev tranches preserve author review and historical-source coverage', async () => {
+test('first four dev tranches preserve author review and historical-source coverage', async () => {
   const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   const entries = dev.payload.entries;
   assert.deepEqual(entries.map(value => value.queryId), [
     'DEV-001', 'DEV-002', 'DEV-003', 'DEV-004', 'DEV-005',
     'DEV-006', 'DEV-007', 'DEV-008', 'DEV-009', 'DEV-010',
     'DEV-011', 'DEV-012', 'DEV-013', 'DEV-014', 'DEV-015',
+    'DEV-016', 'DEV-017', 'DEV-018', 'DEV-019', 'DEV-020',
   ]);
-  assert.equal(new Set(entries.map(value => value.queryId)).size, 15);
+  assert.equal(new Set(entries.map(value => value.queryId)).size, 20);
   assert.equal(dev.payload.datasetId, 'dense-eval-v1');
   assert.equal(dev.payload.targetCount, 40);
   assert.equal(dev.payload.schemaVersion, 'dense-eval-dataset@1');
   assert.equal(dev.canonicalHash, canonicalSha256(dev.payload));
-  // Preserve the exact previously approved payload, including all ten pins and reviews.
+  // Preserve previously approved payloads, including every pin and review.
   assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 10) }),
     '2de8771ee983cbbc27ed9eee8497ecf190ba2fc0679202318eeb359bb4718b90');
+  assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 15) }),
+    '371585c8ac295f044eb2aab0212f8bf359169ba3515fd6e70331443568dace4b');
   assert.equal(holdout.payload.entries.length, 0);
   assert.equal(holdout.payload.targetCount, 20);
   for (const value of entries) {
@@ -161,10 +164,13 @@ test('first three dev tranches preserve author review and historical-source cove
   ]);
   for (const [index, value] of entries.entries()) {
     assert.equal(value.split, 'dev');
-    const reviewedAt = ['2026-11-06T10:31:54Z', '2026-11-06T11:31:37Z', '2026-11-11T11:07:52Z'];
+    const reviewedAt = [
+      '2026-11-06T10:31:54Z', '2026-11-06T11:31:37Z',
+      '2026-11-11T11:07:52Z', '2026-11-11T14:27:06Z',
+    ];
     assert.equal(value.review.reviewedAt, reviewedAt[Math.floor(index / 5)]);
   }
-  const third = entries.slice(10);
+  const third = entries.slice(10, 15);
   assert.deepEqual(third.map(value => value.queryText), [
     '삼성전자 2025년 사업보고서의 연구개발비용 표에서 연구개발비/매출액 비율은 제57기와 제56기에 각각 몇 %인가?',
     '삼성전자 2026년 반기보고서에서 주요 유동성 공급원은 무엇이며, 주요 유동성 수요로 어떤 용도를 설명하는가?',
@@ -196,12 +202,46 @@ test('first three dev tranches preserve author review and historical-source cove
       tableId: 'tbl_767e42bb2ad003c76eb9f8eb759f6d8a', rowStart: 0, rowEnd: 5,
       repeatedHeaderRowStart: 0, repeatedHeaderRowEnd: 1 },
   ]);
-  assert.equal(new Set(entries.map(value => value.queryText)).size, 15);
+  const fourth = entries.slice(15);
+  assert.deepEqual(fourth.map(value => value.queryText), [
+    '삼성전자 2025년 사업보고서의 제57기 가동률 표에서 DS 부문 메모리와 SDC 디스플레이 패널의 가동률은 각각 몇 %인가?',
+    'SK하이닉스 2026년 1분기보고서의 주요 원재료 현황 표에서 Wafer, Substrate, PCB의 투입액 비율은 각각 몇 %인가?',
+    '삼성전자 2025년 사업보고서의 제재 현황 표에서 2024년 4월 7일 공정거래위원회가 당사에 내린 조치와 그 근거 법률 조항은 무엇인가?',
+    '삼성전자 2025년 사업보고서는 국내 연구개발에서 1~2년 내 상품화 기술, 3~5년 내 중장기 기술, 미래 성장엔진의 핵심 요소 기술을 각각 어느 조직이 담당한다고 설명하는가?',
+    'SK하이닉스 2026년 1분기보고서는 웨이퍼 가격이 무엇의 영향을 받으며, 원가 경쟁력 강화와 급격한 수요 변화에 대응하기 위해 어떤 방침을 제시하는가?',
+  ]);
+  assert.deepEqual(fourth.map(value => value.categories), [
+    ['numeric', 'period', 'table_targeted'],
+    ['numeric', 'period', 'table_targeted'],
+    ['regulation_litigation', 'period', 'table_targeted'],
+    ['period', 'paraphrase'],
+    ['risk', 'contract_customer', 'paraphrase'],
+  ]);
+  assert.deepEqual(fourth.map(value => value.evidenceModality), [
+    'table', 'table', 'table', 'narrative', 'narrative',
+  ]);
+  assert.deepEqual(fourth.map(value => value.reportFamily), [
+    'annual', 'quarterly', 'annual', 'annual', 'quarterly',
+  ]);
+  assert.deepEqual(fourth.map(value => value.evidenceGroups[0]?.acceptableChunks[0]?.locator), [
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 154, lastBlockOrdinal: 154,
+      tableId: 'tbl_460e01439332247e8a5897c2c6a33592', rowStart: 0, rowEnd: 3,
+      repeatedHeaderRowStart: 0, repeatedHeaderRowEnd: 1 },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 72, lastBlockOrdinal: 72,
+      tableId: 'tbl_2cf6c7ba3491c273f3f32d5c3e4b8728', rowStart: 0, rowEnd: 7,
+      repeatedHeaderRowStart: 0, repeatedHeaderRowEnd: 0 },
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 2555, lastBlockOrdinal: 2555,
+      tableId: 'tbl_6f5a1db3ee4b811c0a5e1aefbd68055d', rowStart: 0, rowEnd: 3,
+      repeatedHeaderRowStart: 0, repeatedHeaderRowEnd: 0 },
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 256, lastBlockOrdinal: 259 },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 73, lastBlockOrdinal: 81 },
+  ]);
+  assert.equal(new Set(entries.map(value => value.queryText)).size, 20);
   const coverage = evaluateDatasetCoverage(entries);
-  assert.deepEqual(coverage.modalityCounts, { narrative: 9, table: 6 });
-  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 8, '00164779:000660': 7 });
-  assert.deepEqual(coverage.reportFamilyCounts, { annual: 4, half_year: 4, quarterly: 7 });
-  assert.equal(coverage.categories.regulation_litigation, 0);
+  assert.deepEqual(coverage.modalityCounts, { narrative: 11, table: 9 });
+  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 11, '00164779:000660': 9 });
+  assert.deepEqual(coverage.reportFamilyCounts, { annual: 7, half_year: 4, quarterly: 9 });
+  assert.equal(coverage.categories.regulation_litigation, 1);
   const categories = new Set<string>(entries.flatMap(value => value.categories));
   for (const category of ['causal', 'risk', 'numeric', 'period', 'table_targeted']) {
     assert.ok(categories.has(category), category);

@@ -121,7 +121,7 @@ test('partial canonical manifests disclose annotation incompleteness', async () 
   assert.ok(coverage.errors.includes('COMPANY_MINIMUM_NOT_MET'));
 });
 
-test('first five dev tranches preserve author review and historical-source coverage', async () => {
+test('first six dev tranches preserve author review and historical-source coverage', async () => {
   const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   const entries = dev.payload.entries;
   assert.deepEqual(entries.map(value => value.queryId), [
@@ -130,8 +130,10 @@ test('first five dev tranches preserve author review and historical-source cover
     'DEV-011', 'DEV-012', 'DEV-013', 'DEV-014', 'DEV-015',
     'DEV-016', 'DEV-017', 'DEV-018', 'DEV-019', 'DEV-020',
     'DEV-021', 'DEV-022', 'DEV-023', 'DEV-024', 'DEV-025',
+    'DEV-026', 'DEV-027', 'DEV-028', 'DEV-029', 'DEV-030',
   ]);
-  assert.equal(new Set(entries.map(value => value.queryId)).size, 25);
+  assert.equal(entries.length, 30);
+  assert.equal(new Set(entries.map(value => value.queryId)).size, 30);
   assert.equal(dev.payload.datasetId, 'dense-eval-v1');
   assert.equal(dev.payload.targetCount, 40);
   assert.equal(dev.payload.schemaVersion, 'dense-eval-dataset@1');
@@ -143,6 +145,8 @@ test('first five dev tranches preserve author review and historical-source cover
     '371585c8ac295f044eb2aab0212f8bf359169ba3515fd6e70331443568dace4b');
   assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 20) }),
     'b9ae65d8d2bcae35afc4ecfaafc902ea02bf0a9b4fd0e6afa4583ec33febbfa1');
+  assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 25) }),
+    '2ac0c7008c28269d0bbde6f2f3ffe2a017225c3d028a244edf523c830211db4c');
   assert.equal(holdout.payload.entries.length, 0);
   assert.equal(holdout.payload.targetCount, 20);
   for (const value of entries) {
@@ -171,7 +175,7 @@ test('first five dev tranches preserve author review and historical-source cover
     const reviewedAt = [
       '2026-11-06T10:31:54Z', '2026-11-06T11:31:37Z',
       '2026-11-11T11:07:52Z', '2026-11-11T14:27:06Z',
-      '2026-11-12T02:40:43Z',
+      '2026-11-12T02:40:43Z', '2026-11-15T06:14:18Z',
     ];
     assert.equal(value.review.reviewedAt, reviewedAt[Math.floor(index / 5)]);
   }
@@ -241,7 +245,7 @@ test('first five dev tranches preserve author review and historical-source cover
     { entryName: '20260310002820.xml', firstBlockOrdinal: 256, lastBlockOrdinal: 259 },
     { entryName: '20260515002287.xml', firstBlockOrdinal: 73, lastBlockOrdinal: 81 },
   ]);
-  const fifth = entries.slice(20);
+  const fifth = entries.slice(20, 25);
   assert.deepEqual(fifth.map(value => value.queryText), [
     '삼성전자 2026년 반기보고서의 연결 재무상태표에서 제58기 반기말 현금및현금성자산과 단기금융상품은 각각 얼마인가? 표의 백만원 단위로 답하라.',
     '삼성전자 2026년 반기보고서의 연결 손익계산서에서 제58기 반기 누적 매출액과 반기순이익은 각각 얼마인가? 3개월 열이 아닌 누적 열을 백만원 단위로 읽어라.',
@@ -288,17 +292,74 @@ test('first five dev tranches preserve author review and historical-source cover
   assert.match(fifth[1]!.notes!, /adjacent block 359, not the pinned chunk/);
   assert.match(fifth[3]!.notes!, /treasury-share cancellation, not cash dividends/);
   assert.match(fifth[4]!.notes!, /environmental reporting\/disclosure, not litigation, sanctions or violations/);
-  assert.equal(new Set(entries.map(value => value.queryText)).size, 25);
+  const sixth = entries.slice(25, 30);
+  assert.deepEqual(sixth.map(value => value.queryText), [
+    '삼성전자 2025년 사업보고서의 주요 계약 표는 Google EMADA의 체결시기 및 기간과 적용 지역·앱 사용 범위를 어떻게 기재하는가?',
+    '삼성전자 2025년 사업보고서의 연결 현금흐름표에서 제57기(2025년 연간) 유형자산의 취득은 얼마로 표시되어 있는가? 백만원 단위와 괄호 표기를 유지해 답하라.',
+    'SK하이닉스 2026년 1분기보고서는 칩을 지지하고 외부 습기·충격으로부터 보호하는 패키지 원재료를 무엇이라고 설명하는가?',
+    'SK하이닉스 2026년 1분기보고서는 국가핵심기술 또는 전략기술로 지정된 반도체 기술을 해외로 이전할 때 수출자에게 어떤 행정 절차가 필요하다고 설명하는가?',
+    'SK하이닉스 2026년 1분기보고서는 2025년 PC 교체 수요를 이끈 운영체제 지원 관련 사건이 무엇이며 언제 발생했다고 기재하는가?',
+  ]);
+  assert.deepEqual(sixth.map(value => value.categories), [
+    ['contract_customer', 'period', 'table_targeted'],
+    ['cash_flow', 'capex', 'numeric', 'period', 'table_targeted'],
+    ['paraphrase'],
+    ['regulation_litigation', 'paraphrase'],
+    ['causal', 'period', 'paraphrase'],
+  ]);
+  assert.deepEqual(sixth.map(value => value.evidenceModality), [
+    'table', 'table', 'narrative', 'narrative', 'narrative',
+  ]);
+  assert.deepEqual(sixth.map(value => value.reportFamily), [
+    'annual', 'annual', 'quarterly', 'quarterly', 'quarterly',
+  ]);
+  // Frozen from Issue #19 candidate audit, independently of the authored dataset.
+  assert.deepEqual(sixth.map(value => canonicalSha256(value.evidenceGroups[0]?.acceptableChunks[0])), [
+    '1c6c754f7cad68801b66621767dce5b6eb51ab97f4b082d495099b0b40cdfb0a',
+    '768ffa8e75403ab33630fc0904239240d91b8f0f7bc84cc929f8b1622e73ca28',
+    'e6f3f4428564fb90867ff10ce3aee151904c35173d62336056ce8154d7bb42cb',
+    'a82f595537368dc1a468973e120b5015bfa1c8d56e97b6084f4d321c004f560a',
+    'bd4490999fe898a6061de1d32bfc2a7af3878e4f0117e6a79c2ea57b85f827bc',
+  ]);
+  const sixthLocators = sixth.map(value => value.evidenceGroups[0]!.acceptableChunks[0]!.locator);
+  assert.deepEqual(sixthLocators.map(evaluationToCanonicalLocator), [
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 250, lastBlockOrdinal: 250,
+      tableId: 'tbl_bcb9a1b3d8d12066bb1e6bb3186679d0', rowRange: [0, 19], repeatedHeaderRowRange: [0, 0] },
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 394, lastBlockOrdinal: 394,
+      tableId: 'tbl_aa55780a632133dd29ce6b3196122629', rowRange: [0, 42], repeatedHeaderRowRange: [0, 0] },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 68, lastBlockOrdinal: 70 },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 200, lastBlockOrdinal: 212 },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 192, lastBlockOrdinal: 192 },
+  ]);
+  for (const locator of sixthLocators) {
+    assert.deepEqual(canonicalToEvaluationLocator(evaluationToCanonicalLocator(locator)), locator);
+  }
+  assert.match(sixth[0]!.notes!, /Europe 32 countries \(EEA\).*not current country counts, contract validity or renewal/);
+  assert.match(sixth[1]!.notes!, /\(47,522,179\) million KRW for FY2025 preserves parentheses/);
+  assert.match(sixth[1]!.notes!, /2025-01-01 to 2025-12-31.*adjacent block 393, not the pinned chunk at block 394/);
+  assert.match(sixth[1]!.notes!, /Not total capital expenditure/);
+  assert.match(sixth[2]!.notes!, /Substrate.*protecting and supporting.*no additional numeric or performance claim/);
+  assert.match(sixth[3]!.notes!, /approval OR notification.*not a universal duty.*or a freely selectable procedure/);
+  assert.match(sixth[3]!.notes!, /No current legal applicability judgment/);
+  assert.match(sixth[4]!.notes!, /October 2025 Windows10.*one of several.*not the sole cause/);
+  assert.equal(new Set(entries.map(value => value.queryText)).size, 30);
   const coverage = evaluateDatasetCoverage(entries);
-  assert.deepEqual(coverage.modalityCounts, { narrative: 14, table: 11 });
-  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 15, '00164779:000660': 10 });
-  assert.deepEqual(coverage.reportFamilyCounts, { annual: 7, half_year: 8, quarterly: 10 });
+  assert.equal(coverage.total, 30);
+  assert.equal(coverage.reviewed, 30);
+  assert.equal(coverage.pending, 0);
+  assert.deepEqual(coverage.modalityCounts, { narrative: 17, table: 13 });
+  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 17, '00164779:000660': 13 });
+  assert.deepEqual(coverage.reportFamilyCounts, { annual: 9, half_year: 8, quarterly: 13 });
   assert.deepEqual(coverage.categories, {
-    causal: 3, segment: 3, profit: 3, capex: 1, cash_flow: 2, debt_liquidity: 3,
-    dividend: 2, risk: 3, regulation_litigation: 2, contract_customer: 3, numeric: 12,
-    period: 16, paraphrase: 8, synonym: 2, lexical_sparse: 1, table_targeted: 11,
+    causal: 4, segment: 3, profit: 3, capex: 2, cash_flow: 3, debt_liquidity: 3,
+    dividend: 2, risk: 3, regulation_litigation: 3, contract_customer: 4, numeric: 13,
+    period: 19, paraphrase: 11, synonym: 2, lexical_sparse: 1, table_targeted: 13,
   });
   assert.equal(coverage.correctionCount, 0);
+  assert.deepEqual(coverage.errors, []);
+  assert.deepEqual(coverage.warnings, [
+    'CORRECTION_TARGET_NOT_MET', 'REPORT_FAMILY_TARGET_NOT_MET', 'MODALITY_TARGET_NOT_MET',
+  ]);
   const categories = new Set<string>(entries.flatMap(value => value.categories));
   for (const category of ['causal', 'risk', 'numeric', 'period', 'table_targeted']) {
     assert.ok(categories.has(category), category);

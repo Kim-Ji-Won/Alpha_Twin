@@ -1407,8 +1407,287 @@
           "reviewerRoleId": "author-review"
         },
         "notes": "Historical-source annotation pinned to receipt 20260814003699; not a current-effective runtime admission or benchmark approval claim. Regulation category denotes environmental reporting/disclosure, not litigation, sanctions or violations. Pin is bound by regenerated chunk and full preserved representation fingerprints, not a historical individual pin/readback or a new DB read. Author reviewed question, source, categories and G1/grade 2; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-026",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서의 주요 계약 표는 Google EMADA의 체결시기 및 기간과 적용 지역·앱 사용 범위를 어떻게 기재하는가?",
+        "categories": [
+          "contract_customer",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_21964f5138ddcee52242e7be689c86f1",
+                "contentHash": "c12752495083f25149eabbecd8a428b2fbc348198e57ddb38016a30102ac6e59",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "6. 주요계약 및 연구개발활동"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 250,
+                  "lastBlockOrdinal": 250,
+                  "tableId": "tbl_bcb9a1b3d8d12066bb1e6bb3186679d0",
+                  "rowStart": 0,
+                  "rowEnd": 19,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-15T06:14:18Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation only; no current-effective admission or benchmark approval. EMADA dates, region and apps are report-local statements. \"Europe 32 countries (EEA)\" preserves the source wording, not current country counts, contract validity or renewal. Author reviewed question, source, categories and G1/grade 2 once; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-027",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서의 연결 현금흐름표에서 제57기(2025년 연간) 유형자산의 취득은 얼마로 표시되어 있는가? 백만원 단위와 괄호 표기를 유지해 답하라.",
+        "categories": [
+          "cash_flow",
+          "capex",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_4aeb68fa802205fee865a8f84b25a370",
+                "contentHash": "f32c017c9044730daa76edb6a2de3058241d06eca04ed0f45d6356581b4a1d3f",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "III. 재무에 관한 사항",
+                  "2. 연결재무제표"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 394,
+                  "lastBlockOrdinal": 394,
+                  "tableId": "tbl_aa55780a632133dd29ce6b3196122629",
+                  "rowStart": 0,
+                  "rowEnd": 42,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-15T06:14:18Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation only; no current-effective admission or benchmark approval. Expected (47,522,179) million KRW for FY2025 preserves parentheses. Period 2025-01-01 to 2025-12-31 and unit are in adjacent block 393, not the pinned chunk at block 394. Not total capital expenditure. Author reviewed question, source, categories and G1/grade 2 once; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-028",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서는 칩을 지지하고 외부 습기·충격으로부터 보호하는 패키지 원재료를 무엇이라고 설명하는가?",
+        "categories": [
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_973621b94c13af0f54ffe5a57d448650",
+                "contentHash": "7495554512529fcabf242adeb8222ef470f90c1764138ddf19c0a3c8420bfb2e",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "3. 원재료 및 생산설비"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 68,
+                  "lastBlockOrdinal": 70
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-15T06:14:18Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation only; no current-effective admission or benchmark approval. Substrate names the package material protecting and supporting the chip as described in the report; no additional numeric or performance claim. Author reviewed question, source, categories and G1/grade 2 once; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-029",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서는 국가핵심기술 또는 전략기술로 지정된 반도체 기술을 해외로 이전할 때 수출자에게 어떤 행정 절차가 필요하다고 설명하는가?",
+        "categories": [
+          "regulation_litigation",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_63ae20b552ed7cfe7edfaab491bbefba",
+                "contentHash": "79fb9b357b4c9124d009e43bc349afe52b4616d1307778610dc60b5928dd8fcf",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "7. 기타 참고사항"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 200,
+                  "lastBlockOrdinal": 212
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-15T06:14:18Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation only; no current-effective admission or benchmark approval. Ministry approval OR notification preserves the report wording for designated technology; not a universal duty for every transfer or a freely selectable procedure. No current legal applicability judgment. Author reviewed question, source, categories and G1/grade 2 once; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-030",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서는 2025년 PC 교체 수요를 이끈 운영체제 지원 관련 사건이 무엇이며 언제 발생했다고 기재하는가?",
+        "categories": [
+          "causal",
+          "period",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_e98ff972e8821906d93e09bd4bc9f390",
+                "contentHash": "505a7b91787da84a4abb0d688972477abd9e58d1aa0d8182ac6fe39c99a25150",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "7. 기타 참고사항"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 192,
+                  "lastBlockOrdinal": 192
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-15T06:14:18Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation only; no current-effective admission or benchmark approval. October 2025 Windows10 official support termination is one of several PC replacement demand factors described by the report, not the sole cause. Author reviewed question, source, categories and G1/grade 2 once; pin/locator checks were automated."
       }
     ]
   },
-  "canonicalHash": "2ac0c7008c28269d0bbde6f2f3ffe2a017225c3d028a244edf523c830211db4c"
+  "canonicalHash": "42c4df5e5e43d40a4bc9a5db5e549366fa462ac948d4bf7fc7fe3c443205272b"
 }

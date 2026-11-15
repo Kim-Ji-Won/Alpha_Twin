@@ -1127,8 +1127,288 @@
           "reviewerRoleId": "author-review"
         },
         "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission or benchmark approval claim. Author reviewed the question and source excerpts; pin and locator checks were automated."
+      },
+      {
+        "queryId": "DEV-021",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서의 연결 재무상태표에서 제58기 반기말 현금및현금성자산과 단기금융상품은 각각 얼마인가? 표의 백만원 단위로 답하라.",
+        "categories": [
+          "debt_liquidity",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_ef4bdfbb4b330aae53ee8df4e41de2c0",
+                "contentHash": "30aa1d4f5714577cbf4cf859291095a8e42de3a8b6bc36312078309aef727d74",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "III. 재무에 관한 사항",
+                  "2. 연결재무제표"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 358,
+                  "lastBlockOrdinal": 358,
+                  "tableId": "tbl_9fd25812cad87d7fe0094e7adf1dd885",
+                  "rowStart": 0,
+                  "rowEnd": 52,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-12T02:40:43Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260814003699; not a current-effective runtime admission or benchmark approval claim. The single chunk at block 358 directly supports the balances and half-year-end column. Date and million-KRW unit are verified in adjacent source block 357, not inside the pinned chunk; the query specifies the unit. Author reviewed question, source, categories and G1/grade 2; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-022",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서의 연결 손익계산서에서 제58기 반기 누적 매출액과 반기순이익은 각각 얼마인가? 3개월 열이 아닌 누적 열을 백만원 단위로 읽어라.",
+        "categories": [
+          "profit",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_1d3ef89c3800e7a99330e6d16dd64458",
+                "contentHash": "42921c4fbe78524188500014fa81c640d2aa82b45e021a2fc2fb232cec2e6d8c",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "III. 재무에 관한 사항",
+                  "2. 연결재무제표"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 360,
+                  "lastBlockOrdinal": 360,
+                  "tableId": "tbl_4db91f7ee6901706c347cefc9dd4e141",
+                  "rowStart": 0,
+                  "rowEnd": 20,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 1
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-12T02:40:43Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical receipt 20260814003699 only; no current-effective admission or benchmark approval. Block 360 supports cumulative revenue/net income, not the three-month column. Period 2026-01-01 to 2026-06-30 and million-KRW unit are in adjacent block 359, not the pinned chunk; the query specifies the unit. Author approved question, source, categories and G1/grade 2; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-023",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서는 직판 거래와 대리점 거래를 실수요자에게 판매하는 방식에 따라 어떻게 구분하는가?",
+        "categories": [
+          "contract_customer",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_7289ce8240fa19bd0b16cdf70b41b34e",
+                "contentHash": "5e409213c32697fb84396eb4265884c87b203acc1125c478623237ee71d1c34b",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "4. 매출 및 수주상황"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 102,
+                  "lastBlockOrdinal": 112
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-12T02:40:43Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260515002287; not a current-effective runtime admission or benchmark approval claim. Sales channels do not establish a new customer contract. Author reviewed question, source, categories and G1/grade 2; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-024",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서는 2025년에 매입한 자기주식 중 임직원 보상 목적을 제외한 주식의 소각 규모와 시기를 어떻게 기재하는가?",
+        "categories": [
+          "dividend",
+          "numeric",
+          "period"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_4de78ea39b62c5a8c7a1aed3fc858596",
+                "contentHash": "c205aa89ecd9291d62630ce8c7f93e0c91bda7dc14389a8f95319aad4f19ed04",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "III. 재무에 관한 사항",
+                  "6. 배당에 관한 사항"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 1352,
+                  "lastBlockOrdinal": 1362
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-12T02:40:43Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260814003699; not a current-effective runtime admission or benchmark approval claim. Dividend category denotes shareholder return via treasury-share cancellation, not cash dividends. Pin is bound by regenerated chunk and full preserved representation fingerprints, not a historical individual pin/readback or a new DB read. Author reviewed question, source, categories and G1/grade 2; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-025",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서의 녹색경영 설명에 따르면, 법규에 따라 정부에 신고하는 두 정보는 무엇이며 이해관계자에게 어떤 보고서로 공개하는가?",
+        "categories": [
+          "regulation_litigation",
+          "paraphrase"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_ef170b1142df0f131699c14717a0f063",
+                "contentHash": "7a033d0aedc983bb564b92672201fd6e8b7caaf4cb19f634840d059e80ac2b99",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "XI. 그 밖에 투자자 보호를 위하여 필요한 사항",
+                  "4. 작성기준일 이후 발생한 주요사항 등 기타사항"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 2094,
+                  "lastBlockOrdinal": 2098
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-12T02:40:43Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Historical-source annotation pinned to receipt 20260814003699; not a current-effective runtime admission or benchmark approval claim. Regulation category denotes environmental reporting/disclosure, not litigation, sanctions or violations. Pin is bound by regenerated chunk and full preserved representation fingerprints, not a historical individual pin/readback or a new DB read. Author reviewed question, source, categories and G1/grade 2; pin/locator checks were automated."
       }
     ]
   },
-  "canonicalHash": "b9ae65d8d2bcae35afc4ecfaafc902ea02bf0a9b4fd0e6afa4583ec33febbfa1"
+  "canonicalHash": "2ac0c7008c28269d0bbde6f2f3ffe2a017225c3d028a244edf523c830211db4c"
 }

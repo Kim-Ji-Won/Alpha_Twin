@@ -1686,8 +1686,305 @@
           "reviewerRoleId": "author-review"
         },
         "notes": "Historical-source annotation only; no current-effective admission or benchmark approval. October 2025 Windows10 official support termination is one of several PC replacement demand factors described by the report, not the sole cause. Author reviewed question, source, categories and G1/grade 2 once; pin/locator checks were automated."
+      },
+      {
+        "queryId": "DEV-031",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서의 시설투자 표에서 2026년 1~6월 DS 부문과 SDC의 투자액은 각각 얼마인가? (단위: 억원)",
+        "categories": [
+          "capex",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_939ac8e13afe591321b847f0a3b97a8b",
+                "contentHash": "b730c64c6935ed31f7595c84517a5691a7f38e3e0c4b5a23d278b327414d3ce0",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "3. 원재료 및 생산설비"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 152,
+                  "lastBlockOrdinal": 152,
+                  "tableId": "tbl_4856260454bd2ef9f45a7fd418954b4a",
+                  "rowStart": 0,
+                  "rowEnd": 4,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-16T12:17:09Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. The 2026.01~2026.06 period is inside pinned block 152; the KRW 100 million unit is in adjacent block 151, outside the pin. These are reported half-year facility investments, not property carrying amounts, cash-flow acquisitions or future plans. Author review once; automated pin/locator checks are not additional review."
+      },
+      {
+        "queryId": "DEV-032",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서의 주요 지역별 매출 현황에서 제58기 반기 별도 기준 국내 내수 매출과 중국 수출 매출은 각각 얼마인가? (단위: 억원)",
+        "categories": [
+          "segment",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_f2fd0949af2842f90beedd5c06b78f88",
+                "contentHash": "8ce57ac58175f8c2ec057768d30dc9a245319a7f11e3396ffe196ceedf69d3b3",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "4. 매출 및 수주상황"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 168,
+                  "lastBlockOrdinal": 168,
+                  "tableId": "tbl_85c8e82d84cfd35d0e2a281da1f054e0",
+                  "rowStart": 0,
+                  "rowEnd": 6,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-16T12:17:09Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. The 58th half-year column is inside pinned block 168; KRW 100 million unit is in adjacent block 167 and separate basis in adjacent block 169, outside the pin. China's row inherits the export rowspan context. Not consolidated revenue, customer revenue or customer shares. Author review once; automated checks are not additional review."
+      },
+      {
+        "queryId": "DEV-033",
+        "split": "dev",
+        "queryText": "삼성전자 2026년 반기보고서의 자본위험 관리 표에 제58기 반기말과 제57기말 부채비율은 각각 몇 %로 기재되어 있는가?",
+        "categories": [
+          "debt_liquidity",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "half_year",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260814003699",
+                "documentId": "2",
+                "chunkId": "chk_bf8b63a5ca00a56ba7fbdb33ac123b30",
+                "contentHash": "4a95d3f26700124913e8669d4244021ce2a93fa57c87c11df21d2e26634d5c9e",
+                "representationFingerprint": "9688468e0dcf50e584f881145eb09be34289e177c1215fdd67c083562e551d84",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "5. 위험관리 및 파생거래"
+                ],
+                "locator": {
+                  "entryName": "20260814003699.xml",
+                  "firstBlockOrdinal": 218,
+                  "lastBlockOrdinal": 218,
+                  "tableId": "tbl_b4b47524cff6868446bb9639191d1efe",
+                  "rowStart": 0,
+                  "rowEnd": 3,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 0
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-16T12:17:09Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Pinned block 218 states 31.1% for the 58th half-year end and 29.9% for the 57th year end. Percent is not the million KRW unit used for debt/equity amounts in adjacent block 217. No ratio recalculation or current financial health assessment. Author review once; automated checks are not additional review."
+      },
+      {
+        "queryId": "DEV-034",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서의 연결 기준 연구개발비용 표에서 제79기 1분기에 비용으로 처리한 연구개발비와 무형자산으로 처리한 개발비는 각각 얼마인가? (단위: 백만원)",
+        "categories": [
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_40b0af4031a214efcf12aa6d712989b3",
+                "contentHash": "708020de98554ddb232e3070c662b445f3c7477fa010090f107685bbe4fb6a7d",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "6. 주요계약 및 연구개발활동"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 145,
+                  "lastBlockOrdinal": 145,
+                  "tableId": "tbl_19729ae579dfdf1515c3e8cd6eb01232",
+                  "rowStart": 0,
+                  "rowEnd": 10
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-16T12:17:09Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Period and accounting treatment are in pinned block 145; million KRW unit is in adjacent block 144 and consolidated basis in adjacent block 146, outside the pin. Row 0 is TD/isHeader=false: no repeated header. No profit category; expense/intangible recognition is not cash spending, net income or total investment. Author review once; automated checks are not additional review."
+      },
+      {
+        "queryId": "DEV-035",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서의 주요 배당지표 표에서 제79기 1분기 보통주 주당 현금배당금과 현금배당금총액은 각각 얼마로 기재되어 있는가?",
+        "categories": [
+          "dividend",
+          "numeric",
+          "period",
+          "table_targeted"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "table",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_2101acdee88af28f8a076c73982c8184",
+                "contentHash": "0656c6d36b01bec3746c5223aa700efc3da50a7048274ee9d285f5005f1cf3a5",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "III. 재무에 관한 사항",
+                  "6. 배당에 관한 사항"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 1382,
+                  "lastBlockOrdinal": 1382,
+                  "tableId": "tbl_d8371e1156d0cb295d3e5c6375321d33",
+                  "rowStart": 0,
+                  "rowEnd": 16,
+                  "repeatedHeaderRowStart": 0,
+                  "repeatedHeaderRowEnd": 1
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-16T12:17:09Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Pinned block 1382 reports 375 KRW/share and 265,765 million KRW, with units inside the pin. Adjacent block 1376 records the 2026-04-22 board resolution after the report cutoff; block 1383 gives the 2026-05-31 record date and warns actual total may change. Not payment completion, a final total or current dividend rights. Author review once; automated checks are not additional review."
       }
     ]
   },
-  "canonicalHash": "42c4df5e5e43d40a4bc9a5db5e549366fa462ac948d4bf7fc7fe3c443205272b"
+  "canonicalHash": "5126b29266c6d1c8d9fb66375f53f21ff98771487fb80e3d315261b0ed9c4d23"
 }

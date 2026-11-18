@@ -121,7 +121,7 @@ test('partial canonical manifests disclose annotation incompleteness', async () 
   assert.ok(coverage.errors.includes('COMPANY_MINIMUM_NOT_MET'));
 });
 
-test('first six dev tranches preserve author review and historical-source coverage', async () => {
+test('first seven dev tranches preserve author review and historical-source coverage', async () => {
   const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   const entries = dev.payload.entries;
   assert.deepEqual(entries.map(value => value.queryId), [
@@ -131,9 +131,10 @@ test('first six dev tranches preserve author review and historical-source covera
     'DEV-016', 'DEV-017', 'DEV-018', 'DEV-019', 'DEV-020',
     'DEV-021', 'DEV-022', 'DEV-023', 'DEV-024', 'DEV-025',
     'DEV-026', 'DEV-027', 'DEV-028', 'DEV-029', 'DEV-030',
+    'DEV-031', 'DEV-032', 'DEV-033', 'DEV-034', 'DEV-035',
   ]);
-  assert.equal(entries.length, 30);
-  assert.equal(new Set(entries.map(value => value.queryId)).size, 30);
+  assert.equal(entries.length, 35);
+  assert.equal(new Set(entries.map(value => value.queryId)).size, 35);
   assert.equal(dev.payload.datasetId, 'dense-eval-v1');
   assert.equal(dev.payload.targetCount, 40);
   assert.equal(dev.payload.schemaVersion, 'dense-eval-dataset@1');
@@ -147,6 +148,8 @@ test('first six dev tranches preserve author review and historical-source covera
     'b9ae65d8d2bcae35afc4ecfaafc902ea02bf0a9b4fd0e6afa4583ec33febbfa1');
   assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 25) }),
     '2ac0c7008c28269d0bbde6f2f3ffe2a017225c3d028a244edf523c830211db4c');
+  assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 30) }),
+    '42c4df5e5e43d40a4bc9a5db5e549366fa462ac948d4bf7fc7fe3c443205272b');
   assert.equal(holdout.payload.entries.length, 0);
   assert.equal(holdout.payload.targetCount, 20);
   for (const value of entries) {
@@ -176,6 +179,7 @@ test('first six dev tranches preserve author review and historical-source covera
       '2026-11-06T10:31:54Z', '2026-11-06T11:31:37Z',
       '2026-11-11T11:07:52Z', '2026-11-11T14:27:06Z',
       '2026-11-12T02:40:43Z', '2026-11-15T06:14:18Z',
+      '2026-11-16T12:17:09Z',
     ];
     assert.equal(value.review.reviewedAt, reviewedAt[Math.floor(index / 5)]);
   }
@@ -342,18 +346,92 @@ test('first six dev tranches preserve author review and historical-source covera
   assert.match(sixth[3]!.notes!, /approval OR notification.*not a universal duty.*or a freely selectable procedure/);
   assert.match(sixth[3]!.notes!, /No current legal applicability judgment/);
   assert.match(sixth[4]!.notes!, /October 2025 Windows10.*one of several.*not the sole cause/);
-  assert.equal(new Set(entries.map(value => value.queryText)).size, 30);
+  const seventh = entries.slice(30, 35);
+  assert.deepEqual(seventh.map(value => value.queryText), [
+    '삼성전자 2026년 반기보고서의 시설투자 표에서 2026년 1~6월 DS 부문과 SDC의 투자액은 각각 얼마인가? (단위: 억원)',
+    '삼성전자 2026년 반기보고서의 주요 지역별 매출 현황에서 제58기 반기 별도 기준 국내 내수 매출과 중국 수출 매출은 각각 얼마인가? (단위: 억원)',
+    '삼성전자 2026년 반기보고서의 자본위험 관리 표에 제58기 반기말과 제57기말 부채비율은 각각 몇 %로 기재되어 있는가?',
+    'SK하이닉스 2026년 1분기보고서의 연결 기준 연구개발비용 표에서 제79기 1분기에 비용으로 처리한 연구개발비와 무형자산으로 처리한 개발비는 각각 얼마인가? (단위: 백만원)',
+    'SK하이닉스 2026년 1분기보고서의 주요 배당지표 표에서 제79기 1분기 보통주 주당 현금배당금과 현금배당금총액은 각각 얼마로 기재되어 있는가?',
+  ]);
+  assert.deepEqual(seventh.map(value => value.categories), [
+    ['capex', 'numeric', 'period', 'table_targeted'],
+    ['segment', 'numeric', 'period', 'table_targeted'],
+    ['debt_liquidity', 'numeric', 'period', 'table_targeted'],
+    ['numeric', 'period', 'table_targeted'],
+    ['dividend', 'numeric', 'period', 'table_targeted'],
+  ]);
+  assert.equal(seventh[3]!.categories.includes('profit'), false);
+  assert.deepEqual(seventh.map(value => value.company), [
+    { corpCode: '00126380', symbol: '005930' },
+    { corpCode: '00126380', symbol: '005930' },
+    { corpCode: '00126380', symbol: '005930' },
+    { corpCode: '00164779', symbol: '000660' },
+    { corpCode: '00164779', symbol: '000660' },
+  ]);
+  assert.deepEqual(seventh.map(value => value.evidenceModality), [
+    'table', 'table', 'table', 'table', 'table',
+  ]);
+  assert.deepEqual(seventh.map(value => value.reportFamily), [
+    'half_year', 'half_year', 'half_year', 'quarterly', 'quarterly',
+  ]);
+  // Frozen from Issue #21 comment 6915819429, not from the authored dataset.
+  assert.deepEqual(seventh.map(value => canonicalSha256(value.evidenceGroups[0]?.acceptableChunks[0])), [
+    'a3d34b2b4bb4410e5ba5229ec1a32007a4b3964943382e7b0bcff1702e93f414',
+    'a53840b8d01c9c9be971d2623c9666608ba05c908fecc00a866ab7fc1bf2180e',
+    '65aa31c4c3e2b89eb449aabbb89acf2703aa7d486cb4fdb8f5cd03396037b45d',
+    '0d3e3c2a18cd14b9781830f9aa48ad0c034b698352908d9f68a658c407d3bb18',
+    '36258b752cfad48977061ccdd72d737bb7b314b64c6c1dcc648fc1fcf7f33607',
+  ]);
+  const seventhLocators = seventh.map(value => value.evidenceGroups[0]!.acceptableChunks[0]!.locator);
+  assert.deepEqual(seventhLocators.map(evaluationToCanonicalLocator), [
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 152, lastBlockOrdinal: 152,
+      tableId: 'tbl_4856260454bd2ef9f45a7fd418954b4a', rowRange: [0, 4], repeatedHeaderRowRange: [0, 0] },
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 168, lastBlockOrdinal: 168,
+      tableId: 'tbl_85c8e82d84cfd35d0e2a281da1f054e0', rowRange: [0, 6], repeatedHeaderRowRange: [0, 0] },
+    { entryName: '20260814003699.xml', firstBlockOrdinal: 218, lastBlockOrdinal: 218,
+      tableId: 'tbl_b4b47524cff6868446bb9639191d1efe', rowRange: [0, 3], repeatedHeaderRowRange: [0, 0] },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 145, lastBlockOrdinal: 145,
+      tableId: 'tbl_19729ae579dfdf1515c3e8cd6eb01232', rowRange: [0, 10] },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 1382, lastBlockOrdinal: 1382,
+      tableId: 'tbl_d8371e1156d0cb295d3e5c6375321d33', rowRange: [0, 16], repeatedHeaderRowRange: [0, 1] },
+  ]);
+  for (const locator of seventhLocators) {
+    assert.deepEqual(canonicalToEvaluationLocator(evaluationToCanonicalLocator(locator)), locator);
+  }
+  assert.equal(Object.hasOwn(seventhLocators[3]!, 'repeatedHeaderRowStart'), false);
+  assert.equal(Object.hasOwn(seventhLocators[3]!, 'repeatedHeaderRowEnd'), false);
+  for (const value of seventh) {
+    assert.match(value.notes!, /Type A historical-source annotation only; no current-effective admission or benchmark approval/);
+    assert.ok(value.notes!.length <= 500);
+  }
+  assert.match(seventh[0]!.notes!, /2026\.01~2026\.06.*inside pinned block 152.*unit.*adjacent block 151, outside the pin/);
+  assert.match(seventh[0]!.notes!, /not property carrying amounts, cash-flow acquisitions or future plans/);
+  assert.match(seventh[1]!.notes!, /58th half-year column.*pinned block 168.*unit.*block 167.*separate basis.*block 169, outside the pin/);
+  assert.match(seventh[1]!.notes!, /China's row inherits the export rowspan context/);
+  assert.match(seventh[1]!.notes!, /Not consolidated revenue, customer revenue or customer shares/);
+  assert.match(seventh[2]!.notes!, /block 218.*31\.1%.*58th half-year end.*29\.9%.*57th year end/);
+  assert.match(seventh[2]!.notes!, /Percent is not the million KRW unit.*debt\/equity.*block 217/);
+  assert.match(seventh[2]!.notes!, /No ratio recalculation or current financial health assessment/);
+  assert.match(seventh[3]!.notes!, /Period and accounting treatment.*block 145.*unit.*block 144.*consolidated basis.*block 146, outside the pin/);
+  assert.match(seventh[3]!.notes!, /Row 0 is TD\/isHeader=false: no repeated header/);
+  assert.match(seventh[3]!.notes!, /No profit category.*not cash spending, net income or total investment/);
+  assert.match(seventh[4]!.notes!, /block 1382.*375 KRW\/share and 265,765 million KRW, with units inside the pin/);
+  assert.match(seventh[4]!.notes!, /block 1376.*2026-04-22 board resolution after the report cutoff.*block 1383.*2026-05-31 record date.*actual total may change/);
+  assert.match(seventh[4]!.notes!, /Not payment completion, a final total or current dividend rights/);
+  assert.equal(new Set(entries.map(value => value.queryText)).size, 35);
   const coverage = evaluateDatasetCoverage(entries);
-  assert.equal(coverage.total, 30);
-  assert.equal(coverage.reviewed, 30);
+  assert.equal(coverage.total, 35);
+  assert.equal(coverage.reviewed, 35);
   assert.equal(coverage.pending, 0);
-  assert.deepEqual(coverage.modalityCounts, { narrative: 17, table: 13 });
-  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 17, '00164779:000660': 13 });
-  assert.deepEqual(coverage.reportFamilyCounts, { annual: 9, half_year: 8, quarterly: 13 });
+  assert.equal(coverage.sealed, 0);
+  assert.deepEqual(coverage.modalityCounts, { narrative: 17, table: 18 });
+  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 20, '00164779:000660': 15 });
+  assert.deepEqual(coverage.reportFamilyCounts, { annual: 9, half_year: 11, quarterly: 15 });
   assert.deepEqual(coverage.categories, {
-    causal: 4, segment: 3, profit: 3, capex: 2, cash_flow: 3, debt_liquidity: 3,
-    dividend: 2, risk: 3, regulation_litigation: 3, contract_customer: 4, numeric: 13,
-    period: 19, paraphrase: 11, synonym: 2, lexical_sparse: 1, table_targeted: 13,
+    causal: 4, segment: 4, profit: 3, capex: 3, cash_flow: 3, debt_liquidity: 4,
+    dividend: 3, risk: 3, regulation_litigation: 3, contract_customer: 4, numeric: 18,
+    period: 24, paraphrase: 11, synonym: 2, lexical_sparse: 1, table_targeted: 18,
   });
   assert.equal(coverage.correctionCount, 0);
   assert.deepEqual(coverage.errors, []);

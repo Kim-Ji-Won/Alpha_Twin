@@ -10,6 +10,7 @@ import {
   serializeResultArtifact,
 } from '../evaluation/filingDense/artifact.js';
 import { DENSE_PERFORMANCE_CONFIG } from '../evaluation/filingDense/benchmark.js';
+import { canonicalSha256 } from '../evaluation/filingDense/canonical.js';
 import { DENSE_EVAL_RESULT_SCHEMA, DenseEvaluationError } from '../evaluation/filingDense/contracts.js';
 import { loadFinalDecisionDatasets } from '../evaluation/filingDense/dataset.js';
 import { runBenchmarkPreflight } from '../evaluation/filingDense/preflight.js';
@@ -32,7 +33,7 @@ async function preflightWithDatabase(untrusted: unknown) {
 
 test('benchmark preflight fails closed before live work when dataset and approvals are incomplete', async () => {
   const datasets = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
-  const result = runBenchmarkPreflight({
+  const input = {
     ...datasets,
     registeredProfiles: [{ profileId: 'small', profileFingerprint: 'small-fingerprint' }],
     requiredProfileIds: ['small', 'large'],
@@ -45,12 +46,28 @@ test('benchmark preflight fails closed before live work when dataset and approva
     largeCalibrationStatus: 'not_verified',
     bothProfilesFullScopeReady: false,
     performanceFixtureCandidateRows: 10_000,
-  });
+  } satisfies Parameters<typeof runBenchmarkPreflight>[0];
+  const { payload } = datasets.dev;
+  assert.equal(payload.entries.length, 40);
+  assert.ok(payload.entries.every(entry => entry.review.status === 'reviewed'));
+  assert.equal(datasets.holdout.payload.entries.length, 0);
+  const result = runBenchmarkPreflight(input);
   assert.equal(result.ready, false);
-  for (const expected of ['DEV_COUNT_NOT_40', 'HOLDOUT_COUNT_NOT_20', 'PROFILE_NOT_REGISTERED:large',
+  assert.ok(!result.reasons.includes('DEV_COUNT_NOT_40'));
+  assert.ok(!result.reasons.includes('DEV_NOT_FULLY_REVIEWED'));
+  for (const expected of ['HOLDOUT_COUNT_NOT_20', 'PROFILE_NOT_REGISTERED:large',
     'PRODUCTION_DATABASE_GUARD', 'LIVE_BUDGET_NOT_APPROVED', 'PRICING_SNAPSHOT_MISSING',
     'HOST_METADATA_MISSING', 'LARGE_CALIBRATION_NOT_VERIFIED', 'PROFILE_SCOPE_NOT_READY',
     'PERFORMANCE_FIXTURE_BELOW_40K']) assert.ok(result.reasons.includes(expected));
+
+  const partialPayload = { ...payload, entries: payload.entries.slice(0, -1) };
+  assert.equal(partialPayload.entries.length, 39);
+  const partial = runBenchmarkPreflight({
+    ...input, dev: { payload: partialPayload, canonicalHash: canonicalSha256(partialPayload) },
+  });
+  assert.equal(partial.ready, false);
+  assert.ok(partial.reasons.includes('DEV_COUNT_NOT_40'));
+  assert.ok(partial.reasons.includes('HOLDOUT_COUNT_NOT_20'));
 });
 
 test('performance contract distinguishes candidate and physical corpus scale', () => {

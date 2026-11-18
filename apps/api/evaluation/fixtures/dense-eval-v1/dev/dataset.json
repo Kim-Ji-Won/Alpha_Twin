@@ -1983,8 +1983,268 @@
           "reviewerRoleId": "author-review"
         },
         "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Pinned block 1382 reports 375 KRW/share and 265,765 million KRW, with units inside the pin. Adjacent block 1376 records the 2026-04-22 board resolution after the report cutoff; block 1383 gives the 2026-05-31 record date and warns actual total may change. Not payment completion, a final total or current dividend rights. Author review once; automated checks are not additional review."
+      },
+      {
+        "queryId": "DEV-036",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서에 따르면, 권역 안에서 자금이 모자라는 법인에 대응하는 Cash Pooling은 어떤 방식으로 작동하는가?",
+        "categories": [
+          "risk"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_f3c11789bede95cb884766fd6e4b833a",
+                "contentHash": "36a3a104dbcd65db60c4e5c92599dafc78cc1876798ab9300c02d73aa8e5fd2e",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "5. 위험관리 및 파생거래"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 223,
+                  "lastBlockOrdinal": 231
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-18T07:14:30Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Block 228 describes sharing surplus cash with cash-short companies within a region. No guaranteed resolution, savings, liquidity or claim about current operation."
+      },
+      {
+        "queryId": "DEV-037",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서는 보유 특허가 미국에 가장 많은 이유를 무엇이라고 설명하는가?",
+        "categories": [
+          "causal"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_d4e9b5d7512d1d2336ca64ce7d55fa49",
+                "contentHash": "3d8d6048dda37114713d415048b6271a460b10b01cb4d43d2627e55c15848366",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "7. 기타 참고사항"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 262,
+                  "lastBlockOrdinal": 264
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-18T07:14:30Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Block 264 attributes the US patent concentration to responding effectively to US disputes. Not current patent counts or shares, dispute outcomes or legal effect."
+      },
+      {
+        "queryId": "DEV-038",
+        "split": "dev",
+        "queryText": "삼성전자 2025년 사업보고서에서 레인보우로보틱스 주주간 계약에 따라 주식 매도를 청구할 때, 매수인으로 지정할 수 있는 주체는 누구인가?",
+        "categories": [
+          "contract_customer"
+        ],
+        "company": {
+          "corpCode": "00126380",
+          "symbol": "005930"
+        },
+        "reportFamily": "annual",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00126380",
+                "symbol": "005930",
+                "receiptNumber": "20260310002820",
+                "documentId": "1",
+                "chunkId": "chk_f92db66c61ed27642a8d893e2774b558",
+                "contentHash": "2f2e1ae85130efc08bdb5978a7ba3a77b87c515fed354487cd68a412bf284825",
+                "representationFingerprint": "8808a910edf08bc7b1a808643f6e0941bd582c2541c47d4cae565b6299d15155",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "5. 위험관리 및 파생거래"
+                ],
+                "locator": {
+                  "entryName": "20260310002820.xml",
+                  "firstBlockOrdinal": 247,
+                  "lastBlockOrdinal": 247
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-18T07:14:30Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Block 247 describes the contractual right during a specified period to request sale of all or part of the relevant shareholders' holdings to Samsung or its designated third party. Not an actual buyer or present exercisability."
+      },
+      {
+        "queryId": "DEV-039",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서에 따르면, 주요 고객과 공급량·가격을 합의하는 주기는 어떻게 기재돼 있는가?",
+        "categories": [
+          "contract_customer"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_7289ce8240fa19bd0b16cdf70b41b34e",
+                "contentHash": "5e409213c32697fb84396eb4265884c87b203acc1125c478623237ee71d1c34b",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "4. 매출 및 수주상황"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 102,
+                  "lastBlockOrdinal": 112
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-18T07:14:30Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Block 112 describes monthly or quarterly mutual agreement on supply volume and prices with major customers, not one mandatory cycle for every customer. Shared chunk with DEV-023: sales channels, not agreement frequency. Two questions do not imply two independent sources."
+      },
+      {
+        "queryId": "DEV-040",
+        "split": "dev",
+        "queryText": "SK하이닉스 2026년 1분기보고서는 화학물질의 사내 사용을 허용하기 전에 어느 분야의 전문가 검토를 모두 마쳐야 한다고 설명하는가?",
+        "categories": [
+          "risk"
+        ],
+        "company": {
+          "corpCode": "00164779",
+          "symbol": "000660"
+        },
+        "reportFamily": "quarterly",
+        "evidenceModality": "narrative",
+        "currentEffectiveCorrection": false,
+        "evidenceGroups": [
+          {
+            "evidenceGroupId": "G1",
+            "grade": 2,
+            "acceptableChunks": [
+              {
+                "provider": "opendart-fss",
+                "corpCode": "00164779",
+                "symbol": "000660",
+                "receiptNumber": "20260515002287",
+                "documentId": "3",
+                "chunkId": "chk_305e7186a9404552099c5eaadfc6cc58",
+                "contentHash": "83a4b254354fda3687e2274aa42f1cfb0616419212f470847fc7394334f272e6",
+                "representationFingerprint": "ca5ff369515a87b5fe734f42c7c41e0aabd236569c3030a0b638e51a110ebb72",
+                "parserVersion": "1.0.1",
+                "chunkerVersion": "1.0.1",
+                "schemaVersion": "1",
+                "sectionPath": [
+                  "II. 사업의 내용",
+                  "7. 기타 참고사항"
+                ],
+                "locator": {
+                  "entryName": "20260515002287.xml",
+                  "firstBlockOrdinal": 218,
+                  "lastBlockOrdinal": 224
+                }
+              }
+            ]
+          }
+        ],
+        "review": {
+          "status": "reviewed",
+          "reviewRoundCount": 1,
+          "reviewedAt": "2026-11-18T07:14:30Z",
+          "reviewerRoleId": "author-review"
+        },
+        "notes": "Type A historical-source annotation only; no current-effective admission or benchmark approval. Block 221 describes internal pre-use review by safety, health and environment experts, not a general legal obligation, elimination of all risks or proof of current compliance."
       }
     ]
   },
-  "canonicalHash": "5126b29266c6d1c8d9fb66375f53f21ff98771487fb80e3d315261b0ed9c4d23"
+  "canonicalHash": "2267f27253a9978a320891b61bb830a9c79c9b2d74cdd0d9d50a1aab31aa63b4"
 }

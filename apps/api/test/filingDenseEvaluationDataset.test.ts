@@ -121,7 +121,7 @@ test('partial canonical manifests disclose annotation incompleteness', async () 
   assert.ok(coverage.errors.includes('COMPANY_MINIMUM_NOT_MET'));
 });
 
-test('first seven dev tranches preserve author review and historical-source coverage', async () => {
+test('first eight dev tranches preserve author review and historical-source coverage', async () => {
   const { dev, holdout } = await loadFinalDecisionDatasets(ROOT, { allowSealedHoldout: true });
   const entries = dev.payload.entries;
   assert.deepEqual(entries.map(value => value.queryId), [
@@ -132,9 +132,10 @@ test('first seven dev tranches preserve author review and historical-source cove
     'DEV-021', 'DEV-022', 'DEV-023', 'DEV-024', 'DEV-025',
     'DEV-026', 'DEV-027', 'DEV-028', 'DEV-029', 'DEV-030',
     'DEV-031', 'DEV-032', 'DEV-033', 'DEV-034', 'DEV-035',
+    'DEV-036', 'DEV-037', 'DEV-038', 'DEV-039', 'DEV-040',
   ]);
-  assert.equal(entries.length, 35);
-  assert.equal(new Set(entries.map(value => value.queryId)).size, 35);
+  assert.equal(entries.length, 40);
+  assert.equal(new Set(entries.map(value => value.queryId)).size, 40);
   assert.equal(dev.payload.datasetId, 'dense-eval-v1');
   assert.equal(dev.payload.targetCount, 40);
   assert.equal(dev.payload.schemaVersion, 'dense-eval-dataset@1');
@@ -150,6 +151,8 @@ test('first seven dev tranches preserve author review and historical-source cove
     '2ac0c7008c28269d0bbde6f2f3ffe2a017225c3d028a244edf523c830211db4c');
   assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 30) }),
     '42c4df5e5e43d40a4bc9a5db5e549366fa462ac948d4bf7fc7fe3c443205272b');
+  assert.equal(canonicalSha256({ ...dev.payload, entries: entries.slice(0, 35) }),
+    '5126b29266c6d1c8d9fb66375f53f21ff98771487fb80e3d315261b0ed9c4d23');
   assert.equal(holdout.payload.entries.length, 0);
   assert.equal(holdout.payload.targetCount, 20);
   for (const value of entries) {
@@ -179,7 +182,7 @@ test('first seven dev tranches preserve author review and historical-source cove
       '2026-11-06T10:31:54Z', '2026-11-06T11:31:37Z',
       '2026-11-11T11:07:52Z', '2026-11-11T14:27:06Z',
       '2026-11-12T02:40:43Z', '2026-11-15T06:14:18Z',
-      '2026-11-16T12:17:09Z',
+      '2026-11-16T12:17:09Z', '2026-11-18T07:14:30Z',
     ];
     assert.equal(value.review.reviewedAt, reviewedAt[Math.floor(index / 5)]);
   }
@@ -419,18 +422,66 @@ test('first seven dev tranches preserve author review and historical-source cove
   assert.match(seventh[4]!.notes!, /block 1382.*375 KRW\/share and 265,765 million KRW, with units inside the pin/);
   assert.match(seventh[4]!.notes!, /block 1376.*2026-04-22 board resolution after the report cutoff.*block 1383.*2026-05-31 record date.*actual total may change/);
   assert.match(seventh[4]!.notes!, /Not payment completion, a final total or current dividend rights/);
-  assert.equal(new Set(entries.map(value => value.queryText)).size, 35);
+  const eighth = entries.slice(35, 40);
+  assert.deepEqual(eighth.map(value => value.queryText), [
+    '삼성전자 2025년 사업보고서에 따르면, 권역 안에서 자금이 모자라는 법인에 대응하는 Cash Pooling은 어떤 방식으로 작동하는가?',
+    '삼성전자 2025년 사업보고서는 보유 특허가 미국에 가장 많은 이유를 무엇이라고 설명하는가?',
+    '삼성전자 2025년 사업보고서에서 레인보우로보틱스 주주간 계약에 따라 주식 매도를 청구할 때, 매수인으로 지정할 수 있는 주체는 누구인가?',
+    'SK하이닉스 2026년 1분기보고서에 따르면, 주요 고객과 공급량·가격을 합의하는 주기는 어떻게 기재돼 있는가?',
+    'SK하이닉스 2026년 1분기보고서는 화학물질의 사내 사용을 허용하기 전에 어느 분야의 전문가 검토를 모두 마쳐야 한다고 설명하는가?',
+  ]);
+  assert.deepEqual(eighth.map(value => value.categories), [
+    ['risk'], ['causal'], ['contract_customer'], ['contract_customer'], ['risk'],
+  ]);
+  const pins = eighth.map(value => value.evidenceGroups[0]!.acceptableChunks[0]!);
+  // Frozen from Issue #23 comment 6971733326, independently of the dataset.
+  assert.deepEqual(pins.map(pin => canonicalSha256(pin)), [
+    'e96e49f00f09d16c7c3670a1a878c0e6842974e355c1b9ea64c97f2f1d418b78',
+    '82b53a25df8d5096748e6e2fa154254f6b4e4d6ecd6b7ceb43665c34192cf13c',
+    '1fc685c12cd5cdaa41df9b6aea7c48e73b1494cb1774553f4ca22e41931c9da5',
+    'dbafba46db70f57197272702219a2d7f749e9b9e642adf51cb97e4678803c04b',
+    'a5c9ef0802de3d31240a617ba264f397ac19c71b7369cebf8f8e7ee4549b934e',
+  ]);
+  const canonicalLocators8 = [
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 223, lastBlockOrdinal: 231 },
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 262, lastBlockOrdinal: 264 },
+    { entryName: '20260310002820.xml', firstBlockOrdinal: 247, lastBlockOrdinal: 247 },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 102, lastBlockOrdinal: 112 },
+    { entryName: '20260515002287.xml', firstBlockOrdinal: 218, lastBlockOrdinal: 224 },
+  ];
+  for (const [i, value] of eighth.entries()) {
+    const pin = pins[i]!;
+    assert.deepEqual(value.company, { corpCode: pin.corpCode, symbol: pin.symbol });
+    assert.equal(value.reportFamily, i < 3 ? 'annual' : 'quarterly');
+    assert.equal(value.evidenceModality, 'narrative');
+    assert.deepEqual(evaluationToCanonicalLocator(pin.locator), canonicalLocators8[i]);
+    assert.deepEqual(canonicalToEvaluationLocator(canonicalLocators8[i]!), pin.locator);
+    assert.match(value.notes!, /Type A historical-source annotation only/);
+    assert.ok(value.notes!.length <= 500);
+  }
+  assert.match(eighth[0]!.notes!, /No guaranteed resolution, savings, liquidity/);
+  assert.match(eighth[1]!.notes!, /Not current patent counts or shares, dispute outcomes or legal effect/);
+  assert.match(eighth[2]!.notes!, /specified period.*all or part.*Not an actual buyer or present exercisability/);
+  assert.match(eighth[3]!.notes!, /not one mandatory cycle.*Shared chunk with DEV-023.*not imply two independent sources/);
+  assert.match(eighth[4]!.notes!, /not a general legal obligation, elimination of all risks or proof of current compliance/);
+  const salesChannels = entries[22]!;
+  const agreementFrequency = eighth[3]!;
+  assert.equal(salesChannels.evidenceGroups[0]!.acceptableChunks[0]!.chunkId, pins[3]!.chunkId);
+  assert.notEqual(salesChannels.queryText, agreementFrequency.queryText);
+  assert.match(salesChannels.queryText, /직판 거래와 대리점 거래/);
+  assert.match(agreementFrequency.queryText, /공급량·가격을 합의하는 주기/);
+  assert.equal(new Set(entries.map(value => value.queryText)).size, 40);
   const coverage = evaluateDatasetCoverage(entries);
-  assert.equal(coverage.total, 35);
-  assert.equal(coverage.reviewed, 35);
+  assert.equal(coverage.total, 40);
+  assert.equal(coverage.reviewed, 40);
   assert.equal(coverage.pending, 0);
   assert.equal(coverage.sealed, 0);
-  assert.deepEqual(coverage.modalityCounts, { narrative: 17, table: 18 });
-  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 20, '00164779:000660': 15 });
-  assert.deepEqual(coverage.reportFamilyCounts, { annual: 9, half_year: 11, quarterly: 15 });
+  assert.deepEqual(coverage.modalityCounts, { narrative: 22, table: 18 });
+  assert.deepEqual(coverage.companyCounts, { '00126380:005930': 23, '00164779:000660': 17 });
+  assert.deepEqual(coverage.reportFamilyCounts, { annual: 12, half_year: 11, quarterly: 17 });
   assert.deepEqual(coverage.categories, {
-    causal: 4, segment: 4, profit: 3, capex: 3, cash_flow: 3, debt_liquidity: 4,
-    dividend: 3, risk: 3, regulation_litigation: 3, contract_customer: 4, numeric: 18,
+    causal: 5, segment: 4, profit: 3, capex: 3, cash_flow: 3, debt_liquidity: 4,
+    dividend: 3, risk: 5, regulation_litigation: 3, contract_customer: 6, numeric: 18,
     period: 24, paraphrase: 11, synonym: 2, lexical_sparse: 1, table_targeted: 18,
   });
   assert.equal(coverage.correctionCount, 0);
@@ -442,7 +493,7 @@ test('first seven dev tranches preserve author review and historical-source cove
   for (const category of ['causal', 'risk', 'numeric', 'period', 'table_targeted']) {
     assert.ok(categories.has(category), category);
   }
-  assert.equal(assessDatasetReadiness(dev, holdout).ready, false);
+  assert.deepEqual(assessDatasetReadiness(dev, holdout), { ready: false, reasons: ['HOLDOUT_COUNT_NOT_20'] });
 });
 
 test('current-effective evidence seam detects missing pinned chunks', () => {
